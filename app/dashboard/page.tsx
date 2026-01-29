@@ -44,7 +44,7 @@ export default function DashboardPage() {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data() as UserProfile;
-          setUserData({ id: userDoc.id, ...data });
+          setMyRequests([ { ...newReq, id: docRef.id }, ...myRequests ]);
           setEditName(data.displayName || ''); setEditPhone(data.phoneNumber || '');
         }
 
