@@ -34,6 +34,13 @@ interface DelegationRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+interface Conference {
+  id: string;
+  title: string;
+  date: string;
+  createdAt: string;
+}
+
 interface NewsItem { 
   id: string; 
   title: string; 
@@ -73,11 +80,13 @@ interface DocTemplate {
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'delegations' | 'news' | 'requests' | 'resources' | 'team'>('users');
+  // Добавлена вкладка 'conferences'
+  const [activeTab, setActiveTab] = useState<'users' | 'delegations' | 'conferences' | 'news' | 'requests' | 'resources' | 'team'>('users');
 
   // --- ДАННЫЕ ---
   const [users, setUsers] = useState<UserData[]>([]);
   const [delegations, setDelegations] = useState<DelegationRequest[]>([]);
+  const [conferences, setConferences] = useState<Conference[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [requests, setRequests] = useState<RequestData[]>([]);
@@ -85,6 +94,10 @@ export default function AdminPage() {
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
 
   // --- ФОРМЫ ---
+  // Конференции
+  const [confTitle, setConfTitle] = useState('');
+  const [confDate, setConfDate] = useState('');
+
   // Новости
   const [newsTitle, setNewsTitle] = useState(''); 
   const [newsBody, setNewsBody] = useState(''); 
@@ -104,7 +117,6 @@ export default function AdminPage() {
 
   // Ответы
   const [replyText, setReplyText] = useState<{[key: string]: string}>({});
-
   const [isUploading, setIsUploading] = useState(false);
 
   // --- 1. ПРОВЕРКА ПРАВ И ЗАГРУЗКА ---
@@ -136,6 +148,10 @@ export default function AdminPage() {
       const dSnap = await getDocs(collection(db, 'delegation_requests'));
       setDelegations(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as DelegationRequest)).sort((a,b) => a.createdAt < b.createdAt ? 1 : -1));
 
+      // Конференции
+      const cSnap = await getDocs(collection(db, 'conferences'));
+      setConferences(cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Conference)).sort((a,b) => a.date > b.date ? 1 : -1));
+
       // Новости
       const nSnap = await getDocs(collection(db, 'news')); 
       setNews(nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem)).sort((a,b) => a.createdAt < b.createdAt ? 1 : -1));
@@ -166,7 +182,29 @@ export default function AdminPage() {
 
   // --- ДЕЙСТВИЯ (ACTIONS) ---
 
-  // 1. ДЕЛЕГИРОВАНИЕ
+  // 1. КОНФЕРЕНЦИИ
+  const handleCreateConference = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!confTitle || !confDate) return;
+    try {
+      await addDoc(collection(db, 'conferences'), {
+        title: confTitle,
+        date: confDate, // ISO строка из input type="datetime-local"
+        createdAt: new Date().toISOString()
+      });
+      setConfTitle(''); setConfDate(''); fetchData();
+      alert('Конференция создана. Делегирование откроется за 30 дней до этой даты.');
+    } catch { alert('Ошибка при создании конференции'); }
+  };
+
+  const handleDeleteConference = async (id: string) => {
+    if(confirm('Удалить конференцию?')) { 
+      await deleteDoc(doc(db, 'conferences', id)); 
+      fetchData(); 
+    }
+  };
+
+  // 2. ДЕЛЕГИРОВАНИЕ
   const handleApproveDelegation = async (req: DelegationRequest) => {
     if (!confirm(`Передать голос от ${req.fromName} к ${req.toName}?`)) return;
     try {
@@ -208,7 +246,7 @@ export default function AdminPage() {
     } catch (e) { alert('Ошибка удаления'); }
   };
 
-  // 2. ПОЛЬЗОВАТЕЛИ
+  // 3. ПОЛЬЗОВАТЕЛИ
   const handleApproveUser = async (id: string) => { 
     if(confirm('Подтвердить сотрудника?')) { 
       // При одобрении даем 1 голос по умолчанию
@@ -223,7 +261,7 @@ export default function AdminPage() {
     }
   };
 
-  // 3. НОВОСТИ
+  // 4. НОВОСТИ
   const handlePublishNews = async (e: React.FormEvent) => { 
     e.preventDefault(); setIsUploading(true); 
     try { 
@@ -239,7 +277,7 @@ export default function AdminPage() {
     if(confirm('Удалить новость?')) { await deleteDoc(doc(db, 'news', id)); fetchData(); }
   };
 
-  // 4. СОВЕТ
+  // 5. СОВЕТ
   const handleAddMember = async (e: React.FormEvent) => { 
     e.preventDefault(); setIsUploading(true); 
     try { 
@@ -255,7 +293,7 @@ export default function AdminPage() {
     if(confirm('Удалить участника?')) { await deleteDoc(doc(db, 'team', id)); fetchData(); }
   };
 
-  // 5. РЕСУРСЫ (Ссылки и Шаблоны)
+  // 6. РЕСУРСЫ (Ссылки и Шаблоны)
   const handleAddLink = async (e: React.FormEvent) => { 
     e.preventDefault(); 
     try { 
@@ -282,7 +320,7 @@ export default function AdminPage() {
     if(confirm('Удалить шаблон?')) { await deleteDoc(doc(db, 'templates', id)); fetchData(); }
   };
 
-  // 6. ОБРАЩЕНИЯ
+  // 7. ОБРАЩЕНИЯ
   const handleReplyRequest = async (reqId: string) => {
     const text = replyText[reqId];
     if (!text) return;
@@ -318,8 +356,9 @@ export default function AdminPage() {
         {/* НАВИГАЦИЯ (TABS) */}
         <div className="max-w-7xl mx-auto px-4 flex gap-2 overflow-x-auto pb-2 no-scrollbar">
           {[
-            { id: 'users', label: 'Участники', count: pendingUsers.length, color: 'bg-red-600' },
+            { id: 'conferences', label: '📅 События', count: 0, color: '' },
             { id: 'delegations', label: 'Делегирование', count: pendingDelegations.length, color: 'bg-purple-600' },
+            { id: 'users', label: 'Участники', count: pendingUsers.length, color: 'bg-red-600' },
             { id: 'requests', label: 'Обращения', count: activeRequests, color: 'bg-blue-600' },
             { id: 'news', label: 'Новости' },
             { id: 'resources', label: 'Ресурсы' },
@@ -346,7 +385,124 @@ export default function AdminPage() {
       <div className="flex-grow p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           
-          {/* 1. УЧАСТНИКИ */}
+          {/* 1. КОНФЕРЕНЦИИ (НОВАЯ ВКЛАДКА) */}
+          {activeTab === 'conferences' && (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl border-t-4 border-indigo-500 shadow animate-in fade-in">
+                <h2 className="font-black text-xl mb-4">Назначить конференцию</h2>
+                <p className="text-sm text-gray-500 mb-4">Делегирование откроется автоматически за 30 дней до даты начала.</p>
+                <form onSubmit={handleCreateConference} className="flex flex-col md:flex-row gap-4 items-end">
+                  <div className="w-full">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Название события</label>
+                    <input 
+                      className="w-full border p-3 rounded-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" 
+                      placeholder="Например: Отчетная конференция 2026" 
+                      value={confTitle} 
+                      onChange={e=>setConfTitle(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <div className="w-full">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Дата и Время начала</label>
+                    <input 
+                      type="datetime-local" 
+                      className="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" 
+                      value={confDate} 
+                      onChange={e=>setConfDate(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <button className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 w-full md:w-auto shadow-lg shadow-indigo-200">
+                    Создать
+                  </button>
+                </form>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-bold text-gray-500 uppercase text-xs">Предстоящие и прошедшие события</h3>
+                {conferences.map(conf => {
+                  const isPast = new Date(conf.date) < new Date();
+                  return (
+                    <div key={conf.id} className={`p-4 rounded-xl border flex justify-between items-center ${isPast ? 'bg-gray-100 opacity-70' : 'bg-white shadow-sm border-indigo-100'}`}>
+                      <div>
+                        <h4 className="font-black text-lg">{conf.title}</h4>
+                        <p className={`font-bold text-sm ${isPast ? 'text-gray-500' : 'text-green-600'}`}>
+                          {new Date(conf.date).toLocaleString()} {isPast ? '(Завершена)' : '(Активна)'}
+                        </p>
+                      </div>
+                      <button onClick={()=>handleDeleteConference(conf.id)} className="text-red-500 font-bold px-3 py-1 bg-red-50 rounded hover:bg-red-100 border border-transparent hover:border-red-200 text-xs uppercase">
+                        Удалить
+                      </button>
+                    </div>
+                  )
+                })}
+                {conferences.length === 0 && <p className="text-gray-400 italic p-4 text-center border-dashed border-2 rounded-xl">Событий пока не запланировано.</p>}
+              </div>
+            </div>
+          )}
+
+          {/* 2. ДЕЛЕГИРОВАНИЕ */}
+          {activeTab === 'delegations' && (
+            <div className="space-y-6">
+              <h2 className="font-black text-2xl mb-4">Управление голосами</h2>
+              
+              {/* Новые заявки */}
+              {pendingDelegations.length === 0 ? (
+                <div className="bg-gray-100 p-8 rounded-xl text-center text-gray-500 font-bold border border-dashed border-gray-300">
+                  Нет новых заявок на делегирование.
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {pendingDelegations.map(req => (
+                    <div key={req.id} className="bg-white p-6 rounded-xl border-l-4 border-indigo-600 shadow-md flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                      <div className="flex-grow">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                           <span className="font-black text-lg bg-gray-100 px-2 py-1 rounded">{req.fromName}</span>
+                           <span className="text-gray-400 font-bold text-xl">➝</span>
+                           <span className="font-black text-lg bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-200">{req.toName}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 font-bold mb-3">Создано: {new Date(req.createdAt).toLocaleString()}</p>
+                        
+                        {req.docUrl ? (
+                          <a href={req.docUrl} target="_blank" className="inline-flex items-center gap-2 text-blue-600 font-bold text-sm bg-blue-50 px-3 py-2 rounded hover:bg-blue-100 transition">
+                            <span>📄</span> Скачать/Открыть доверенность
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Документ не приложен (устная договоренность)</span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                        <button onClick={()=>handleApproveDelegation(req)} className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition">
+                          Одобрить передачу
+                        </button>
+                        <button onClick={()=>handleRejectDelegation(req.id, req.fromId)} className="flex-1 bg-white text-red-600 border-2 border-red-100 px-6 py-3 rounded-xl font-bold hover:bg-red-50 transition">
+                          Отклонить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* История */}
+              {delegations.some(d => d.status === 'approved') && (
+                <div className="mt-10 pt-8 border-t border-gray-200">
+                  <h3 className="font-bold text-gray-400 uppercase text-xs mb-4 tracking-wider">История одобренных заявок</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 opacity-70">
+                    {delegations.filter(d => d.status === 'approved').map(d => (
+                      <div key={d.id} className="flex justify-between items-center text-sm bg-white p-3 rounded border">
+                        <span className="font-medium">{d.fromName} ➝ {d.toName}</span>
+                        <span className="text-green-600 font-black text-xs uppercase bg-green-50 px-2 py-1 rounded">Выполнено</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. УЧАСТНИКИ */}
           {activeTab === 'users' && (
              <div className="space-y-6">
                {/* Ожидают подтверждения */}
@@ -433,68 +589,7 @@ export default function AdminPage() {
              </div>
           )}
 
-          {/* 2. ДЕЛЕГИРОВАНИЕ (НОВАЯ ВКЛАДКА) */}
-          {activeTab === 'delegations' && (
-            <div className="space-y-6">
-              <h2 className="font-black text-2xl mb-4">Управление голосами</h2>
-              
-              {/* Новые заявки */}
-              {pendingDelegations.length === 0 ? (
-                <div className="bg-gray-100 p-8 rounded-xl text-center text-gray-500 font-bold border border-dashed border-gray-300">
-                  Нет новых заявок на делегирование.
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {pendingDelegations.map(req => (
-                    <div key={req.id} className="bg-white p-6 rounded-xl border-l-4 border-indigo-600 shadow-md flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                      <div className="flex-grow">
-                        <div className="flex items-center gap-3 mb-2 flex-wrap">
-                           <span className="font-black text-lg bg-gray-100 px-2 py-1 rounded">{req.fromName}</span>
-                           <span className="text-gray-400 font-bold text-xl">➝</span>
-                           <span className="font-black text-lg bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-200">{req.toName}</span>
-                        </div>
-                        <p className="text-xs text-gray-500 font-bold mb-3">Создано: {new Date(req.createdAt).toLocaleString()}</p>
-                        
-                        {req.docUrl ? (
-                          <a href={req.docUrl} target="_blank" className="inline-flex items-center gap-2 text-blue-600 font-bold text-sm bg-blue-50 px-3 py-2 rounded hover:bg-blue-100 transition">
-                            <span>📄</span> Скачать/Открыть доверенность
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Документ не приложен (устная договоренность)</span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                        <button onClick={()=>handleApproveDelegation(req)} className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition">
-                          Одобрить передачу
-                        </button>
-                        <button onClick={()=>handleRejectDelegation(req.id, req.fromId)} className="flex-1 bg-white text-red-600 border-2 border-red-100 px-6 py-3 rounded-xl font-bold hover:bg-red-50 transition">
-                          Отклонить
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* История */}
-              {delegations.some(d => d.status === 'approved') && (
-                <div className="mt-10 pt-8 border-t border-gray-200">
-                  <h3 className="font-bold text-gray-400 uppercase text-xs mb-4 tracking-wider">История одобренных заявок</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 opacity-70">
-                    {delegations.filter(d => d.status === 'approved').map(d => (
-                      <div key={d.id} className="flex justify-between items-center text-sm bg-white p-3 rounded border">
-                        <span className="font-medium">{d.fromName} ➝ {d.toName}</span>
-                        <span className="text-green-600 font-black text-xs uppercase bg-green-50 px-2 py-1 rounded">Выполнено</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 3. ОБРАЩЕНИЯ */}
+          {/* 4. ОБРАЩЕНИЯ */}
           {activeTab === 'requests' && (
             <div className="bg-white p-6 rounded-xl border-t-4 border-blue-600 shadow space-y-6">
               <h2 className="font-black text-xl">Входящие вопросы</h2>
@@ -539,16 +634,16 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* 4. НОВОСТИ */}
+          {/* 5. НОВОСТИ */}
           {activeTab === 'news' && (
             <div className="bg-white p-6 rounded-xl border-t-4 border-indigo-600 shadow">
               <h2 className="text-xl font-black mb-6">Публикация новостей</h2>
               <form onSubmit={handlePublishNews} className="space-y-4 mb-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <input className="w-full p-3 border border-gray-300 rounded text-lg font-black" placeholder="Заголовок новости" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} required />
-                <textarea className="w-full p-3 border border-gray-300 rounded h-32 text-sm font-medium" placeholder="Текст новости..." value={newsBody} onChange={e => setNewsBody(e.target.value)} required />
+                <input className="w-full p-3 border border-gray-300 rounded text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Заголовок новости" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} required />
+                <textarea className="w-full p-3 border border-gray-300 rounded h-32 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Текст новости..." value={newsBody} onChange={e => setNewsBody(e.target.value)} required />
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-sm font-bold text-gray-500 w-full" />
-                  <button disabled={isUploading} className="bg-indigo-600 text-white px-8 py-2 rounded font-bold w-full md:w-auto hover:bg-indigo-700">
+                  <button disabled={isUploading} className="bg-indigo-600 text-white px-8 py-2 rounded font-bold w-full md:w-auto hover:bg-indigo-700 shadow-lg shadow-indigo-200">
                     {isUploading ? '...' : 'Опубликовать'}
                   </button>
                 </div>
@@ -571,7 +666,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* 5. РЕСУРСЫ */}
+          {/* 6. РЕСУРСЫ */}
           {activeTab === 'resources' && (
             <div className="grid md:grid-cols-2 gap-8">
               {/* Ссылки */}
@@ -618,7 +713,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* 6. СОВЕТ */}
+          {/* 7. СОВЕТ */}
           {activeTab === 'team' && (
             <div className="bg-white p-6 rounded-xl border-t-4 border-green-600 shadow">
               <h2 className="text-xl font-black mb-6">Совет Профсоюза</h2>
