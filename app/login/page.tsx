@@ -70,6 +70,14 @@ export default function LoginPage() {
             />
           </div>
 
+          {/* --- ВСТАВИТЬ ЭТОТ БЛОК --- */}
+          <div className="flex justify-end">
+            <Link href="/forgot-password" className="text-sm text-blue-600 font-bold hover:underline">
+              Забыли пароль?
+            </Link>
+          </div>
+          {/* --------------------------- */}
+
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium"
