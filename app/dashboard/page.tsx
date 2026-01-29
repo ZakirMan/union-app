@@ -7,8 +7,28 @@ import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-interface UserProfile { id: string; displayName: string; email: string; phoneNumber?: string; position: string; role: string; status: string; photoUrl?: string; voteWeight?: number; delegatedTo?: string; delegatedToName?: string; delegationStatus?: 'pending' | 'approved'; delegatedFrom?: string[]; }
-interface Conference { id: string; title: string; date: string; }
+// --- ТИПЫ ДАННЫХ ---
+interface UserProfile { 
+  id: string; 
+  displayName: string; 
+  email: string; 
+  phoneNumber?: string; 
+  position: string; 
+  role: string; 
+  status: string; 
+  photoUrl?: string; 
+  voteWeight?: number; 
+  delegatedTo?: string; 
+  delegatedToName?: string; 
+  delegationStatus?: 'pending' | 'approved'; 
+  delegatedFrom?: string[]; 
+}
+
+interface Conference { 
+  id: string; 
+  title: string; 
+  date: string; 
+}
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -16,18 +36,26 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'profile'>('news');
 
+  // Данные
   const [news, setNews] = useState<any[]>([]);
   const [links, setLinks] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [colleagues, setColleagues] = useState<UserProfile[]>([]);
-  const [nextConference, setNextConference] = useState<Conference | null>(null); // <--- НОВОЕ
+  const [nextConference, setNextConference] = useState<Conference | null>(null); // Ближайшая конференция
 
+  // Формы
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(''); const [editPhone, setEditPhone] = useState(''); const [editFile, setEditFile] = useState<File | null>(null); const [isSavingProfile, setIsSavingProfile] = useState(false);
   
+  // Редактирование профиля
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(''); 
+  const [editPhone, setEditPhone] = useState(''); 
+  const [editFile, setEditFile] = useState<File | null>(null); 
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  
+  // Делегирование
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [selectedDelegateId, setSelectedDelegateId] = useState('');
   const [delegateFile, setDelegateFile] = useState<File | null>(null);
@@ -35,25 +63,29 @@ export default function DashboardPage() {
 
   const router = useRouter();
 
+  // --- ЗАГРУЗКА ДАННЫХ ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) { router.push('/login'); return; }
       setUser(currentUser);
 
       try {
+        // 1. Профиль пользователя
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data() as UserProfile;
-          setMyRequests([ { ...newReq, id: docRef.id }, ...myRequests ]);
-          setEditName(data.displayName || ''); setEditPhone(data.phoneNumber || '');
+          setUserData({ id: userDoc.id, ...data });
+          setEditName(data.displayName || ''); 
+          setEditPhone(data.phoneNumber || '');
         }
 
+        // 2. Загрузка коллекций
         const [lSnap, tSnap, nSnap, uSnap, cSnap] = await Promise.all([
           getDocs(collection(db, 'links')),
           getDocs(collection(db, 'templates')),
           getDocs(collection(db, 'news')),
           getDocs(query(collection(db, 'users'), where('status', '==', 'approved'))),
-          getDocs(collection(db, 'conferences')) // <--- Загружаем конференции
+          getDocs(collection(db, 'conferences')) // Загружаем конференции
         ]);
 
         setLinks(lSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -64,23 +96,26 @@ export default function DashboardPage() {
         newsList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
         setNews(newsList);
 
+        // Список коллег (без себя)
         setColleagues(uSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)).filter(u => u.id !== currentUser.uid));
 
-        // Находим БЛИЖАЙШУЮ БУДУЩУЮ конференцию
+        // 3. Поиск ближайшей конференции
         const now = new Date();
         const confs = cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Conference));
         // Сортируем по дате
         confs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        // Ищем первую, которая еще не закончилась (или берем последнюю)
-        // Для простоты берем самую позднюю из будущих, или самую последнюю вообще
+        
+        // Берем первую будущую конференцию
         const upcoming = confs.filter(c => new Date(c.date) > now);
+        
         if (upcoming.length > 0) {
            setNextConference(upcoming[0]); 
         } else if (confs.length > 0) {
-           // Если все прошли, берем последнюю, чтобы показать, что она была
+           // Или последнюю прошедшую (чтобы просто показать инфо)
            setNextConference(confs[confs.length - 1]);
         }
 
+        // 4. Мои обращения
         const qReq = query(collection(db, 'requests'), where('userId', '==', currentUser.uid));
         const rSnap = await getDocs(qReq);
         const reqs = rSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -95,7 +130,7 @@ export default function DashboardPage() {
 
   const handleLogout = async () => { await signOut(auth); router.push('/'); };
 
-  // Логика проверки даты делегирования
+  // --- ЛОГИКА ДАТЫ ДЕЛЕГИРОВАНИЯ ---
   const getDelegationState = () => {
     if (!nextConference) return { isOpen: false, message: 'Нет запланированных конференций' };
     
@@ -112,16 +147,78 @@ export default function DashboardPage() {
 
   const delegationState = getDelegationState();
 
-  // Сохранение и отправка (без изменений логики)
-  const sendRequest = async (e: React.FormEvent) => { e.preventDefault(); if (!message.trim() || !user) return; setIsSending(true); try { const newReq = { userId: user.uid, userEmail: user.email, text: message, status: 'new', createdAt: new Date().toISOString() }; const docRef = await addDoc(collection(db, 'requests'), newReq); setMyRequests([ { id: docRef.id, ...newReq }, ...myRequests ]); setMessage(''); } catch { alert('Ошибка'); } finally { setIsSending(false); } };
-  const handleSaveProfile = async () => { if (!user || !userData) return; setIsSavingProfile(true); try { let photoUrl = userData.photoUrl; if (editFile) { const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`); await uploadBytes(storageRef, editFile); photoUrl = await getDownloadURL(storageRef); } await updateDoc(doc(db, 'users', user.uid), { displayName: editName, phoneNumber: editPhone, photoUrl }); setUserData({ ...userData, displayName: editName, phoneNumber: editPhone, photoUrl }); setIsEditing(false); setEditFile(null); } catch { alert('Ошибка'); } finally { setIsSavingProfile(false); } };
-  const handleSubmitDelegation = async (e: React.FormEvent) => { e.preventDefault(); if (!user || !selectedDelegateId) return; setIsSubmittingDelegation(true); try { let docUrl = ''; if (delegateFile) { const docRef = ref(storage, `delegations/${user.uid}_${Date.now()}`); await uploadBytes(docRef, delegateFile); docUrl = await getDownloadURL(docRef); } const delegateUser = colleagues.find(c => c.id === selectedDelegateId); await addDoc(collection(db, 'delegation_requests'), { fromId: user.uid, fromName: userData?.displayName, toId: selectedDelegateId, toName: delegateUser?.displayName, docUrl, createdAt: new Date().toISOString(), status: 'pending' }); await updateDoc(doc(db, 'users', user.uid), { delegationStatus: 'pending', delegatedToName: delegateUser?.displayName }); setUserData(prev => prev ? ({ ...prev, delegationStatus: 'pending', delegatedToName: delegateUser?.displayName }) : null); setShowDelegateModal(false); alert('Заявка отправлена.'); } catch (e) { alert('Ошибка'); } finally { setIsSubmittingDelegation(false); } };
+  // --- ОТПРАВКА СООБЩЕНИЯ (ЧАТ) ---
+  const sendRequest = async (e: React.FormEvent) => { 
+    e.preventDefault(); 
+    if (!message.trim() || !user) return; 
+    setIsSending(true); 
+    try { 
+      const newReqData = { userId: user.uid, userEmail: user.email, text: message, status: 'new', createdAt: new Date().toISOString() }; 
+      const docRef = await addDoc(collection(db, 'requests'), newReqData); 
+      // ИСПРАВЛЕНИЕ ОШИБКИ ID:
+      setMyRequests([ { ...newReqData, id: docRef.id }, ...myRequests ]); 
+      setMessage(''); 
+    } catch { alert('Ошибка'); } finally { setIsSending(false); } 
+  };
+
+  // --- СОХРАНЕНИЕ ПРОФИЛЯ ---
+  const handleSaveProfile = async () => { 
+    if (!user || !userData) return; 
+    setIsSavingProfile(true); 
+    try { 
+      let photoUrl = userData.photoUrl; 
+      if (editFile) { 
+        const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`); 
+        await uploadBytes(storageRef, editFile); 
+        photoUrl = await getDownloadURL(storageRef); 
+      } 
+      await updateDoc(doc(db, 'users', user.uid), { displayName: editName, phoneNumber: editPhone, photoUrl }); 
+      setUserData({ ...userData, displayName: editName, phoneNumber: editPhone, photoUrl }); 
+      setIsEditing(false); setEditFile(null); 
+    } catch { alert('Ошибка'); } finally { setIsSavingProfile(false); } 
+  };
+
+  // --- ОТПРАВКА ЗАЯВКИ НА ДЕЛЕГИРОВАНИЕ ---
+  const handleSubmitDelegation = async (e: React.FormEvent) => { 
+    e.preventDefault(); 
+    if (!user || !selectedDelegateId) return; 
+    setIsSubmittingDelegation(true); 
+    try { 
+      let docUrl = ''; 
+      if (delegateFile) { 
+        const docRef = ref(storage, `delegations/${user.uid}_${Date.now()}`); 
+        await uploadBytes(docRef, delegateFile); 
+        docUrl = await getDownloadURL(docRef); 
+      } 
+      const delegateUser = colleagues.find(c => c.id === selectedDelegateId); 
+      
+      await addDoc(collection(db, 'delegation_requests'), { 
+        fromId: user.uid, 
+        fromName: userData?.displayName, 
+        toId: selectedDelegateId, 
+        toName: delegateUser?.displayName, 
+        docUrl, 
+        createdAt: new Date().toISOString(), 
+        status: 'pending' 
+      }); 
+      
+      await updateDoc(doc(db, 'users', user.uid), { 
+        delegationStatus: 'pending', 
+        delegatedToName: delegateUser?.displayName 
+      }); 
+      
+      setUserData(prev => prev ? ({ ...prev, delegationStatus: 'pending', delegatedToName: delegateUser?.displayName }) : null); 
+      setShowDelegateModal(false); 
+      alert('Заявка отправлена.'); 
+    } catch (e) { alert('Ошибка'); } finally { setIsSubmittingDelegation(false); } 
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500">Загрузка...</div>;
   if (userData?.status === 'pending') return <div className="p-10 text-center">Ожидание подтверждения</div>;
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-black pb-24">
+      {/* HEADER */}
       {activeTab !== 'profile' && <div className="bg-blue-700 text-white p-6 rounded-b-3xl shadow-lg mb-6 sticky top-0 z-40"><h1 className="text-2xl font-black">{activeTab === 'news' ? 'Новости' : activeTab === 'chat' ? 'Связь' : 'Ресурсы'}</h1></div>}
       
       <div className="max-w-xl mx-auto px-4 mt-6">
@@ -159,11 +256,15 @@ export default function DashboardPage() {
              <div className="bg-white p-6 rounded-3xl shadow-sm border border-indigo-100 relative overflow-hidden">
                
                {/* Информация о ближайшей конференции */}
-               {nextConference && (
+               {nextConference ? (
                  <div className="mb-4 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
                     <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Ближайшее событие</p>
                     <p className="font-black text-indigo-900 leading-tight">{nextConference.title}</p>
                     <p className="text-xs font-bold text-indigo-600">{new Date(nextConference.date).toLocaleString()}</p>
+                 </div>
+               ) : (
+                 <div className="mb-4 text-center">
+                    <p className="text-xs text-gray-400">Нет запланированных конференций</p>
                  </div>
                )}
 
