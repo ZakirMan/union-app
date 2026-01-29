@@ -16,11 +16,12 @@ interface UserData {
   position: string; 
   role: string; 
   status: string;
-  voteWeight?: number;        // Вес голоса
-  delegatedTo?: string;       // Кому передал
-  delegatedToName?: string;   // Имя кому передал
-  delegatedFrom?: string[];   // От кого получил
-  delegationStatus?: string;  // Статус делегирования
+  voteWeight?: number; 
+  delegatedTo?: string; 
+  delegatedToName?: string; 
+  delegatedFrom?: string[]; 
+  delegationStatus?: string;
+  delegationConferenceId?: string; // ID события, к которому привязано делегирование
 }
 
 interface DelegationRequest {
@@ -32,6 +33,8 @@ interface DelegationRequest {
   docUrl?: string;
   createdAt: string;
   status: 'pending' | 'approved' | 'rejected';
+  conferenceId?: string;    // ID события из заявки
+  conferenceTitle?: string; // Название события из заявки
 }
 
 interface Conference {
@@ -41,49 +44,18 @@ interface Conference {
   createdAt: string;
 }
 
-interface NewsItem { 
-  id: string; 
-  title: string; 
-  body: string; 
-  imageUrl?: string; 
-  createdAt: string; 
-}
-
-interface TeamMember { 
-  id: string; 
-  name: string; 
-  role: string; 
-  photoUrl: string; 
-}
-
-interface RequestData { 
-  id: string; 
-  userEmail: string; 
-  text: string; 
-  createdAt: string; 
-  response?: string; 
-}
-
-interface LinkItem { 
-  id: string; 
-  title: string; 
-  url: string; 
-}
-
-interface DocTemplate { 
-  id: string; 
-  title: string; 
-  description?: string; 
-  fileUrl: string; 
-}
+interface NewsItem { id: string; title: string; body: string; imageUrl?: string; createdAt: string; }
+interface TeamMember { id: string; name: string; role: string; photoUrl: string; }
+interface RequestData { id: string; userEmail: string; text: string; createdAt: string; response?: string; }
+interface LinkItem { id: string; title: string; url: string; }
+interface DocTemplate { id: string; title: string; description?: string; fileUrl: string; }
 
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  // Добавлена вкладка 'conferences'
   const [activeTab, setActiveTab] = useState<'users' | 'delegations' | 'conferences' | 'news' | 'requests' | 'resources' | 'team'>('users');
 
-  // --- ДАННЫЕ ---
+  // Данные
   const [users, setUsers] = useState<UserData[]>([]);
   const [delegations, setDelegations] = useState<DelegationRequest[]>([]);
   const [conferences, setConferences] = useState<Conference[]>([]);
@@ -93,80 +65,51 @@ export default function AdminPage() {
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
 
-  // --- ФОРМЫ ---
-  // Конференции
-  const [confTitle, setConfTitle] = useState('');
-  const [confDate, setConfDate] = useState('');
-
-  // Новости
-  const [newsTitle, setNewsTitle] = useState(''); 
-  const [newsBody, setNewsBody] = useState(''); 
-  const [newsFile, setNewsFile] = useState<File | null>(null);
-
-  // Совет
-  const [memberName, setMemberName] = useState(''); 
-  const [memberRole, setMemberRole] = useState(''); 
-  const [memberFile, setMemberFile] = useState<File | null>(null);
-
-  // Ресурсы
-  const [linkTitle, setLinkTitle] = useState(''); 
-  const [linkUrl, setLinkUrl] = useState('');
-  const [tplTitle, setTplTitle] = useState('');
-  const [tplDesc, setTplDesc] = useState('');
-  const [tplFile, setTplFile] = useState<File | null>(null);
-
-  // Ответы
+  // Формы
+  const [confTitle, setConfTitle] = useState(''); const [confDate, setConfDate] = useState('');
+  const [newsTitle, setNewsTitle] = useState(''); const [newsBody, setNewsBody] = useState(''); const [newsFile, setNewsFile] = useState<File | null>(null);
+  const [memberName, setMemberName] = useState(''); const [memberRole, setMemberRole] = useState(''); const [memberFile, setMemberFile] = useState<File | null>(null);
+  const [linkTitle, setLinkTitle] = useState(''); const [linkUrl, setLinkUrl] = useState('');
+  const [tplTitle, setTplTitle] = useState(''); const [tplDesc, setTplDesc] = useState(''); const [tplFile, setTplFile] = useState<File | null>(null);
   const [replyText, setReplyText] = useState<{[key: string]: string}>({});
   const [isUploading, setIsUploading] = useState(false);
 
-  // --- 1. ПРОВЕРКА ПРАВ И ЗАГРУЗКА ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists() && userDoc.data().role === 'admin') {
-            fetchData();
-          } else {
-            router.push('/dashboard');
-          }
+          if (userDoc.exists() && userDoc.data().role === 'admin') fetchData();
+          else router.push('/dashboard');
         } catch { router.push('/dashboard'); }
-      } else {
-        router.push('/login');
-      }
+      } else router.push('/login');
     });
     return () => unsubscribe();
   }, [router]);
 
   const fetchData = async () => {
     try {
-      // Пользователи
       const uSnap = await getDocs(collection(db, 'users')); 
       setUsers(uSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserData)));
 
-      // Делегирование
       const dSnap = await getDocs(collection(db, 'delegation_requests'));
       setDelegations(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as DelegationRequest)).sort((a,b) => a.createdAt < b.createdAt ? 1 : -1));
 
-      // Конференции
       const cSnap = await getDocs(collection(db, 'conferences'));
       setConferences(cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Conference)).sort((a,b) => a.date > b.date ? 1 : -1));
 
-      // Новости
       const nSnap = await getDocs(collection(db, 'news')); 
       setNews(nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem)).sort((a,b) => a.createdAt < b.createdAt ? 1 : -1));
 
-      // Совет
       const tSnap = await getDocs(collection(db, 'team')); 
       setTeam(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeamMember)));
 
-      // Обращения
       const rSnap = await getDocs(collection(db, 'requests')); 
       setRequests(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as RequestData)).sort((a,b) => a.createdAt < b.createdAt ? 1 : -1));
 
-      // Ссылки и Шаблоны
       const lSnap = await getDocs(collection(db, 'links')); 
       setLinks(lSnap.docs.map(d => ({ id: d.id, ...d.data() } as LinkItem)));
+
       const tplSnap = await getDocs(collection(db, 'templates')); 
       setTemplates(tplSnap.docs.map(d => ({ id: d.id, ...d.data() } as DocTemplate)));
       
@@ -180,7 +123,7 @@ export default function AdminPage() {
     return await getDownloadURL(storageRef);
   };
 
-  // --- ДЕЙСТВИЯ (ACTIONS) ---
+  // --- ACTIONS ---
 
   // 1. КОНФЕРЕНЦИИ
   const handleCreateConference = async (e: React.FormEvent) => {
@@ -189,37 +132,38 @@ export default function AdminPage() {
     try {
       await addDoc(collection(db, 'conferences'), {
         title: confTitle,
-        date: confDate, // ISO строка из input type="datetime-local"
+        date: confDate,
         createdAt: new Date().toISOString()
       });
       setConfTitle(''); setConfDate(''); fetchData();
-      alert('Конференция создана. Делегирование откроется за 30 дней до этой даты.');
-    } catch { alert('Ошибка при создании конференции'); }
+      alert('Конференция создана');
+    } catch { alert('Ошибка при создании'); }
   };
 
   const handleDeleteConference = async (id: string) => {
-    if(confirm('Удалить конференцию?')) { 
+    if(confirm('Удалить конференцию? Это может повлиять на активные делегирования.')) { 
       await deleteDoc(doc(db, 'conferences', id)); 
       fetchData(); 
     }
   };
 
-  // 2. ДЕЛЕГИРОВАНИЕ
+  // 2. ДЕЛЕГИРОВАНИЕ (ОБНОВЛЕНО)
   const handleApproveDelegation = async (req: DelegationRequest) => {
     if (!confirm(`Передать голос от ${req.fromName} к ${req.toName}?`)) return;
     try {
       // А. Обновляем статус заявки
       await updateDoc(doc(db, 'delegation_requests', req.id), { status: 'approved' });
 
-      // Б. Доверитель (Тот, кто отдает голос): Вес = 0, Статус = одобрено
+      // Б. Доверитель: Вес=0, Статус=approved, ID события записываем в профиль!
       await updateDoc(doc(db, 'users', req.fromId), {
         voteWeight: 0,
         delegationStatus: 'approved',
         delegatedTo: req.toId,
-        delegatedToName: req.toName
+        delegatedToName: req.toName,
+        delegationConferenceId: req.conferenceId || null // <--- ПРИВЯЗКА К СОБЫТИЮ
       });
 
-      // В. Делегат (Тот, кто получает): Вес + 1, Добавляем имя в список
+      // В. Делегат: Вес+1
       await updateDoc(doc(db, 'users', req.toId), {
         voteWeight: increment(1),
         delegatedFrom: arrayUnion(req.fromName)
@@ -227,35 +171,30 @@ export default function AdminPage() {
 
       alert('Делегирование успешно проведено!');
       fetchData();
-    } catch (e) {
-      console.error(e);
-      alert('Ошибка при обновлении базы данных');
-    }
+    } catch (e) { console.error(e); alert('Ошибка'); }
   };
 
   const handleRejectDelegation = async (reqId: string, fromId: string) => {
-    if (!confirm('Отклонить заявку и удалить её?')) return;
+    if (!confirm('Отклонить заявку?')) return;
     try {
       await deleteDoc(doc(db, 'delegation_requests', reqId));
-      // Сбрасываем статус у пользователя, чтобы он мог подать новую заявку
       await updateDoc(doc(db, 'users', fromId), { 
         delegationStatus: null, 
         delegatedToName: null 
       });
       fetchData();
-    } catch (e) { alert('Ошибка удаления'); }
+    } catch { alert('Ошибка'); }
   };
 
   // 3. ПОЛЬЗОВАТЕЛИ
   const handleApproveUser = async (id: string) => { 
     if(confirm('Подтвердить сотрудника?')) { 
-      // При одобрении даем 1 голос по умолчанию
       await updateDoc(doc(db, 'users', id), { status: 'approved', voteWeight: 1 }); 
       fetchData(); 
     }
   };
-  const handleRejectUser = async (id: string, name?: string) => { 
-    if(confirm(`Удалить пользователя ${name || ''}?`)) { 
+  const handleRejectUser = async (id: string) => { 
+    if(confirm('Удалить пользователя?')) { 
       await deleteDoc(doc(db, 'users', id)); 
       fetchData(); 
     }
@@ -293,7 +232,7 @@ export default function AdminPage() {
     if(confirm('Удалить участника?')) { await deleteDoc(doc(db, 'team', id)); fetchData(); }
   };
 
-  // 6. РЕСУРСЫ (Ссылки и Шаблоны)
+  // 6. РЕСУРСЫ
   const handleAddLink = async (e: React.FormEvent) => { 
     e.preventDefault(); 
     try { 
@@ -304,7 +243,6 @@ export default function AdminPage() {
   const handleDeleteLink = async (id: string) => { 
     if(confirm('Удалить ссылку?')) { await deleteDoc(doc(db, 'links', id)); fetchData(); }
   };
-
   const handleAddTemplate = async (e: React.FormEvent) => {
     e.preventDefault(); setIsUploading(true);
     try {
@@ -347,13 +285,12 @@ export default function AdminPage() {
       {/* --- HEADER --- */}
       <div className="bg-white shadow z-10 sticky top-0 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight">Админ-панель v2.0</h1>
+          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight">Админ-панель v2.1 (Event Lock)</h1>
           <button onClick={() => router.push('/dashboard')} className="text-blue-700 font-bold hover:underline text-sm">
             ← В приложение
           </button>
         </div>
         
-        {/* НАВИГАЦИЯ (TABS) */}
         <div className="max-w-7xl mx-auto px-4 flex gap-2 overflow-x-auto pb-2 no-scrollbar">
           {[
             { id: 'conferences', label: '📅 События', count: 0, color: '' },
@@ -385,41 +322,26 @@ export default function AdminPage() {
       <div className="flex-grow p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           
-          {/* 1. КОНФЕРЕНЦИИ (НОВАЯ ВКЛАДКА) */}
+          {/* 1. КОНФЕРЕНЦИИ */}
           {activeTab === 'conferences' && (
             <div className="space-y-6">
-              <div className="bg-white p-6 rounded-xl border-t-4 border-indigo-500 shadow animate-in fade-in">
+              <div className="bg-white p-6 rounded-xl border-t-4 border-indigo-500 shadow">
                 <h2 className="font-black text-xl mb-4">Назначить конференцию</h2>
-                <p className="text-sm text-gray-500 mb-4">Делегирование откроется автоматически за 30 дней до даты начала.</p>
                 <form onSubmit={handleCreateConference} className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="w-full">
                     <label className="text-xs font-bold text-gray-500 uppercase">Название события</label>
-                    <input 
-                      className="w-full border p-3 rounded-lg font-bold outline-none focus:ring-2 focus:ring-indigo-500" 
-                      placeholder="Например: Отчетная конференция 2026" 
-                      value={confTitle} 
-                      onChange={e=>setConfTitle(e.target.value)} 
-                      required 
-                    />
+                    <input className="w-full border p-3 rounded-lg font-bold outline-none" placeholder="Отчетная конференция..." value={confTitle} onChange={e=>setConfTitle(e.target.value)} required />
                   </div>
                   <div className="w-full">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Дата и Время начала</label>
-                    <input 
-                      type="datetime-local" 
-                      className="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" 
-                      value={confDate} 
-                      onChange={e=>setConfDate(e.target.value)} 
-                      required 
-                    />
+                    <label className="text-xs font-bold text-gray-500 uppercase">Дата и Время</label>
+                    <input type="datetime-local" className="w-full border p-3 rounded-lg outline-none" value={confDate} onChange={e=>setConfDate(e.target.value)} required />
                   </div>
-                  <button className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 w-full md:w-auto shadow-lg shadow-indigo-200">
-                    Создать
-                  </button>
+                  <button className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold w-full md:w-auto">Создать</button>
                 </form>
               </div>
 
               <div className="space-y-3">
-                <h3 className="font-bold text-gray-500 uppercase text-xs">Предстоящие и прошедшие события</h3>
+                <h3 className="font-bold text-gray-500 uppercase text-xs">Список событий</h3>
                 {conferences.map(conf => {
                   const isPast = new Date(conf.date) < new Date();
                   return (
@@ -429,14 +351,13 @@ export default function AdminPage() {
                         <p className={`font-bold text-sm ${isPast ? 'text-gray-500' : 'text-green-600'}`}>
                           {new Date(conf.date).toLocaleString()} {isPast ? '(Завершена)' : '(Активна)'}
                         </p>
+                        <p className="text-[10px] text-gray-400 mt-1">ID: {conf.id}</p>
                       </div>
-                      <button onClick={()=>handleDeleteConference(conf.id)} className="text-red-500 font-bold px-3 py-1 bg-red-50 rounded hover:bg-red-100 border border-transparent hover:border-red-200 text-xs uppercase">
-                        Удалить
-                      </button>
+                      <button onClick={()=>handleDeleteConference(conf.id)} className="text-red-500 font-bold px-3 py-1 bg-red-50 rounded text-xs uppercase hover:bg-red-100">Удалить</button>
                     </div>
                   )
                 })}
-                {conferences.length === 0 && <p className="text-gray-400 italic p-4 text-center border-dashed border-2 rounded-xl">Событий пока не запланировано.</p>}
+                {conferences.length === 0 && <p className="text-gray-400 italic p-4 text-center">Нет событий.</p>}
               </div>
             </div>
           )}
@@ -446,54 +367,46 @@ export default function AdminPage() {
             <div className="space-y-6">
               <h2 className="font-black text-2xl mb-4">Управление голосами</h2>
               
-              {/* Новые заявки */}
               {pendingDelegations.length === 0 ? (
-                <div className="bg-gray-100 p-8 rounded-xl text-center text-gray-500 font-bold border border-dashed border-gray-300">
-                  Нет новых заявок на делегирование.
-                </div>
+                <div className="bg-gray-100 p-8 rounded-xl text-center text-gray-500 font-bold border border-dashed border-gray-300">Нет новых заявок</div>
               ) : (
                 <div className="grid gap-4">
                   {pendingDelegations.map(req => (
-                    <div key={req.id} className="bg-white p-6 rounded-xl border-l-4 border-indigo-600 shadow-md flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                    <div key={req.id} className="bg-white p-6 rounded-xl border-l-4 border-indigo-600 shadow-md flex flex-col lg:flex-row justify-between items-start gap-6">
                       <div className="flex-grow">
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
                            <span className="font-black text-lg bg-gray-100 px-2 py-1 rounded">{req.fromName}</span>
                            <span className="text-gray-400 font-bold text-xl">➝</span>
                            <span className="font-black text-lg bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-200">{req.toName}</span>
                         </div>
-                        <p className="text-xs text-gray-500 font-bold mb-3">Создано: {new Date(req.createdAt).toLocaleString()}</p>
-                        
-                        {req.docUrl ? (
-                          <a href={req.docUrl} target="_blank" className="inline-flex items-center gap-2 text-blue-600 font-bold text-sm bg-blue-50 px-3 py-2 rounded hover:bg-blue-100 transition">
-                            <span>📄</span> Скачать/Открыть доверенность
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Документ не приложен (устная договоренность)</span>
+                        {req.conferenceTitle && (
+                          <div className="inline-block bg-indigo-50 text-indigo-800 text-xs font-black px-2 py-1 rounded mb-2 border border-indigo-100">
+                            Событие: {req.conferenceTitle}
+                          </div>
                         )}
+                        <p className="text-xs text-gray-500 font-bold mb-3">{new Date(req.createdAt).toLocaleString()}</p>
+                        {req.docUrl && <a href={req.docUrl} target="_blank" className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-2 rounded">📄 Доверенность</a>}
                       </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                        <button onClick={()=>handleApproveDelegation(req)} className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition">
-                          Одобрить передачу
-                        </button>
-                        <button onClick={()=>handleRejectDelegation(req.id, req.fromId)} className="flex-1 bg-white text-red-600 border-2 border-red-100 px-6 py-3 rounded-xl font-bold hover:bg-red-50 transition">
-                          Отклонить
-                        </button>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button onClick={()=>handleApproveDelegation(req)} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700">Одобрить</button>
+                        <button onClick={()=>handleRejectDelegation(req.id, req.fromId)} className="bg-white text-red-600 border-2 border-red-100 px-6 py-3 rounded-xl font-bold">Отклонить</button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* История */}
               {delegations.some(d => d.status === 'approved') && (
                 <div className="mt-10 pt-8 border-t border-gray-200">
-                  <h3 className="font-bold text-gray-400 uppercase text-xs mb-4 tracking-wider">История одобренных заявок</h3>
+                  <h3 className="font-bold text-gray-400 uppercase text-xs mb-4 tracking-wider">История (Для протокола)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 opacity-70">
                     {delegations.filter(d => d.status === 'approved').map(d => (
-                      <div key={d.id} className="flex justify-between items-center text-sm bg-white p-3 rounded border">
-                        <span className="font-medium">{d.fromName} ➝ {d.toName}</span>
-                        <span className="text-green-600 font-black text-xs uppercase bg-green-50 px-2 py-1 rounded">Выполнено</span>
+                      <div key={d.id} className="flex flex-col bg-white p-3 rounded border text-sm">
+                        <div className="flex justify-between items-center mb-1">
+                           <span className="font-medium">{d.fromName} ➝ {d.toName}</span>
+                           <span className="text-green-600 font-black text-xs uppercase bg-green-50 px-2 py-1 rounded">Выполнено</span>
+                        </div>
+                        {d.conferenceTitle && <div className="text-[10px] text-gray-500 font-bold">Соб: {d.conferenceTitle}</div>}
                       </div>
                     ))}
                   </div>
@@ -505,128 +418,53 @@ export default function AdminPage() {
           {/* 3. УЧАСТНИКИ */}
           {activeTab === 'users' && (
              <div className="space-y-6">
-               {/* Ожидают подтверждения */}
                {pendingUsers.length > 0 && (
-                 <div className="bg-white p-6 rounded-xl border-2 border-yellow-400 shadow-lg animate-in fade-in slide-in-from-top-4">
-                   <h2 className="font-black text-xl mb-4 text-yellow-900">🔔 Новые заявки ({pendingUsers.length})</h2>
-                   <div className="grid gap-3">
-                     {pendingUsers.map(u => (
-                       <div key={u.id} className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                         <div>
-                           <p className="font-bold text-lg">{u.displayName}</p>
-                           <p className="font-medium">{u.position}</p>
-                           <p className="text-sm font-bold text-gray-800">{u.phoneNumber || 'Нет телефона'}</p>
-                           <p className="text-sm text-gray-600">{u.email}</p>
-                         </div>
-                         <div className="flex gap-2 w-full md:w-auto">
-                           <button onClick={() => handleApproveUser(u.id)} className="flex-1 md:flex-none bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">
-                             Принять
-                           </button>
-                           <button onClick={() => handleRejectUser(u.id, u.displayName)} className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded font-bold hover:bg-red-700">
-                             Отклонить
-                           </button>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
+                 <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 shadow-sm">
+                   <h2 className="font-black text-lg mb-4 text-yellow-900">🔔 Новые заявки ({pendingUsers.length})</h2>
+                   {pendingUsers.map(u => (
+                     <div key={u.id} className="flex justify-between items-center bg-white p-3 rounded mb-2 border border-yellow-100">
+                       <span className="font-bold">{u.displayName} ({u.position})</span>
+                       <div className="flex gap-2"><button onClick={() => handleApproveUser(u.id)} className="text-green-600 font-bold border px-3 rounded hover:bg-green-50">Принять</button><button onClick={() => handleRejectUser(u.id)} className="text-red-600 font-bold border px-3 rounded hover:bg-red-50">Откл.</button></div>
+                     </div>
+                   ))}
                  </div>
                )}
-
-               {/* Список всех */}
                <div className="bg-white p-6 rounded-xl border shadow-sm">
-                 <h2 className="font-black text-xl mb-4">База участников</h2>
-                 <div className="overflow-x-auto">
-                   <table className="w-full text-left text-sm">
-                     <thead className="bg-gray-100 border-b-2 border-gray-300 font-bold text-gray-600 uppercase">
-                       <tr>
-                         <th className="p-3">ФИО / Статус</th>
-                         <th className="p-3">Вес голоса</th>
-                         <th className="p-3">Должность</th>
-                         <th className="p-3">Контакты</th>
-                         <th className="p-3">Действия</th>
+                 <h2 className="font-black text-xl mb-4">Участники</h2>
+                 <table className="w-full text-left text-sm">
+                   <thead className="bg-gray-100 font-bold"><tr><th className="p-3">Имя</th><th className="p-3">Вес</th><th className="p-3">Действия</th></tr></thead>
+                   <tbody>
+                     {users.filter(u => u.status === 'approved').map(u => (
+                       <tr key={u.id} className="border-b hover:bg-gray-50">
+                         <td className="p-3">
+                           <div className="font-bold">{u.displayName}</div>
+                           {u.delegatedFrom && u.delegatedFrom.length > 0 && <div className="text-[10px] text-green-600 font-bold">+ {u.delegatedFrom.join(', ')}</div>}
+                           {u.delegatedTo && <div className="text-[10px] text-red-500 font-bold">Голос передан</div>}
+                         </td>
+                         <td className="p-3"><span className="bg-gray-200 px-2 py-1 rounded font-bold">{u.voteWeight || 1}</span></td>
+                         <td className="p-3"><button onClick={() => handleRejectUser(u.id)} className="text-red-500 font-bold text-xs hover:underline">Удалить</button></td>
                        </tr>
-                     </thead>
-                     <tbody className="divide-y">
-                       {users.filter(u => u.status === 'approved').map(u => (
-                         <tr key={u.id} className="hover:bg-gray-50 transition">
-                           <td className="p-3 align-top">
-                             <div className="font-bold text-gray-900">{u.displayName}</div>
-                             {/* Индикаторы делегирования */}
-                             {u.delegatedFrom && u.delegatedFrom.length > 0 && (
-                               <div className="text-[10px] text-green-700 bg-green-100 px-2 py-0.5 rounded inline-block mt-1 mr-1">
-                                 + от: {u.delegatedFrom.join(', ')}
-                               </div>
-                             )}
-                             {u.delegatedTo && (
-                               <div className="text-[10px] text-red-700 bg-red-100 px-2 py-0.5 rounded inline-block mt-1">
-                                 Голос передан ➝ {u.delegatedToName}
-                               </div>
-                             )}
-                           </td>
-                           <td className="p-3 align-top">
-                             <span className={`px-3 py-1 rounded-full font-black text-sm ${(u.voteWeight || 1) > 1 ? 'bg-indigo-600 text-white' : (u.voteWeight === 0 ? 'bg-gray-200 text-gray-400' : 'bg-gray-200 text-gray-800')}`}>
-                               {u.voteWeight !== undefined ? u.voteWeight : 1}
-                             </span>
-                           </td>
-                           <td className="p-3 align-top text-gray-600">{u.position}</td>
-                           <td className="p-3 align-top">
-                             <div className="font-mono text-xs">{u.phoneNumber}</div>
-                             <div className="text-xs text-gray-400">{u.email}</div>
-                           </td>
-                           <td className="p-3 align-top">
-                             {u.role !== 'admin' && (
-                               <button onClick={() => handleRejectUser(u.id, u.displayName)} className="text-red-600 font-bold hover:bg-red-50 px-2 py-1 rounded text-xs border border-transparent hover:border-red-200">
-                                 Удалить
-                               </button>
-                             )}
-                           </td>
-                         </tr>
-                       ))}
-                     </tbody>
-                   </table>
-                 </div>
+                     ))}
+                   </tbody>
+                 </table>
                </div>
              </div>
           )}
 
           {/* 4. ОБРАЩЕНИЯ */}
           {activeTab === 'requests' && (
-            <div className="bg-white p-6 rounded-xl border-t-4 border-blue-600 shadow space-y-6">
+            <div className="bg-white p-6 rounded-xl border-t-4 border-blue-600 shadow space-y-4">
               <h2 className="font-black text-xl">Входящие вопросы</h2>
-              {requests.length === 0 && <p className="text-gray-500">Сообщений нет.</p>}
-              
               {requests.map(req => (
-                <div key={req.id} className={`p-5 rounded-lg border ${req.response ? 'bg-gray-50 border-gray-200' : 'bg-white border-blue-300 shadow-md'}`}>
-                  <div className="flex justify-between mb-3 items-start">
-                    <span className="font-bold text-blue-900 bg-blue-100 px-2 py-1 rounded text-xs">
-                      {req.userEmail}
-                    </span>
-                    <span className="text-xs font-bold text-gray-500">
-                      {new Date(req.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <p className="font-bold text-gray-900 mb-4 whitespace-pre-wrap">{req.text}</p>
-                  
+                <div key={req.id} className="p-5 border rounded bg-white shadow-sm">
+                  <p className="text-xs text-gray-500 font-bold mb-1">{req.userEmail} | {new Date(req.createdAt).toLocaleString()}</p>
+                  <p className="font-bold text-gray-900">{req.text}</p>
                   {req.response ? (
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <p className="text-xs text-green-700 font-black mb-1 uppercase">Ваш ответ:</p>
-                      <p className="text-sm text-gray-900 font-medium">{req.response}</p>
-                    </div>
+                    <div className="mt-3 bg-green-50 p-3 rounded-lg text-sm font-bold text-green-900 border border-green-100">Ответ: {req.response}</div>
                   ) : (
-                    <div className="flex flex-col md:flex-row gap-2 mt-4 pt-4 border-t border-gray-100">
-                      <input 
-                        className="flex-grow border border-gray-300 rounded px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" 
-                        placeholder="Напишите ответ..." 
-                        value={replyText[req.id] || ''}
-                        onChange={(e) => setReplyText({...replyText, [req.id]: e.target.value})}
-                      />
-                      <button 
-                        onClick={() => handleReplyRequest(req.id)} 
-                        className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700"
-                      >
-                        Ответить
-                      </button>
+                    <div className="mt-3 flex gap-2">
+                      <input className="border p-2 w-full rounded font-medium" placeholder="Напишите ответ..." onChange={(e) => setReplyText({...replyText, [req.id]: e.target.value})} />
+                      <button onClick={() => handleReplyRequest(req.id)} className="bg-blue-600 text-white px-4 rounded font-bold hover:bg-blue-700">OK</button>
                     </div>
                   )}
                 </div>
@@ -637,29 +475,20 @@ export default function AdminPage() {
           {/* 5. НОВОСТИ */}
           {activeTab === 'news' && (
             <div className="bg-white p-6 rounded-xl border-t-4 border-indigo-600 shadow">
-              <h2 className="text-xl font-black mb-6">Публикация новостей</h2>
-              <form onSubmit={handlePublishNews} className="space-y-4 mb-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <input className="w-full p-3 border border-gray-300 rounded text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Заголовок новости" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} required />
-                <textarea className="w-full p-3 border border-gray-300 rounded h-32 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Текст новости..." value={newsBody} onChange={e => setNewsBody(e.target.value)} required />
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                  <input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-sm font-bold text-gray-500 w-full" />
-                  <button disabled={isUploading} className="bg-indigo-600 text-white px-8 py-2 rounded font-bold w-full md:w-auto hover:bg-indigo-700 shadow-lg shadow-indigo-200">
-                    {isUploading ? '...' : 'Опубликовать'}
-                  </button>
+              <h2 className="font-black text-xl mb-4">Новости</h2>
+              <form onSubmit={handlePublishNews} className="space-y-3 mb-6 bg-gray-50 p-4 rounded-lg">
+                <input className="w-full border p-3 rounded font-bold" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} />
+                <textarea className="w-full border p-3 rounded font-medium" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} />
+                <div className="flex justify-between items-center">
+                   <input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-sm" />
+                   <button className="bg-black text-white px-6 py-2 rounded font-bold hover:bg-gray-800">{isUploading ? '...' : 'Опубликовать'}</button>
                 </div>
               </form>
-              <div className="space-y-4">
-                {news.map(item => (
-                  <div key={item.id} className="flex flex-col md:flex-row gap-4 p-4 border rounded-lg hover:bg-gray-50 items-start">
-                    {item.imageUrl && <img src={item.imageUrl} className="w-full md:w-32 h-32 md:h-20 object-cover rounded border" />}
-                    <div className="flex-grow">
-                      <h3 className="font-black text-lg">{item.title}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-1">{item.body}</p>
-                      <p className="text-xs text-gray-400 font-bold">{new Date(item.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <button onClick={() => handleDeleteNews(item.id)} className="text-red-600 font-bold border border-red-200 px-3 py-1 rounded text-xs hover:bg-red-50">
-                      Удалить
-                    </button>
+              <div className="space-y-2">
+                {news.map(n => (
+                  <div key={n.id} className="border p-3 rounded flex justify-between items-center bg-white">
+                    <div><span className="font-bold">{n.title}</span><span className="text-xs text-gray-400 ml-2">{new Date(n.createdAt).toLocaleDateString()}</span></div>
+                    <button onClick={() => handleDeleteNews(n.id)} className="text-red-500 font-bold px-2">X</button>
                   </div>
                 ))}
               </div>
@@ -668,74 +497,38 @@ export default function AdminPage() {
 
           {/* 6. РЕСУРСЫ */}
           {activeTab === 'resources' && (
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Ссылки */}
-              <div className="bg-white p-6 rounded-xl border-t-4 border-teal-500 shadow">
-                <h3 className="font-black text-lg mb-4">🔗 Полезные ссылки</h3>
-                <form onSubmit={handleAddLink} className="flex flex-col gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <input className="border p-2 rounded font-bold text-sm" placeholder="Название" value={linkTitle} onChange={e=>setLinkTitle(e.target.value)} required />
-                  <input className="border p-2 rounded text-sm" placeholder="URL (https://...)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} required />
-                  <button className="bg-teal-600 text-white py-2 rounded font-bold hover:bg-teal-700">Добавить ссылку</button>
-                </form>
-                <div className="space-y-2">
-                  {links.map(l => (
-                    <div key={l.id} className="flex justify-between items-center border p-3 rounded hover:bg-gray-50">
-                      <a href={l.url} target="_blank" className="font-bold text-blue-700 truncate mr-2 text-sm">{l.title}</a>
-                      <button onClick={()=>handleDeleteLink(l.id)} className="text-red-500 font-bold px-2">✕</button>
-                    </div>
-                  ))}
-                </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-white p-6 border-t-4 border-teal-500 shadow rounded-xl">
+                <h3 className="font-black text-lg mb-4">Ссылки</h3>
+                <form onSubmit={handleAddLink} className="flex gap-2 mb-4"><input className="border p-2 w-full rounded" placeholder="Название" value={linkTitle} onChange={e=>setLinkTitle(e.target.value)}/><input className="border p-2 w-full rounded" placeholder="URL" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/><button className="bg-teal-600 text-white px-3 rounded font-bold">Add</button></form>
+                {links.map(l=><div key={l.id} className="flex justify-between border-b p-2"><span>{l.title}</span><button onClick={()=>handleDeleteLink(l.id)} className="text-red-500 font-bold">X</button></div>)}
               </div>
-
-              {/* Шаблоны */}
-              <div className="bg-white p-6 rounded-xl border-t-4 border-orange-500 shadow">
-                <h3 className="font-black text-lg mb-4">📄 Шаблоны документов</h3>
-                <form onSubmit={handleAddTemplate} className="flex flex-col gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <input className="border p-2 rounded font-bold text-sm" placeholder="Название файла" value={tplTitle} onChange={e=>setTplTitle(e.target.value)} required />
-                  <input className="border p-2 rounded text-sm" placeholder="Описание" value={tplDesc} onChange={e=>setTplDesc(e.target.value)} />
-                  <input type="file" onChange={e=>setTplFile(e.target.files?.[0] || null)} className="text-sm font-bold text-gray-500" required />
-                  <button disabled={isUploading} className="bg-orange-600 text-white py-2 rounded font-bold hover:bg-orange-700">
-                    {isUploading ? 'Загрузка...' : 'Загрузить файл'}
-                  </button>
-                </form>
-                <div className="space-y-2">
-                  {templates.map(t => (
-                    <div key={t.id} className="flex justify-between border p-3 rounded hover:bg-gray-50 items-center">
-                      <div className="overflow-hidden">
-                        <p className="font-bold text-sm truncate">{t.title}</p>
-                        {t.description && <p className="text-xs text-gray-500 truncate">{t.description}</p>}
-                      </div>
-                      <button onClick={()=>handleDeleteTemplate(t.id)} className="text-red-500 font-bold px-2 ml-2">✕</button>
-                    </div>
-                  ))}
-                </div>
+              <div className="bg-white p-6 border-t-4 border-orange-500 shadow rounded-xl">
+                <h3 className="font-black text-lg mb-4">Шаблоны</h3>
+                <form onSubmit={handleAddTemplate} className="flex gap-2 mb-4 flex-wrap"><input className="border p-2 w-full rounded" placeholder="Название" value={tplTitle} onChange={e=>setTplTitle(e.target.value)}/><input className="border p-2 w-full rounded" placeholder="Описание" value={tplDesc} onChange={e=>setTplDesc(e.target.value)}/><input type="file" onChange={e=>setTplFile(e.target.files?.[0] || null)} className="text-xs"/><button className="bg-orange-600 text-white px-3 rounded font-bold w-full">Загрузить</button></form>
+                {templates.map(t=><div key={t.id} className="flex justify-between border-b p-2"><span>{t.title}</span><button onClick={()=>handleDeleteTemplate(t.id)} className="text-red-500 font-bold">X</button></div>)}
               </div>
             </div>
           )}
 
           {/* 7. СОВЕТ */}
           {activeTab === 'team' && (
-            <div className="bg-white p-6 rounded-xl border-t-4 border-green-600 shadow">
-              <h2 className="text-xl font-black mb-6">Совет Профсоюза</h2>
-              <form onSubmit={handleAddMember} className="bg-gray-100 p-4 rounded-lg mb-8 flex flex-col md:flex-row gap-4 items-end border border-gray-200">
-                <div className="w-full"><label className="text-xs font-bold uppercase text-gray-500">ФИО</label><input className="w-full p-2 border border-gray-300 rounded font-bold" value={memberName} onChange={e => setMemberName(e.target.value)} required /></div>
-                <div className="w-full"><label className="text-xs font-bold uppercase text-gray-500">Должность</label><input className="w-full p-2 border border-gray-300 rounded font-bold" value={memberRole} onChange={e => setMemberRole(e.target.value)} required /></div>
-                <div className="w-full"><label className="text-xs font-bold uppercase text-gray-500">Фото</label><input type="file" onChange={e => setMemberFile(e.target.files?.[0] || null)} className="w-full text-xs font-bold" /></div>
-                <button disabled={isUploading} className="w-full md:w-auto bg-green-600 text-white px-6 py-2 rounded font-bold h-[42px] hover:bg-green-700">
-                  {isUploading ? '...' : 'Добавить'}
-                </button>
+            <div className="bg-white p-6 border-t-4 border-green-600 shadow rounded-xl">
+              <h2 className="font-black text-xl mb-4">Совет Профсоюза</h2>
+              <form onSubmit={handleAddMember} className="flex flex-col md:flex-row gap-2 mb-6 bg-gray-50 p-4 rounded">
+                 <input className="border p-2 rounded font-bold w-full" placeholder="ФИО" value={memberName} onChange={e=>setMemberName(e.target.value)}/>
+                 <input className="border p-2 rounded font-bold w-full" placeholder="Должность" value={memberRole} onChange={e=>setMemberRole(e.target.value)}/>
+                 <input type="file" onChange={e=>setMemberFile(e.target.files?.[0] || null)} className="text-sm"/>
+                 <button className="bg-green-600 text-white px-6 rounded font-bold">Добавить</button>
               </form>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {team.map(member => (
-                  <div key={member.id} className="relative border rounded-lg p-4 flex items-center gap-4 bg-white shadow-sm">
-                    <img src={member.photoUrl || '/default-avatar.png'} className="w-16 h-16 rounded-full object-cover border-2 border-gray-100" />
-                    <div>
-                      <p className="font-black">{member.name}</p>
-                      <p className="text-sm font-bold text-blue-700">{member.role}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {team.map(m => (
+                  <div key={m.id} className="border p-3 rounded flex items-center justify-between bg-white shadow-sm">
+                    <div className="flex items-center gap-3">
+                       <img src={m.photoUrl || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover"/>
+                       <div><p className="font-bold text-sm">{m.name}</p><p className="text-xs text-gray-500">{m.role}</p></div>
                     </div>
-                    <button onClick={() => handleDeleteMember(member.id)} className="absolute top-2 right-2 text-red-400 font-bold hover:text-red-600">
-                      ✕
-                    </button>
+                    <button onClick={() => handleDeleteMember(m.id)} className="text-red-400 hover:text-red-600 font-bold">✕</button>
                   </div>
                 ))}
               </div>
