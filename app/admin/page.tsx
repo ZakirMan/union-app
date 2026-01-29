@@ -347,7 +347,7 @@ export default function AdminPage() {
       {/* --- HEADER --- */}
       <div className="bg-white shadow z-10 sticky top-0 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight">Админ-панель</h1>
+          <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight">Админ-панель v2.0</h1>
           <button onClick={() => router.push('/dashboard')} className="text-blue-700 font-bold hover:underline text-sm">
             ← В приложение
           </button>
