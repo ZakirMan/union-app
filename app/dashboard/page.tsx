@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { auth, db, storage } from '@/lib/firebase';
+import { auth, db, storage, messaging } from '@/lib/firebase';
+import { getToken } from 'firebase/messaging';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 
@@ -36,16 +37,25 @@ interface Conference {
   date: string;
 }
 
+// --- ИНТЕРФЕЙСЫ ТЕСТОВ ---
+interface TestOption { id: string; text: string; isCorrect: boolean; }
+interface TestQuestion { id: string; text: string; options: TestOption[]; }
+interface Test {
+  id: string; title: string; description: string; questions: TestQuestion[];
+  createdAt: string; completedBy?: string[];
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'profile'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'training' | 'profile'>('news');
 
   // Данные
   const [news, setNews] = useState<NewsItem[]>([]);
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
   const [myRequests, setMyRequests] = useState<RequestItem[]>([]);
   const [colleagues, setColleagues] = useState<UserProfile[]>([]);
   const [nextConference, setNextConference] = useState<Conference | null>(null);
@@ -71,6 +81,11 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // Тестирование
+  const [activeTest, setActiveTest] = useState<Test | null>(null);
+  const [testAnswers, setTestAnswers] = useState<{ [key: string]: string }>({});
+  const [testResult, setTestResult] = useState<{ score: number; passed: boolean } | null>(null);
+
   const router = useRouter();
 
   // --- ЗАГРУЗКА ДАННЫХ ---
@@ -88,16 +103,18 @@ export default function DashboardPage() {
           setEditPhone(data.phoneNumber || '');
         }
 
-        const [lSnap, tSnap, nSnap, uSnap, cSnap] = await Promise.all([
+        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap] = await Promise.all([
           getDocs(collection(db, 'links')),
           getDocs(collection(db, 'templates')),
           getDocs(collection(db, 'news')),
           getDocs(query(collection(db, 'users'), where('status', '==', 'approved'))),
-          getDocs(collection(db, 'conferences'))
+          getDocs(collection(db, 'conferences')),
+          getDocs(collection(db, 'tests'))
         ]);
 
         setLinks(lSnap.docs.map(d => ({ id: d.id, ...d.data() } as LinkItem)));
         setTemplates(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TemplateItem)));
+        setTests(testsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
 
         const newsList = nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
         newsList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -135,6 +152,33 @@ export default function DashboardPage() {
     });
     return () => unsubscribe();
   }, [router]);
+
+  // --- PUSH NOTIFICATIONS ---
+  useEffect(() => {
+    const registerPush = async () => {
+      if (!user || !messaging) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          // ⚠️ ВАЖНО: Сюда нужно вставить ваш VAPID Key из Firebase Console -> Cloud Messaging -> Web Configuration
+          // Если ключа нет, генерация токена может упасть с ошибкой "Missing or incorrect vapidKey".
+          const token = await getToken(messaging, {
+            vapidKey: "BN83lUJyga9MEurnzCEDvPpprD2qxsqmkTGWs0ZLC9osteGB0fEFtEevApmBgNZwcZ-gMr8vPHYCns3GsLGc4Xw"
+          });
+
+          if (token) {
+            await updateDoc(doc(db, 'users', user.uid), {
+              fcmTokens: arrayUnion(token)
+            });
+            console.log('Push token saved:', token);
+          }
+        }
+      } catch (err) {
+        console.warn('Push notification error:', err);
+      }
+    };
+    registerPush();
+  }, [user]);
 
   const handleLogout = async () => { await signOut(auth); router.push('/'); };
 
@@ -217,6 +261,45 @@ export default function DashboardPage() {
     } catch { alert('Ошибка'); } finally { setIsSubmittingDelegation(false); }
   };
 
+  // --- ЛОГИКА ТЕСТИРОВАНИЯ ---
+  const handleStartTest = (test: Test) => {
+    setActiveTest(test);
+    setTestAnswers({});
+    setTestResult(null);
+  };
+
+  const handleSubmitTest = async () => {
+    if (!activeTest || !user) return;
+
+    let correctCount = 0;
+    activeTest.questions.forEach(q => {
+      const selectedOptionId = testAnswers[q.id];
+      const correctOption = q.options.find(o => o.isCorrect);
+      if (selectedOptionId === correctOption?.id) {
+        correctCount++;
+      }
+    });
+
+    // Требуем 75% правильность
+    const passed = (correctCount / activeTest.questions.length) >= 0.75;
+
+    setTestResult({ score: correctCount, passed });
+
+    if (passed) {
+      try {
+        await updateDoc(doc(db, 'tests', activeTest.id), {
+          completedBy: arrayUnion(user.uid)
+        });
+        setTests(prev => prev.map(t => t.id === activeTest.id ? { ...t, completedBy: [...(t.completedBy || []), user.uid] } : t));
+        // alert('Результат сохранен!'); // Убрал alert, так как показываем результат в модалке
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка при сохранении результата');
+      }
+    }
+  };
+
+
   // --- ФИЛЬТРАЦИЯ ДЛЯ ПОИСКА ---
   const filteredColleagues = colleagues.filter(c =>
     c.displayName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -226,165 +309,330 @@ export default function DashboardPage() {
   if (userData?.status === 'pending') return <div className="p-10 text-center">Ожидание подтверждения</div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans text-black pb-24">
-      {activeTab !== 'profile' && <div className="bg-blue-700 text-white p-6 rounded-b-3xl shadow-lg mb-6 sticky top-0 z-40"><h1 className="text-2xl font-black">{activeTab === 'news' ? 'Новости' : activeTab === 'chat' ? 'Связь' : 'Ресурсы'}</h1></div>}
+    <div className="min-h-screen bg-[#F2F6FF] font-sans text-[#1A1A1A] pb-32">
 
-      <div className="max-w-xl mx-auto px-4 mt-6">
+      {/* HEADER */}
+      {activeTab !== 'profile' && (
+        <div className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white pt-8 pb-8 px-6 rounded-b-[2.5rem] shadow-xl sticky top-0 z-30 mb-8">
+          <div className="max-w-2xl mx-auto flex justify-between items-end">
+            <div>
+              <p className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">Профсоюз</p>
+              <h1 className="text-3xl font-black">{activeTab === 'news' ? 'Новости' : activeTab === 'chat' ? 'Связь' : activeTab === 'training' ? 'Обучение' : 'Ресурсы'}</h1>
+            </div>
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <span className="text-xl">🔔</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* Вкладки News, Chat, Resources - без изменений */}
-        {activeTab === 'news' && <div className="space-y-4">{news.map(i => <div key={i.id} className="bg-white rounded-2xl shadow border overflow-hidden">{i.imageUrl && <div className="relative h-48 w-full"><Image src={i.imageUrl} alt={i.title} fill className="object-cover" /></div>}<div className="p-4"><h3 className="font-bold text-lg">{i.title}</h3><p className="text-sm">{i.body}</p></div></div>)}</div>}
+      <div className="max-w-2xl mx-auto px-5">
 
-        {activeTab === 'chat' && <div className="space-y-4"><div className="bg-white p-4 rounded-xl border border-green-200"><h2 className="font-bold">WhatsApp</h2><a href="https://wa.me/777" className="block text-center bg-green-500 text-white p-3 rounded font-bold mt-2">Написать</a></div><div className="bg-white p-4 rounded-xl"><h2 className="font-bold mb-2">Админу</h2><textarea className="w-full border p-2 rounded" rows={3} value={message} onChange={e => setMessage(e.target.value)} /><button onClick={sendRequest} disabled={isSending} className={`w-full bg-blue-600 text-white py-2 rounded font-bold mt-2 ${isSending ? 'opacity-50' : ''}`}>{isSending ? 'Отправка...' : 'Отправить'}</button></div><div>{myRequests.map(r => <div key={r.id} className="bg-white p-3 mb-2 rounded shadow"><p className="text-sm font-bold">{r.text}</p>{r.response && <p className="text-sm text-green-600 bg-green-50 p-1 mt-1">Ответ: {r.response}</p>}</div>)}</div></div>}
-
-        {activeTab === 'resources' && <div className="space-y-4"><div><h2 className="font-bold text-lg">Шаблоны</h2>{templates.map(t => <div key={t.id} className="bg-white p-3 rounded shadow flex justify-between mb-2"><span>{t.title}</span><a href={t.fileUrl} className="text-blue-600 font-bold">Скачать</a></div>)}</div><div><h2 className="font-bold text-lg">Ссылки</h2>{links.map(l => <a key={l.id} href={l.url} target="_blank" className="block bg-white p-3 rounded shadow mb-2 text-blue-700 font-bold">{l.title}</a>)}</div></div>}
-
-        {/* PROFILE TAB */}
-        {activeTab === 'profile' && userData && (
-          <div className="space-y-6 pt-4">
-            {/* Аватарка */}
-            <div className="bg-white p-6 rounded-3xl shadow-sm border text-center relative">
-              <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto mb-4 overflow-hidden border-4 border-white shadow-lg relative">
-                {userData.photoUrl ? <Image src={userData.photoUrl} alt={userData.displayName} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">👤</div>}
-                {isEditing && <label className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer text-white text-xs">Фото <input type="file" className="hidden" onChange={e => setEditFile(e.target.files?.[0] || null)} /></label>}
+        {/* НОВОСТИ */}
+        {activeTab === 'news' && (
+          <div className="space-y-6">
+            {news.map(i => (
+              <div key={i.id} className="bg-white rounded-[2rem] shadow-lg shadow-indigo-100/50 border border-white overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                {i.imageUrl && (
+                  <div className="relative h-56 w-full overflow-hidden">
+                    <Image src={i.imageUrl} alt={i.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                  </div>
+                )}
+                <div className="p-6 relative">
+                  {!i.imageUrl && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>}
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">{new Date(i.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3>
+                  <p className="text-gray-500 text-sm font-medium leading-relaxed">{i.body}</p>
+                </div>
               </div>
-              {!isEditing ? (
-                <>
-                  <h2 className="font-black text-2xl">{userData.displayName}</h2>
-                  <p className="text-gray-500 text-sm">{userData.position}</p>
-                  <button onClick={() => setIsEditing(true)} className="mt-4 bg-gray-100 px-4 py-2 rounded-lg text-sm font-bold text-gray-600">Редактировать</button>
-                </>
-              ) : (
-                <div className="space-y-3"><input className="w-full border p-2 rounded" value={editName} onChange={e => setEditName(e.target.value)} /><input className="w-full border p-2 rounded" value={editPhone} onChange={e => setEditPhone(e.target.value)} /><div className="flex gap-2"><button onClick={() => setIsEditing(false)} className="flex-1 bg-gray-200 py-2 rounded">Отмена</button><button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 bg-blue-600 text-white py-2 rounded">{isSavingProfile ? 'Сохранение...' : 'Сохранить'}</button></div></div>
-              )}
+            ))}
+          </div>
+        )}
+
+        {/* ЧАТ */}
+        {activeTab === 'chat' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-[2rem] p-8 text-white shadow-lg shadow-green-200 relative overflow-hidden">
+              <div className="relative z-10">
+                <h2 className="font-black text-2xl mb-2">WhatsApp</h2>
+                <p className="text-green-100 font-bold text-sm mb-6 opacity-90">Свяжитесь с нами напрямую для оперативного решения вопросов.</p>
+                <a href="https://wa.me/777" className="inline-block bg-white text-green-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-green-50 transition transform active:scale-95">Написать</a>
+              </div>
+              <div className="absolute -right-10 -bottom-10 text-9xl opacity-20 rotate-12">💬</div>
             </div>
 
-            {/* БЛОК ДЕЛЕГИРОВАНИЯ */}
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-indigo-100 relative overflow-hidden">
+            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-50">
+              <h2 className="font-black text-xl mb-4 text-gray-800">Обращение к админу</h2>
+              <textarea
+                className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition min-h-[120px]"
+                rows={3}
+                placeholder="Опишите вашу проблему или предложение..."
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+              />
+              <button
+                onClick={sendRequest}
+                disabled={isSending}
+                className={`w-full bg-blue-600 text-white py-4 rounded-2xl font-black mt-4 shadow-lg shadow-blue-200 hover:shadow-xl hover:bg-blue-700 transition transform active:scale-95 ${isSending ? 'opacity-70' : ''}`}
+              >
+                {isSending ? 'Отправка...' : 'Отправить обращение'}
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-black text-gray-400 uppercase text-xs ml-4 tracking-wider">Мои запросы</h3>
+              {myRequests.length === 0 && <p className="text-center text-gray-400 font-bold py-4">Нет активных запросов</p>}
+              {myRequests.map(r => (
+                <div key={r.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-2 py-1 rounded">{new Date(r.createdAt).toLocaleDateString()}</span>
+                    <span className={`text-[10px] font-black px-2 py-1 rounded ${r.response ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>{r.response ? 'ОТВЕТ ПОЛУЧЕН' : 'НА РАССМОТРЕНИИ'}</span>
+                  </div>
+                  <p className="font-bold text-gray-800 mb-3">{r.text}</p>
+                  {r.response && (
+                    <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                      <p className="text-xs font-black text-green-600 uppercase mb-1">Ответ:</p>
+                      <p className="text-sm font-bold text-gray-700">{r.response}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* РЕСУРСЫ */}
+        {activeTab === 'resources' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+            <div>
+              <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Шаблоны</h2>
+              <div className="grid gap-3">
+                {templates.map(t => (
+                  <div key={t.id} className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl">📄</div>
+                      <span className="font-bold text-gray-700">{t.title}</span>
+                    </div>
+                    <a href={t.fileUrl} className="bg-gray-100 hover:bg-orange-50 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-xl font-bold text-sm transition">Скачать</a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Полезные ссылки</h2>
+              <div className="grid gap-3">
+                {links.map(l => (
+                  <a key={l.id} href={l.url} target="_blank" className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md hover:border-blue-200 transition group">
+                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl group-hover:scale-110 transition">🔗</div>
+                    <span className="font-bold text-blue-900">{l.title}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ОБУЧЕНИЕ */}
+        {activeTab === 'training' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            {tests.length === 0 && (
+              <div className="bg-white p-10 rounded-[2rem] text-center border-2 border-dashed border-gray-200">
+                <p className="text-gray-400 font-bold">Обучающие тесты пока не назначены</p>
+              </div>
+            )}
+            {tests.map(test => {
+              const isCompleted = test.completedBy?.includes(user?.uid || '');
+              return (
+                <div key={test.id} className="bg-white p-6 rounded-[2rem] shadow-lg border border-indigo-50 relative overflow-hidden">
+                  <div className="flex justify-between items-start mb-3 relative z-10">
+                    <h3 className="font-black text-xl text-gray-800">{test.title}</h3>
+                    {isCompleted ? (
+                      <span className="bg-green-100 text-green-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Пройден</span>
+                    ) : (
+                      <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Новый</span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 text-sm font-medium mb-6 leading-relaxed relative z-10">{test.description}</p>
+                  <button
+                    onClick={() => handleStartTest(test)}
+                    className={`w-full py-4 rounded-2xl font-black text-lg transition-all transform active:scale-95 relative z-10 ${isCompleted ? 'bg-gray-100 text-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 to-indigo-600 text-white shadow-lg shadow-blue-200 hover:shadow-xl'}`}
+                  >
+                    {isCompleted ? 'Пройти повторно' : 'Начать тестирование'}
+                  </button>
+                  {/* Декоративный фон */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 opacity-50"></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ПРОФИЛЬ */}
+        {activeTab === 'profile' && userData && (
+          <div className="animate-in fade-in slide-in-from-bottom-8 pt-6">
+
+            {/* Profile Header Card */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-white relative overflow-hidden text-center mb-6">
+              <div className="bg-gradient-to-b from-blue-50/50 to-transparent absolute inset-0"></div>
+              <div className="relative z-10">
+                <div className="w-32 h-32 bg-white rounded-full mx-auto mb-6 p-1 shadow-2xl relative group">
+                  <div className="w-full h-full rounded-full overflow-hidden relative">
+                    {userData.photoUrl ? <Image src={userData.photoUrl} alt={userData.displayName} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-4xl bg-gray-100">👤</div>}
+                  </div>
+                  {isEditing && (
+                    <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-2xl">📷</span>
+                      <span className="text-[10px] font-bold uppercase mt-1">Изменить</span>
+                      <input type="file" className="hidden" onChange={e => setEditFile(e.target.files?.[0] || null)} />
+                    </label>
+                  )}
+                </div>
+
+                {!isEditing ? (
+                  <>
+                    <h2 className="font-black text-3xl text-gray-900 mb-1">{userData.displayName}</h2>
+                    <p className="text-blue-500 font-bold text-lg mb-6">{userData.position}</p>
+                    <button onClick={() => setIsEditing(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm transition">Редактировать профиль</button>
+                  </>
+                ) : (
+                  <div className="space-y-4 max-w-xs mx-auto">
+                    <input className="w-full bg-gray-50 p-3 rounded-xl font-bold text-center border-0 outline-none focus:ring-2 focus:ring-blue-200" value={editName} onChange={e => setEditName(e.target.value)} />
+                    <input className="w-full bg-gray-50 p-3 rounded-xl font-bold text-center border-0 outline-none focus:ring-2 focus:ring-blue-200" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                    <div className="flex gap-2">
+                      <button onClick={() => setIsEditing(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Отмена</button>
+                      <button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">{isSavingProfile ? '...' : 'Сохранить'}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Блок Делегирования */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-indigo-50 relative overflow-hidden mb-6">
+              <h3 className="font-black text-xl text-indigo-900 mb-6 flex items-center gap-2">🗳️ Управление голосом</h3>
 
               {nextConference ? (
-                <div className="mb-4 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Ближайшее событие</p>
-                  <p className="font-black text-indigo-900 leading-tight">{nextConference.title}</p>
-                  <p className="text-xs font-bold text-indigo-600">{new Date(nextConference.date).toLocaleString()}</p>
+                <div className="mb-6 bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-[1.5rem] text-white shadow-lg shadow-indigo-200">
+                  <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider mb-1">Ближайшее событие</p>
+                  <p className="font-black text-xl leading-tight mb-2">{nextConference.title}</p>
+                  <p className="text-sm font-bold opacity-80 bg-white/10 inline-block px-3 py-1 rounded-lg">{new Date(nextConference.date).toLocaleString()}</p>
                 </div>
               ) : (
-                <div className="mb-4 text-center">
-                  <p className="text-xs text-gray-400">Нет запланированных конференций</p>
+                <div className="mb-6 text-center py-4 border-2 border-dashed border-gray-100 rounded-2xl">
+                  <p className="text-gray-400 font-bold text-sm">Нет активных событий</p>
                 </div>
               )}
 
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="font-black text-xl text-indigo-900">Мой голос</h2>
-                <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-bold text-sm">Вес: {userData.voteWeight || 1}</span>
+              <div className="flex justify-between items-center mb-6 bg-gray-50 p-4 rounded-2xl">
+                <span className="font-bold text-gray-500">Сила вашего голоса</span>
+                <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-black text-lg shadow-md">{userData.voteWeight || 1}</span>
               </div>
 
               {userData.delegatedTo ? (
-                <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-4">
-                  <p className="text-xs font-bold text-yellow-800 uppercase">Голос передан</p>
-                  <p className="font-black text-gray-900 text-lg">{userData.delegatedToName}</p>
+                <div className="bg-yellow-50 p-6 rounded-[1.5rem] border border-yellow-100 text-center">
+                  <div className="text-3xl mb-2">🤝</div>
+                  <p className="text-xs font-black text-yellow-700 uppercase mb-1">Вы передали право голоса</p>
+                  <p className="font-black text-gray-900 text-xl">{userData.delegatedToName}</p>
                 </div>
               ) : userData.delegationStatus === 'pending' ? (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">
-                  <p className="font-bold text-blue-800 text-sm">⏳ Заявка рассматривается</p>
+                <div className="bg-blue-50 p-6 rounded-[1.5rem] border border-blue-100 text-center">
+                  <div className="text-3xl mb-2">⏳</div>
+                  <p className="font-black text-blue-800">Заявка на рассмотрении</p>
+                  <p className="text-xs text-blue-600 font-bold mt-1">Ожидайте подтверждения коллеги</p>
                 </div>
               ) : (
                 delegationState.isOpen ? (
                   <button
                     onClick={() => { setShowDelegateModal(true); setSearchTerm(''); setIsDropdownOpen(false); }}
-                    className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+                    className="w-full py-4 bg-gray-900 text-white rounded-[1.5rem] font-black text-lg shadow-xl hover:bg-black transition-transform active:scale-95"
                   >
                     Делегировать голос
                   </button>
                 ) : (
-                  <div className="bg-gray-100 p-4 rounded-xl border border-gray-200 text-center">
-                    <p className="font-bold text-gray-400 text-sm">Делегирование недоступно</p>
-                    <p className="text-xs text-gray-400 mt-1">{delegationState.message}</p>
-                  </div>
+                  <button disabled className="w-full py-4 bg-gray-100 text-gray-400 rounded-[1.5rem] font-bold cursor-not-allowed">
+                    {delegationState.message}
+                  </button>
                 )
               )}
 
               {userData.delegatedFrom && userData.delegatedFrom.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase mb-2">Вам доверили:</p>
+                <div className="mt-8">
+                  <p className="text-xs font-black text-gray-400 uppercase mb-3 ml-2">Вам доверились ({userData.delegatedFrom.length})</p>
                   <div className="flex flex-wrap gap-2">
                     {userData.delegatedFrom.map((name, idx) => (
-                      <span key={idx} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">{name}</span>
+                      <span key={idx} className="bg-white border border-green-200 text-green-700 px-3 py-1.5 rounded-xl text-xs font-black shadow-sm">+{name}</span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
 
-            <button onClick={handleLogout} className="w-full text-red-500 font-bold py-4">Выйти</button>
+            <button onClick={handleLogout} className="w-full bg-white text-red-500 font-black py-5 rounded-[2rem] shadow-lg shadow-red-50 hover:bg-red-50 transition mb-6">Выйти из аккаунта</button>
           </div>
         )}
       </div>
 
-      {/* --- МОДАЛКА ДЕЛЕГИРОВАНИЯ (С ПОИСКОМ) --- */}
+      {/* МОДАЛКА ДЕЛЕГИРОВАНИЯ */}
       {showDelegateModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-            <h3 className="font-black text-xl mb-4">Передача голоса</h3>
-            <p className="text-sm text-gray-500 mb-4">Найдите коллегу по имени для передачи права голоса.</p>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl transform transition-transform scale-100">
+            <h3 className="font-black text-2xl mb-2 text-gray-900">Передача голоса</h3>
+            <p className="text-sm font-medium text-gray-500 mb-6 leading-relaxed">Выберите коллегу, которому вы доверяете свой голос на предстоящем собрании.</p>
 
-            <form onSubmit={handleSubmitDelegation} className="space-y-4">
-
-              {/* Кастомный поиск + выбор */}
+            <form onSubmit={handleSubmitDelegation} className="space-y-5">
               <div className="relative">
-                <label className="text-xs font-bold uppercase text-gray-400">Коллега</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Поиск коллеги</label>
                 <input
                   type="text"
-                  placeholder="Начните вводить имя..."
-                  className="w-full p-3 border rounded-xl font-bold bg-gray-50 mt-1 outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Введите имя..."
+                  className="w-full p-4 bg-gray-50 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 rounded-2xl font-bold outline-none transition-all"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
                     setIsDropdownOpen(true);
-                    setSelectedDelegateId(''); // сбрасываем если начал править
+                    setSelectedDelegateId('');
                   }}
                   onFocus={() => setIsDropdownOpen(true)}
-                  required={!selectedDelegateId} // Обязательно только если ID не выбран
                 />
 
-                {/* Выпадающий список результатов */}
                 {isDropdownOpen && (
-                  <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 overflow-y-auto shadow-xl">
+                  <div className="absolute z-20 w-full bg-white border border-gray-100 rounded-2xl mt-2 max-h-48 overflow-y-auto shadow-2xl left-0">
                     {filteredColleagues.length > 0 ? (
                       filteredColleagues.map(c => (
                         <div
                           key={c.id}
-                          className="p-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0"
+                          className="p-4 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
                           onClick={() => {
                             setSelectedDelegateId(c.id);
-                            setSearchTerm(c.displayName); // Подставляем имя в поле
-                            setIsDropdownOpen(false); // Закрываем
+                            setSearchTerm(c.displayName);
+                            setIsDropdownOpen(false);
                           }}
                         >
-                          <p className="font-bold text-sm">{c.displayName}</p>
-                          <p className="text-xs text-gray-400">{c.position}</p>
+                          <p className="font-bold text-gray-900">{c.displayName}</p>
+                          <p className="text-xs font-bold text-gray-400 mt-0.5">{c.position}</p>
                         </div>
                       ))
                     ) : (
-                      <div className="p-3 text-sm text-gray-400 text-center">Никого не найдено</div>
+                      <div className="p-4 text-sm font-bold text-gray-400 text-center">Никого не найдено</div>
                     )}
                   </div>
                 )}
-
-                {/* Индикатор выбора */}
-                {selectedDelegateId && !isDropdownOpen && (
-                  <div className="absolute right-3 top-9 text-green-500">✓</div>
-                )}
+                {selectedDelegateId && !isDropdownOpen && <div className="absolute right-4 top-[34px] text-green-500 text-xl">✅</div>}
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase text-gray-400">Скан (необязательно)</label>
-                <input type="file" onChange={e => setDelegateFile(e.target.files?.[0] || null)} className="w-full text-sm mt-1" />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Документ (если есть)</label>
+                <input type="file" onChange={e => setDelegateFile(e.target.files?.[0] || null)} className="w-full text-xs bg-gray-50 p-3 rounded-xl font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" />
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowDelegateModal(false)} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600">Отмена</button>
-                <button disabled={isSubmittingDelegation} className="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white">
-                  {isSubmittingDelegation ? '...' : 'Отправить'}
+                <button type="button" onClick={() => setShowDelegateModal(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 hover:bg-gray-200 transition">Отмена</button>
+                <button disabled={isSubmittingDelegation} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">
+                  {isSubmittingDelegation ? '...' : 'Подтвердить'}
                 </button>
               </div>
             </form>
@@ -392,12 +640,81 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* МОДАЛКА ТЕСТА */}
+      {activeTest && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
+            <button onClick={() => setActiveTest(null)} className="absolute top-6 right-6 text-gray-300 hover:text-gray-600 font-bold text-2xl transition">✕</button>
+
+            <h2 className="font-black text-3xl mb-2 pr-8 text-gray-900">{activeTest.title}</h2>
+            <p className="text-gray-500 font-medium mb-8 border-b border-gray-100 pb-6">{activeTest.description || 'Пройдите тест, чтобы проверить свои знания.'}</p>
+
+            {testResult ? (
+              <div className="text-center py-4">
+                <div className={`text-8xl mb-6 transform transition-transform duration-500 hover:scale-110 ${testResult.passed ? 'text-green-500' : 'text-red-500'}`}>
+                  {testResult.passed ? '🎉' : '😕'}
+                </div>
+                <h3 className="font-black text-3xl mb-2 text-gray-900">{testResult.passed ? 'Отличный результат!' : 'Попробуйте еще раз'}</h3>
+                <p className="text-gray-500 font-bold mb-8 text-lg">Вы набрали {testResult.score} из {activeTest.questions.length}</p>
+                <button onClick={() => setActiveTest(null)} className="bg-gray-900 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-black transition w-full">Завершить</button>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {activeTest.questions.map((q, idx) => (
+                  <div key={q.id}>
+                    <p className="font-black text-xl mb-4 block text-gray-800"><span className="text-indigo-500 mr-2 opacity-50">#{idx + 1}</span> {q.text}</p>
+                    <div className="space-y-3">
+                      {q.options.map(opt => (
+                        <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 group ${testAnswers[q.id] === opt.id ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-100 bg-white hover:border-indigo-200'}`}>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${testAnswers[q.id] === opt.id ? 'border-indigo-600' : 'border-gray-300 group-hover:border-indigo-300'}`}>
+                            {testAnswers[q.id] === opt.id && <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>}
+                          </div>
+                          <span className={`font-bold text-base ${testAnswers[q.id] === opt.id ? 'text-indigo-900' : 'text-gray-600'}`}>{opt.text}</span>
+                          <input
+                            type="radio"
+                            name={q.id}
+                            value={opt.id}
+                            checked={testAnswers[q.id] === opt.id}
+                            onChange={() => setTestAnswers({ ...testAnswers, [q.id]: opt.id })}
+                            className="hidden"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="pt-6 border-t border-gray-100">
+                  <button
+                    onClick={handleSubmitTest}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-indigo-200 hover:shadow-2xl hover:scale-[1.01] transition-all"
+                  >
+                    Завершить тест
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Footer Nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-between pb-safe z-40">
-        <button onClick={() => setActiveTab('news')} className={`w-1/4 flex flex-col items-center ${activeTab === 'news' ? 'text-blue-600' : ''}`}><span>📰</span><span className="text-[10px]">Новости</span></button>
-        <button onClick={() => setActiveTab('chat')} className={`w-1/4 flex flex-col items-center ${activeTab === 'chat' ? 'text-blue-600' : ''}`}><span>💬</span><span className="text-[10px]">Чат</span></button>
-        <button onClick={() => setActiveTab('resources')} className={`w-1/4 flex flex-col items-center ${activeTab === 'resources' ? 'text-blue-600' : ''}`}><span>📂</span><span className="text-[10px]">Ресурсы</span></button>
-        <button onClick={() => setActiveTab('profile')} className={`w-1/4 flex flex-col items-center ${activeTab === 'profile' ? 'text-blue-600' : ''}`}><span>👤</span><span className="text-[10px]">Профиль</span></button>
+      <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto">
+        {['news', 'chat', 'training', 'resources', 'profile'].map((tab) => {
+          const isActive = activeTab === tab;
+          const icons: { [key: string]: string } = { news: '📰', chat: '💬', training: '🎓', resources: '📂', profile: '👤' };
+          const labels: { [key: string]: string } = { news: 'Главная', chat: 'Чат', training: 'Учеба', resources: 'Инфо', profile: 'Я' };
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={`flex-1 flex flex-col items-center py-3 rounded-[1.5rem] transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 transform -translate-y-2' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            >
+              <span className="text-xl mb-0.5">{icons[tab]}</span>
+              {isActive && <span className="text-[9px] font-black uppercase tracking-wide">{labels[tab]}</span>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
