@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getMessaging } from "firebase/messaging"; // <--- ДОБАВЛЕНО
 
 const firebaseConfig = {
   apiKey: "AIzaSyCBI0mwBLIpOs_sDCBk9tG8eCz3eg-NnVI",
@@ -18,3 +19,11 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Безопасная инициализация Messaging (только для клиента/браузера)
+let messaging: any = null;
+if (typeof window !== "undefined") {
+  messaging = getMessaging(app);
+}
+
+export { auth, db, storage, messaging }; // <--- ДОБАВИЛИ messaging в экспорт

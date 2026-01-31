@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { auth, db, storage } from '@/lib/firebase';
+// Добавили messaging
+import { auth, db, storage, messaging } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// Добавили получение токена
+import { getToken } from 'firebase/messaging';
 
 // --- ТИПЫ ДАННЫХ ---
 interface UserProfile { 
@@ -27,7 +30,6 @@ export default function DashboardPage() {
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Добавили вкладку 'learning'
   const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'learning' | 'profile'>('news');
   const router = useRouter();
 
@@ -35,18 +37,18 @@ export default function DashboardPage() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
-  const [tests, setTests] = useState<Test[]>([]); // Список тестов
+  const [tests, setTests] = useState<Test[]>([]); 
   const [myRequests, setMyRequests] = useState<RequestItem[]>([]);
   const [colleagues, setColleagues] = useState<UserProfile[]>([]);
   const [nextConference, setNextConference] = useState<Conference | null>(null);
 
   // --- ЛОГИКА ПРОХОЖДЕНИЯ ТЕСТА ---
-  const [activeTest, setActiveTest] = useState<Test | null>(null); // Какой тест открыт
-  const [testStep, setTestStep] = useState<'start' | 'quiz' | 'result'>('start'); // Этап
-  const [currentQIndex, setCurrentQIndex] = useState(0); // Номер вопроса
-  const [score, setScore] = useState(0); // Количество верных
-  const [isAnswered, setIsAnswered] = useState(false); // Ответил ли на текущий?
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null); // Что выбрал
+  const [activeTest, setActiveTest] = useState<Test | null>(null); 
+  const [testStep, setTestStep] = useState<'start' | 'quiz' | 'result'>('start'); 
+  const [currentQIndex, setCurrentQIndex] = useState(0); 
+  const [score, setScore] = useState(0); 
+  const [isAnswered, setIsAnswered] = useState(false); 
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null); 
 
   // Чат
   const [message, setMessage] = useState('');
@@ -66,11 +68,41 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // --- ЛОГИКА УВЕДОМЛЕНИЙ (FCM) ---
+  const requestNotificationPermission = async (uid: string) => {
+    try {
+      if (typeof window === 'undefined' || !('Notification' in window)) return;
+
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted' && messaging) {
+        console.log('Уведомления разрешены.');
+        
+        // --- ВСТАВЬТЕ СЮДА ВАШ КЛЮЧ ИЗ FIREBASE CONSOLE ---
+        const token = await getToken(messaging, { 
+          vapidKey: "BN83lUJyga9MEurnzCEDvPpprD2qxsqmkTGWs0ZLC9osteGB0fEFtEevApmBgNZwcZ-gMr8vPHYCns3GsLGc4Xw" 
+        });
+
+        if (token) {
+          console.log('Token:', token);
+          // Сохраняем токен, не удаляя старые (для входа с разных устройств)
+          await updateDoc(doc(db, 'users', uid), {
+            fcmTokens: arrayUnion(token)
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка push-уведомлений:', error);
+    }
+  };
+
   // --- ЗАГРУЗКА ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) { router.push('/login'); return; }
       setUser(currentUser);
+
+      // Запрашиваем права на уведомления
+      requestNotificationPermission(currentUser.uid);
 
       try {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
@@ -86,12 +118,12 @@ export default function DashboardPage() {
           getDocs(collection(db, 'news')),
           getDocs(query(collection(db, 'users'), where('status', '==', 'approved'))),
           getDocs(collection(db, 'conferences')),
-          getDocs(collection(db, 'tests')) // Загружаем тесты
+          getDocs(collection(db, 'tests'))
         ]);
 
         setLinks(lSnap.docs.map(d => ({ id: d.id, ...d.data() } as LinkItem)));
         setTemplates(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TemplateItem)));
-        setTests(testSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test))); // Сохраняем тесты
+        setTests(testSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
 
         const newsList = nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
         newsList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -132,7 +164,7 @@ export default function DashboardPage() {
   };
 
   const handleAnswer = (option: TestOption) => {
-    if (isAnswered) return; // Блокируем повторное нажатие
+    if (isAnswered) return; 
     setIsAnswered(true);
     setSelectedOptionId(option.id);
     if (option.isCorrect) setScore(prev => prev + 1);
@@ -141,20 +173,16 @@ export default function DashboardPage() {
   const nextQuestion = async () => {
     if (!activeTest) return;
     if (currentQIndex < activeTest.questions.length - 1) {
-      // Следующий вопрос
       setCurrentQIndex(prev => prev + 1);
       setIsAnswered(false);
       setSelectedOptionId(null);
     } else {
-      // Конец теста
       setTestStep('result');
-      // Сохраняем факт прохождения для Админа (не результат, а просто галочку)
       if (user && !activeTest.completedBy?.includes(user.uid)) {
         try {
           await updateDoc(doc(db, 'tests', activeTest.id), {
             completedBy: arrayUnion(user.uid)
           });
-          // Обновляем локально, чтобы сразу появилась галочка
           setTests(prev => prev.map(t => t.id === activeTest.id ? { ...t, completedBy: [...(t.completedBy || []), user.uid] } : t));
         } catch (e) { console.error('Ошибка сохранения прогресса', e); }
       }
@@ -166,7 +194,7 @@ export default function DashboardPage() {
     setTestStep('start');
   };
 
-  // --- ОСТАЛЬНЫЕ ФУНКЦИИ (ЧАТ, ПРОФИЛЬ, ДЕЛЕГИРОВАНИЕ) ---
+  // --- ОСТАЛЬНЫЕ ФУНКЦИИ ---
   const getDelegationState = () => { if (!nextConference) return { isOpen: false, message: 'Нет запланированных конференций' }; const confDate = new Date(nextConference.date); const now = new Date(); const openDate = new Date(confDate); openDate.setDate(confDate.getDate() - 30); if (now > confDate) return { isOpen: false, message: 'Конференция уже началась или прошла' }; if (now < openDate) return { isOpen: false, message: `Откроется ${openDate.toLocaleDateString()}` }; return { isOpen: true, message: `До ${confDate.toLocaleDateString()}` }; };
   const delegationState = getDelegationState();
   const isDelegationActive = userData?.delegatedTo && nextConference && userData?.delegationConferenceId === nextConference.id;
@@ -191,11 +219,9 @@ export default function DashboardPage() {
       
       <div className="max-w-xl mx-auto px-5 mt-2">
         
-        {/* --- ВКЛАДКА ОБУЧЕНИЕ (НОВАЯ) --- */}
+        {/* --- ВКЛАДКА ОБУЧЕНИЕ --- */}
         {activeTab === 'learning' && (
           <div className="space-y-6">
-            
-            {/* СПИСОК ТЕСТОВ */}
             {!activeTest && (
               <div className="grid gap-4">
                 {tests.map(test => {
@@ -234,31 +260,24 @@ export default function DashboardPage() {
             {activeTest && testStep === 'quiz' && (
               <div className="animate-in slide-in-from-right duration-300">
                 <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-indigo-50 min-h-[60vh] flex flex-col">
-                  {/* Прогресс */}
                   <div className="w-full bg-gray-100 h-2 rounded-full mb-6 overflow-hidden">
                     <div className="bg-indigo-500 h-full transition-all duration-500" style={{ width: `${((currentQIndex + 1) / activeTest.questions.length) * 100}%` }}></div>
                   </div>
-
-                  {/* Вопрос */}
                   <h2 className="text-2xl font-black text-gray-800 mb-6 flex-grow">
                     {activeTest.questions[currentQIndex].text}
                   </h2>
-
-                  {/* Варианты */}
                   <div className="space-y-3 mb-6">
                     {activeTest.questions[currentQIndex].options.map(option => {
-                      let btnClass = "bg-gray-50 text-gray-700 border-2 border-transparent hover:bg-gray-100"; // Обычное состояние
-                      
+                      let btnClass = "bg-gray-50 text-gray-700 border-2 border-transparent hover:bg-gray-100";
                       if (isAnswered) {
                         if (option.isCorrect) {
-                          btnClass = "bg-green-100 text-green-800 border-green-500"; // Правильный (показываем всегда)
+                          btnClass = "bg-green-100 text-green-800 border-green-500";
                         } else if (selectedOptionId === option.id) {
-                          btnClass = "bg-red-100 text-red-800 border-red-500"; // Если выбрали этот и он неправильный
+                          btnClass = "bg-red-100 text-red-800 border-red-500";
                         } else {
-                          btnClass = "bg-gray-50 text-gray-400 opacity-50"; // Остальные неправильные
+                          btnClass = "bg-gray-50 text-gray-400 opacity-50";
                         }
                       }
-
                       return (
                         <button
                           key={option.id}
@@ -271,8 +290,6 @@ export default function DashboardPage() {
                       );
                     })}
                   </div>
-
-                  {/* Кнопка Далее */}
                   {isAnswered && (
                     <button 
                       onClick={nextQuestion}
@@ -298,14 +315,92 @@ export default function DashboardPage() {
                 </button>
               </div>
             )}
-
           </div>
         )}
 
-        {/* Остальные вкладки (News, Chat, Resources, Profile) - Старый код свернут для краткости, но он тут есть */}
-        {activeTab === 'news' && <div className="space-y-6">{nextConference && (<div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50 relative overflow-hidden"><div className="absolute top-0 right-0 opacity-10 text-[10rem] leading-none -mt-10 -mr-10 font-black">📅</div><div className="relative z-10"><div className="inline-block bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">Ближайшее событие</div><h2 className="text-2xl font-black mb-2 leading-tight">{nextConference.title}</h2><p className="text-lg font-bold opacity-90">{new Date(nextConference.date).toLocaleString([], {year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</p></div></div>)}<div className="space-y-6">{news.map(i => (<div key={i.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">{i.imageUrl && <div className="h-52 w-full bg-gray-200 relative"><img src={i.imageUrl} className="w-full h-full object-cover" /></div>}<div className="p-6"><h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3><p className="text-gray-600 text-sm leading-relaxed">{i.body}</p><p className="text-xs text-gray-400 font-bold mt-4">{new Date(i.createdAt).toLocaleDateString()}</p></div></div>))}{news.length === 0 && <p className="text-center text-gray-400 py-10 font-bold">Новостей пока нет</p>}</div></div>}
-        {activeTab === 'chat' && <div className="space-y-6"><div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-6 text-white shadow-lg shadow-green-200/50 flex items-center justify-between relative overflow-hidden"><div className="relative z-10"><h2 className="font-black text-xl mb-1">Юридическая помощь</h2><p className="text-green-100 text-sm font-bold">WhatsApp</p></div><a href="https://wa.me/77771234567" target="_blank" className="relative z-10 bg-white text-green-600 px-6 py-3 rounded-xl font-black">Написать</a></div><div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><h2 className="font-black text-xl mb-4">Написать в Совет</h2><form onSubmit={sendRequest}><div className="relative mb-3"><textarea className="w-full bg-gray-50 p-4 rounded-2xl border-0 min-h-[100px]" placeholder="Ваш вопрос..." value={message} onChange={e=>setMessage(e.target.value)} /><div className="absolute bottom-3 right-3"><input type="file" ref={chatFileRef} onChange={e => setChatFile(e.target.files?.[0] || null)} className="hidden" id="chat-file-upload" /><label htmlFor="chat-file-upload" className="p-2 rounded-full cursor-pointer bg-gray-200">📎</label></div></div>{chatFile && <div className="bg-blue-50 p-2 rounded-xl text-sm mb-3 font-bold text-blue-700">{chatFile.name}</div>}<button disabled={isSending} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black">{isSending ? '...' : 'Отправить'}</button></form></div><div className="space-y-4">{myRequests.map(r=><div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50"><p className="font-bold mb-2">{r.text}</p>{r.response && <div className="bg-green-50 p-3 rounded-xl text-sm text-green-900 font-bold">{r.response}</div>}</div>)}</div></div>}
-        {activeTab === 'resources' && <div className="space-y-8"><div className="space-y-4"><h2 className="font-black text-xl flex items-center gap-2">📄 Шаблоны</h2>{templates.map(t=><div key={t.id} className="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm border border-gray-100"><div><p className="font-black">{t.title}</p>{t.description && <p className="text-sm text-gray-500">{t.description}</p>}</div><a href={t.fileUrl} className="text-blue-600 font-bold">Скачать</a></div>)}</div><div className="space-y-4"><h2 className="font-black text-xl flex items-center gap-2">🌍 Ссылки</h2>{links.map(l=><a key={l.id} href={l.url} className="bg-white p-5 rounded-2xl block shadow-sm border border-gray-100 font-black text-blue-700">{l.title}</a>)}</div></div>}
+        {/* ВКЛАДКА НОВОСТИ */}
+        {activeTab === 'news' && (
+          <div className="space-y-6">
+            {nextConference && (
+               <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200/50 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 opacity-10 text-[10rem] leading-none -mt-10 -mr-10 font-black">📅</div>
+                  <div className="relative z-10">
+                    <div className="inline-block bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">Ближайшее событие</div>
+                    <h2 className="text-2xl font-black mb-2 leading-tight">{nextConference.title}</h2>
+                    <p className="text-lg font-bold opacity-90">{new Date(nextConference.date).toLocaleString([], {year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</p>
+                  </div>
+               </div>
+            )}
+            <div className="space-y-6">
+              {news.map(i => (
+                <div key={i.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
+                  {i.imageUrl && <div className="h-52 w-full bg-gray-200 relative"><img src={i.imageUrl} className="w-full h-full object-cover" /></div>}
+                  <div className="p-6">
+                    <h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">{i.body}</p>
+                    <p className="text-xs text-gray-400 font-bold mt-4">{new Date(i.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))}
+              {news.length === 0 && <p className="text-center text-gray-400 py-10 font-bold">Новостей пока нет</p>}
+            </div>
+          </div>
+        )}
+
+        {/* ВКЛАДКА ЧАТ */}
+        {activeTab === 'chat' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-6 text-white shadow-lg shadow-green-200/50 flex items-center justify-between relative overflow-hidden">
+               <div className="relative z-10"><h2 className="font-black text-xl mb-1">Юридическая помощь</h2><p className="text-green-100 text-sm font-bold">WhatsApp</p></div>
+               <a href="https://wa.me/77771234567" target="_blank" className="relative z-10 bg-white text-green-600 px-6 py-3 rounded-xl font-black">Написать</a>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+               <h2 className="font-black text-xl mb-4">Написать в Совет</h2>
+               <form onSubmit={sendRequest}>
+                 <div className="relative mb-3">
+                   <textarea className="w-full bg-gray-50 p-4 rounded-2xl border-0 min-h-[100px]" placeholder="Ваш вопрос..." value={message} onChange={e=>setMessage(e.target.value)} />
+                   <div className="absolute bottom-3 right-3">
+                      <input type="file" ref={chatFileRef} onChange={e => setChatFile(e.target.files?.[0] || null)} className="hidden" id="chat-file-upload" />
+                      <label htmlFor="chat-file-upload" className="p-2 rounded-full cursor-pointer bg-gray-200 text-lg">📎</label>
+                   </div>
+                 </div>
+                 {chatFile && <div className="bg-blue-50 p-2 rounded-xl text-sm mb-3 font-bold text-blue-700">{chatFile.name}</div>}
+                 <button disabled={isSending} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black">{isSending ? '...' : 'Отправить'}</button>
+               </form>
+            </div>
+            <div className="space-y-4">
+               {myRequests.map(r => (
+                 <div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50">
+                   <p className="font-bold mb-2">{r.text}</p>
+                   {r.response && <div className="bg-green-50 p-3 rounded-xl text-sm text-green-900 font-bold">{r.response}</div>}
+                 </div>
+               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ВКЛАДКА РЕСУРСЫ */}
+        {activeTab === 'resources' && (
+          <div className="space-y-8">
+             <div className="space-y-4">
+               <h2 className="font-black text-xl flex items-center gap-2">📄 Шаблоны</h2>
+               {templates.map(t => (
+                 <div key={t.id} className="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm border border-gray-100">
+                   <div><p className="font-black">{t.title}</p>{t.description && <p className="text-sm text-gray-500">{t.description}</p>}</div>
+                   <a href={t.fileUrl} className="text-blue-600 font-bold">Скачать</a>
+                 </div>
+               ))}
+             </div>
+             <div className="space-y-4">
+               <h2 className="font-black text-xl flex items-center gap-2">🌍 Ссылки</h2>
+               {links.map(l => (
+                 <a key={l.id} href={l.url} className="bg-white p-5 rounded-2xl block shadow-sm border border-gray-100 font-black text-blue-700">{l.title}</a>
+               ))}
+             </div>
+          </div>
+        )}
+
+        {/* ВКЛАДКА ПРОФИЛЬ */}
         {activeTab === 'profile' && userData && (
           <div className="space-y-6 pt-4">
             <div className="bg-white p-8 rounded-[2rem] shadow-lg shadow-gray-200/40 border border-gray-100 text-center relative overflow-hidden">
@@ -385,12 +480,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* FOOTER - ДОБАВЛЕНА 5-я КНОПКА (ОБУЧЕНИЕ) */}
+      {/* FOOTER */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-white/20 p-2 flex justify-around items-center pb-safe z-40 shadow-lg rounded-t-[2rem] mx-2 mb-2">
         {[ 
           { id: 'news', icon: '📰', label: 'Новости' }, 
           { id: 'chat', icon: '💬', label: 'Чат' }, 
-          { id: 'learning', icon: '🎓', label: 'Обучение' }, // НОВОЕ
+          { id: 'learning', icon: '🎓', label: 'Обучение' }, 
           { id: 'resources', icon: '📂', label: 'Ресурсы' }, 
           { id: 'profile', icon: '👤', label: 'Профиль' } 
         ].map((tab) => (

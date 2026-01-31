@@ -103,7 +103,6 @@ export default function AdminPage() {
     } catch (e) { 
       console.error(e); 
       setLoading(false); 
-      // Не блокируем UI при ошибке загрузки, просто покажем пустые списки
     }
   };
 
@@ -111,6 +110,20 @@ export default function AdminPage() {
     const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
     await uploadBytes(storageRef, file);
     return await getDownloadURL(storageRef);
+  };
+
+  // --- 🔥 ФУНКЦИЯ ОТПРАВКИ PUSH-УВЕДОМЛЕНИЙ ---
+  const sendPushNotification = async (title: string, body: string) => {
+    try {
+      await fetch('/api/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body }),
+      });
+      console.log('Уведомление отправлено:', title);
+    } catch (e) {
+      console.error('Ошибка отправки уведомления:', e);
+    }
   };
 
   // --- ЛОГИКА ТЕСТОВ ---
@@ -135,6 +148,9 @@ export default function AdminPage() {
     const newQ = [...testQuestions]; newQ.splice(qIdx, 1); setTestQuestions(newQ);
   };
 
+  // --- ACTIONS ---
+
+  // 1. СОЗДАНИЕ ТЕСТА (С УВЕДОМЛЕНИЕМ)
   const handleCreateTest = async () => {
     if (!testTitle || testQuestions.some(q => !q.text || q.options.some(o => !o.text))) { alert('Заполните все поля'); return; }
     try {
@@ -145,25 +161,56 @@ export default function AdminPage() {
         createdAt: new Date().toISOString(),
         completedBy: []
       });
+      
+      // Отправляем пуш
+      await sendPushNotification('🎓 Новый тест доступен', `Проверьте свои знания: ${testTitle}`);
+
       setTestTitle(''); setTestDesc(''); setTestQuestions([{ id: 'q1', text: '', options: [{ id: 'o1', text: '', isCorrect: true }] }]);
       setIsCreatingTest(false);
       fetchData();
       alert('Тест создан!');
     } catch { alert('Ошибка'); }
   };
+
   const handleDeleteTest = async (id: string) => {
     if(confirm('Удалить тест?')) { await deleteDoc(doc(db, 'tests', id)); fetchData(); }
   };
 
-  // --- ACTIONS ---
-  const handleCreateConference = async (e: React.FormEvent) => { e.preventDefault(); if (!confTitle || !confDate) return; await addDoc(collection(db, 'conferences'), { title: confTitle, date: confDate, createdAt: new Date().toISOString() }); setConfTitle(''); setConfDate(''); fetchData(); alert('Конференция создана'); };
+  // 2. СОЗДАНИЕ КОНФЕРЕНЦИИ (С УВЕДОМЛЕНИЕМ)
+  const handleCreateConference = async (e: React.FormEvent) => { 
+    e.preventDefault(); 
+    if (!confTitle || !confDate) return; 
+    await addDoc(collection(db, 'conferences'), { title: confTitle, date: confDate, createdAt: new Date().toISOString() }); 
+    
+    // Отправляем пуш
+    await sendPushNotification('📅 Новое событие!', `Назначено: ${confTitle}`);
+
+    setConfTitle(''); setConfDate(''); fetchData(); alert('Конференция создана'); 
+  };
+
   const handleDeleteConference = async (id: string) => { if(confirm('Удалить конференцию?')) { await deleteDoc(doc(db, 'conferences', id)); fetchData(); } };
+  
+  // 3. ПУБЛИКАЦИЯ НОВОСТИ (С УВЕДОМЛЕНИЕМ)
+  const handlePublishNews = async (e: React.FormEvent) => { 
+    e.preventDefault(); setIsUploading(true); 
+    try { 
+      let imageUrl = ''; if(newsFile) imageUrl = await uploadImage(newsFile, 'news'); 
+      await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, createdAt: new Date().toISOString() }); 
+      
+      // Отправляем пуш
+      await sendPushNotification('⚡️ Свежая новость', newsTitle);
+
+      setNewsTitle(''); setNewsBody(''); setNewsFile(null); fetchData(); 
+    } catch { alert('Ошибка'); } finally { setIsUploading(false); }
+  };
+
+  const handleDeleteNews = async (id: string) => { if(confirm('Del?')) await deleteDoc(doc(db, 'news', id)); fetchData(); };
+  
+  // ОСТАЛЬНЫЕ ФУНКЦИИ
   const handleApproveDelegation = async (req: DelegationRequest) => { if (!confirm(`Одобрить?`)) return; await updateDoc(doc(db, 'delegation_requests', req.id), { status: 'approved' }); await updateDoc(doc(db, 'users', req.fromId), { voteWeight: 0, delegationStatus: 'approved', delegatedTo: req.toId, delegatedToName: req.toName, delegationConferenceId: req.conferenceId || null }); await updateDoc(doc(db, 'users', req.toId), { voteWeight: increment(1), delegatedFrom: arrayUnion(req.fromName) }); fetchData(); };
   const handleRejectDelegation = async (reqId: string, fromId: string) => { if (!confirm('Отклонить?')) return; await deleteDoc(doc(db, 'delegation_requests', reqId)); await updateDoc(doc(db, 'users', fromId), { delegationStatus: null, delegatedToName: null }); fetchData(); };
   const handleApproveUser = async (id: string) => { if(confirm('Подтвердить?')) { await updateDoc(doc(db, 'users', id), { status: 'approved', voteWeight: 1 }); fetchData(); } };
   const handleRejectUser = async (id: string) => { if(confirm('Удалить?')) { await deleteDoc(doc(db, 'users', id)); fetchData(); } };
-  const handlePublishNews = async (e: React.FormEvent) => { e.preventDefault(); setIsUploading(true); let imageUrl = ''; if(newsFile) imageUrl = await uploadImage(newsFile, 'news'); await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, createdAt: new Date().toISOString() }); setNewsTitle(''); setNewsBody(''); setNewsFile(null); fetchData(); setIsUploading(false); };
-  const handleDeleteNews = async (id: string) => { if(confirm('Del?')) await deleteDoc(doc(db, 'news', id)); fetchData(); };
   const handleAddMember = async (e: React.FormEvent) => { e.preventDefault(); setIsUploading(true); let photoUrl = ''; if(memberFile) photoUrl = await uploadImage(memberFile, 'team'); await addDoc(collection(db, 'team'), { name: memberName, role: memberRole, photoUrl }); setMemberName(''); setMemberRole(''); setMemberFile(null); fetchData(); setIsUploading(false); };
   const handleDeleteMember = async (id: string) => { if(confirm('Del?')) await deleteDoc(doc(db, 'team', id)); fetchData(); };
   const handleAddLink = async (e: React.FormEvent) => { e.preventDefault(); await addDoc(collection(db, 'links'), { title: linkTitle, url: linkUrl }); setLinkTitle(''); setLinkUrl(''); fetchData(); };
@@ -294,7 +341,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* УЧАСТНИКИ */}
+          {/* 2. УЧАСТНИКИ */}
           {activeTab === 'users' && (
              <div className="space-y-6">
                {pendingUsers.length > 0 && (
@@ -342,8 +389,8 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ДРУГИЕ ВКЛАДКИ */}
-          {activeTab === 'delegations' && <div className="space-y-6"><h2 className="font-black text-2xl mb-4">Голоса</h2>{pendingDelegations.length === 0 ? <div className="bg-white p-10 rounded-[2rem] text-center text-gray-400 font-bold border-2 border-dashed border-gray-200">✅ Нет новых заявок</div> : <div className="grid gap-4">{pendingDelegations.map(req => (<div key={req.id} className="bg-white p-6 rounded-[2rem] border border-indigo-100 shadow-xl flex flex-col lg:flex-row justify-between items-start gap-6"><div className="flex-grow"><div className="flex items-center gap-3 mb-3"><span className="font-black bg-gray-100 px-3 py-1 rounded-xl">{req.fromName}</span><span className="text-indigo-300 font-black text-2xl">➝</span><span className="font-black bg-indigo-50 text-indigo-700 px-3 py-1 rounded-xl">{req.toName}</span></div>{req.conferenceTitle && <div className="inline-flex bg-yellow-50 text-yellow-800 text-xs font-black px-3 py-1.5 rounded-lg mb-3">📅 {req.conferenceTitle}</div>}<div className="flex gap-4 text-xs font-bold text-gray-400"><span>🕒 {new Date(req.createdAt).toLocaleString()}</span>{req.docUrl && <a href={req.docUrl} target="_blank" className="text-blue-600 underline">📄 Документ</a>}</div></div><div className="flex gap-2"><button onClick={()=>handleApproveDelegation(req)} className="bg-green-500 text-white px-6 py-3 rounded-xl font-black">Одобрить</button><button onClick={()=>handleRejectDelegation(req.id, req.fromId)} className="bg-gray-100 text-red-500 px-6 py-3 rounded-xl font-black">Отказать</button></div></div>))}</div>}</div>}
+          {/* ОСТАЛЬНЫЕ ВКЛАДКИ */}
+          {activeTab === 'delegations' && <div className="space-y-6"><h2 className="font-black text-2xl mb-4">Управление голосами</h2>{pendingDelegations.length === 0 ? <div className="bg-white p-10 rounded-[2rem] text-center text-gray-400 font-bold border-2 border-dashed border-gray-200">✅ Нет новых заявок</div> : <div className="grid gap-4">{pendingDelegations.map(req => (<div key={req.id} className="bg-white p-6 rounded-[2rem] border border-indigo-100 shadow-xl flex flex-col lg:flex-row justify-between items-start gap-6"><div className="flex-grow"><div className="flex items-center gap-3 mb-3"><span className="font-black bg-gray-100 px-3 py-1 rounded-xl">{req.fromName}</span><span className="text-indigo-300 font-black text-2xl">➝</span><span className="font-black bg-indigo-50 text-indigo-700 px-3 py-1 rounded-xl">{req.toName}</span></div>{req.conferenceTitle && <div className="inline-flex bg-yellow-50 text-yellow-800 text-xs font-black px-3 py-1.5 rounded-lg mb-3">📅 {req.conferenceTitle}</div>}<div className="flex gap-4 text-xs font-bold text-gray-400"><span>🕒 {new Date(req.createdAt).toLocaleString()}</span>{req.docUrl && <a href={req.docUrl} target="_blank" className="text-blue-600 underline">📄 Документ</a>}</div></div><div className="flex gap-2"><button onClick={()=>handleApproveDelegation(req)} className="bg-green-500 text-white px-6 py-3 rounded-xl font-black">Одобрить</button><button onClick={()=>handleRejectDelegation(req.id, req.fromId)} className="bg-gray-100 text-red-500 px-6 py-3 rounded-xl font-black">Отказать</button></div></div>))}</div>}</div>}
           {activeTab === 'requests' && <div className="grid gap-4">{requests.map(req => (<div key={req.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm"><div className="flex justify-between items-start mb-3"><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black">{req.userEmail}</span><span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span></div><p className="font-bold text-gray-800 text-lg mb-4">"{req.text}"</p>{req.response ? <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-sm font-bold text-green-900">{req.response}</div> : <div className="flex gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-200"><input className="bg-transparent p-2 w-full font-medium outline-none text-sm" placeholder="Ответ..." onChange={(e) => setReplyText({...replyText, [req.id]: e.target.value})} /><button onClick={() => handleReplyRequest(req.id)} className="bg-blue-600 text-white px-5 rounded-xl font-black text-sm">Send</button></div>}</div>))}</div>}
           {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><div className="flex justify-between"><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs"/><button className="bg-black text-white px-8 py-3 rounded-xl font-black">Опубликовать</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.map(n => (<div key={n.id} className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button></div>))}</div></div>}
           {activeTab === 'resources' && <div className="grid md:grid-cols-2 gap-6"><div className="bg-white p-8 rounded-[2rem] shadow-lg"><h3 className="font-black text-xl mb-4 text-teal-600">Ссылки</h3><form onSubmit={handleAddLink} className="flex gap-2 mb-4"><input className="bg-gray-50 p-3 rounded-xl w-full font-bold" placeholder="Title" value={linkTitle} onChange={e=>setLinkTitle(e.target.value)}/><input className="bg-gray-50 p-3 rounded-xl w-full" placeholder="URL" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/><button className="bg-teal-600 text-white p-3 rounded-xl font-black">+</button></form>{links.map(l=><div key={l.id} className="flex justify-between py-2 border-b"><span className="font-bold text-gray-700">{l.title}</span><button onClick={()=>handleDeleteLink(l.id)} className="text-red-400 font-bold">✕</button></div>)}</div><div className="bg-white p-8 rounded-[2rem] shadow-lg"><h3 className="font-black text-xl mb-4 text-orange-500">Шаблоны</h3><form onSubmit={handleAddTemplate} className="flex flex-col gap-3 mb-6"><input className="bg-gray-50 p-3 rounded-xl font-bold" placeholder="Название" value={tplTitle} onChange={e=>setTplTitle(e.target.value)}/><input type="file" onChange={e=>setTplFile(e.target.files?.[0] || null)} className="text-xs"/><button className="bg-orange-500 text-white py-3 rounded-xl font-black">Загрузить</button></form>{templates.map(t=><div key={t.id} className="flex justify-between py-2 border-b"><span className="font-bold text-gray-700">{t.title}</span><button onClick={()=>handleDeleteTemplate(t.id)} className="text-red-400 font-bold">✕</button></div>)}</div></div>}
