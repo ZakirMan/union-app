@@ -20,12 +20,13 @@ export default function ForgotPasswordPage() {
       // Стандартная функция Firebase: отправляет письмо с ссылкой
       await sendPasswordResetEmail(auth, email);
       setStatus('success');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
+      const firebaseError = error as { code?: string };
       setStatus('error');
-      if (error.code === 'auth/user-not-found') {
+      if (firebaseError.code === 'auth/user-not-found') {
         setErrorMsg('Такой Email не зарегистрирован.');
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (firebaseError.code === 'auth/invalid-email') {
         setErrorMsg('Некорректный формат Email.');
       } else {
         setErrorMsg('Ошибка отправки. Попробуйте позже.');
@@ -36,7 +37,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
-        
+
         <h2 className="text-2xl font-black text-gray-900 mb-2">Восстановление пароля</h2>
         <p className="text-gray-500 text-sm mb-6">Введите почту, указанную при регистрации. Мы отправим туда ссылку для сброса.</p>
 
@@ -53,13 +54,13 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleReset} className="space-y-4 text-left">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Ваш Email</label>
-              <input 
-                type="email" 
-                required 
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition text-black" 
-                placeholder="name@example.com" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
+              <input
+                type="email"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition text-black"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -69,9 +70,9 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            <button 
-              type="submit" 
-              disabled={status === 'loading'} 
+            <button
+              type="submit"
+              disabled={status === 'loading'}
               className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200 disabled:opacity-70"
             >
               {status === 'loading' ? 'Отправка...' : 'Сбросить пароль'}

@@ -21,9 +21,10 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 // Безопасная инициализация Messaging (только для клиента/браузера)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let messaging: any = null;
 if (typeof window !== "undefined") {
   messaging = getMessaging(app);
 }
 
-export { auth, db, storage, messaging }; // <--- ДОБАВИЛИ messaging в экспорт
+export { messaging };

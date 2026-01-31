@@ -5,11 +5,14 @@ import { db } from '@/lib/firebase'; // Проверьте путь
 import { doc, getDoc } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
+
+interface NewsItem { title: string; body: string; imageUrl?: string; createdAt: string; }
 
 export default function NewsDetailPage() {
   const { id } = useParams(); // Получаем ID из URL
   const router = useRouter();
-  const [newsItem, setNewsItem] = useState<any>(null);
+  const [newsItem, setNewsItem] = useState<NewsItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +22,7 @@ export default function NewsDetailPage() {
         const docRef = doc(db, 'news', id as string);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setNewsItem(docSnap.data());
+          setNewsItem(docSnap.data() as NewsItem);
         } else {
           setNewsItem(null);
         }
@@ -33,16 +36,16 @@ export default function NewsDetailPage() {
   }, [id]);
 
   if (loading) return <div className="p-20 text-center">Загрузка новости...</div>;
-  if (!newsItem) return <div className="p-20 text-center">Новость не найдена <br/><Link href="/" className="text-blue-500">На главную</Link></div>;
+  if (!newsItem) return <div className="p-20 text-center">Новость не найдена <br /><Link href="/" className="text-blue-500">На главную</Link></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <div className="max-w-3xl mx-auto bg-white min-h-screen shadow-xl">
-        
+
         {/* Картинка во всю ширину */}
         {newsItem.imageUrl && (
           <div className="w-full h-64 md:h-96 relative">
-            <img src={newsItem.imageUrl} className="w-full h-full object-cover" alt={newsItem.title} />
+            <Image src={newsItem.imageUrl} fill className="object-cover" alt={newsItem.title} />
           </div>
         )}
 

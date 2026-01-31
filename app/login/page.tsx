@@ -20,8 +20,8 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // Если успешно — перекидываем на главную (или в кабинет)
-      router.push('/'); 
-    } catch (err: any) {
+      router.push('/');
+    } catch (err: unknown) {
       // Обработка ошибок Firebase (неверный пароль и т.д.)
       console.error(err);
       setError('Ошибка входа. Проверьте логин и пароль.');

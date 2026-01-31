@@ -5,12 +5,16 @@ import { useEffect, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth'; // <--- Добавили signOut
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import Image from 'next/image';
+
+interface NewsItem { id: string; title: string; body: string; imageUrl?: string; createdAt: string; }
+interface TeamMember { id: string; name: string; role: string; photoUrl?: string; }
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string>('member');
-  const [news, setNews] = useState<any[]>([]);
-  const [team, setTeam] = useState<any[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
 
   useEffect(() => {
@@ -31,13 +35,13 @@ export default function HomePage() {
     const loadData = async () => {
       try {
         const nSnap = await getDocs(collection(db, 'news'));
-        const nList = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        nList.sort((a: any, b: any) => (a.createdAt < b.createdAt ? 1 : -1));
+        const nList = nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+        nList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
         setNews(nList);
 
         const tSnap = await getDocs(collection(db, 'team'));
-        setTeam(tSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (e) { console.error(e); } 
+        setTeam(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeamMember)));
+      } catch (e) { console.error(e); }
       finally { setLoadingNews(false); }
     };
     loadData();
@@ -56,23 +60,26 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-800 font-sans">
-      
+
       {/* HEADER */}
       <nav className="border-b bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          
+
           {/* ЛОГОТИП И НАЗВАНИЕ */}
           <div className="flex items-center gap-4">
             {/* Картинка логотипа */}
-            <img 
-              src="/icon-512.png" 
-              alt="Логотип" 
-              className="h-12 w-auto object-contain" 
+            {/* Картинка логотипа */}
+            <Image
+              src="/icon-512.png"
+              alt="Логотип"
+              width={48}
+              height={48}
+              className="h-12 w-auto object-contain"
             />
-            
+
             {/* Текст */}
             <div className="text-xl font-bold text-blue-900 leading-tight">
-              Профсоюз Работников<br/>
+              Профсоюз Работников<br />
               <span className="text-blue-600">Авиации Казахстана</span>
             </div>
           </div>
@@ -83,7 +90,7 @@ export default function HomePage() {
                 <Link href="/dashboard" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium transition">
                   Кабинет
                 </Link>
-                
+
                 {role === 'admin' && (
                   <Link href="/admin" className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition">
                     Админ
@@ -91,7 +98,7 @@ export default function HomePage() {
                 )}
 
                 {/* КНОПКА ВЫХОДА (LOGOUT) */}
-                <button 
+                <button
                   onClick={handleLogout}
                   className="text-red-500 hover:text-red-700 font-medium px-2 py-2 border border-transparent hover:border-red-100 rounded transition text-sm"
                   title="Выйти из аккаунта"
@@ -124,18 +131,18 @@ export default function HomePage() {
       <section className="py-16 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-bold mb-8 text-center text-gray-800">Новости</h2>
-          
+
           {loadingNews ? (
-             <div className="text-center text-gray-500">Загрузка...</div>
+            <div className="text-center text-gray-500">Загрузка...</div>
           ) : news.length === 0 ? (
-             <div className="text-center text-gray-400">Новостей пока нет</div>
+            <div className="text-center text-gray-400">Новостей пока нет</div>
           ) : (
             <div className="grid md:grid-cols-3 gap-8">
               {news.map((item) => (
                 <Link href={`/news/${item.id}`} key={item.id} className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition flex flex-col h-full cursor-pointer">
                   <div className="h-48 overflow-hidden bg-gray-200 relative">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                      <Image src={item.imageUrl} alt={item.title} fill className="object-cover group-hover:scale-105 transition duration-500" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-gray-400 text-4xl">📰</div>
                     )}
@@ -161,7 +168,7 @@ export default function HomePage() {
             {team.map(member => (
               <div key={member.id} className="flex flex-col items-center text-center w-40">
                 <div className="w-32 h-32 rounded-full mb-4 overflow-hidden border-4 border-blue-50 shadow-sm relative">
-                   <img src={member.photoUrl || '/default-avatar.png'} className="w-full h-full object-cover" />
+                  <Image src={member.photoUrl || '/default-avatar.png'} alt={member.name} fill className="object-cover" />
                 </div>
                 <h3 className="text-lg font-bold leading-tight text-gray-900">{member.name}</h3>
                 <p className="text-blue-600 text-sm">{member.role}</p>

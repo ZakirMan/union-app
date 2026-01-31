@@ -4,7 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 // --- ВНИМАНИЕ: СЮДА ВСТАВЬТЕ ДАННЫЕ ИЗ СКАЧАННОГО JSON ---
 const serviceAccount = {
-  
+
   "project_id": "union-aviation-app",
   "client_email": "firebase-adminsdk-fbsvc@union-aviation-app.iam.gserviceaccount.com",
   "private_key_id": "33e23ee3d7ec2137c4111af6d18e3b7149ac7f71",
@@ -14,7 +14,8 @@ const serviceAccount = {
 // Инициализация Admin SDK (делаем это один раз)
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    credential: admin.credential.cert(serviceAccount as any)
   });
 }
 
@@ -60,10 +61,10 @@ export async function POST(request: Request) {
 
     // (Опционально) Здесь можно почистить базу от невалидных токенов, если response.failureCount > 0
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       sentCount: response.successCount,
-      failureCount: response.failureCount 
+      failureCount: response.failureCount
     });
 
   } catch (error) {

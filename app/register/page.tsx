@@ -14,7 +14,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState(''); // <-- НОВОЕ ПОЛЕ
-  
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -40,9 +40,10 @@ export default function RegisterPage() {
       });
 
       router.push('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      if (err.code === 'auth/email-already-in-use') setError('Email занят.');
+      const error = err as { code?: string };
+      if (error.code === 'auth/email-already-in-use') setError('Email занят.');
       else setError('Ошибка регистрации.');
     } finally {
       setLoading(false);
@@ -72,13 +73,13 @@ export default function RegisterPage() {
           {/* НОВОЕ ПОЛЕ: ТЕЛЕФОН */}
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-1">Телефон</label>
-            <input 
-              type="tel" 
-              required 
-              className="w-full px-4 py-2 border rounded-lg text-black" 
-              placeholder="Для быстрой ОС" 
-              value={phone} 
-              onChange={(e) => setPhone(e.target.value)} 
+            <input
+              type="tel"
+              required
+              className="w-full px-4 py-2 border rounded-lg text-black"
+              placeholder="Для быстрой ОС"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
             />
           </div>
 
