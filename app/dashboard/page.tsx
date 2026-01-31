@@ -62,6 +62,7 @@ export default function DashboardPage() {
 
   // Формы
   const [message, setMessage] = useState('');
+  const [chatFile, setChatFile] = useState<File | null>(null); // <--- NEW STATE
   const [isSending, setIsSending] = useState(false);
 
   // Редактирование профиля
@@ -198,15 +199,34 @@ export default function DashboardPage() {
 
   const sendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !user) return;
+    if ((!message.trim() && !chatFile) || !user) return; // Allow sending if at least file OR text is present
     setIsSending(true);
     try {
-      const newReqData = { userId: user.uid, userEmail: user.email || '', text: message, status: 'new', createdAt: new Date().toISOString() };
+      let fileUrl = '';
+      if (chatFile) {
+        const storageRef = ref(storage, `requests/${user.uid}_${Date.now()}_${chatFile.name}`);
+        await uploadBytes(storageRef, chatFile);
+        fileUrl = await getDownloadURL(storageRef);
+      }
+
+      const newReqData = {
+        userId: user.uid,
+        userEmail: user.email || '',
+        text: message,
+        fileUrl, // <--- SAVE URL
+        status: 'new',
+        createdAt: new Date().toISOString()
+      };
       const docRef = await addDoc(collection(db, 'requests'), newReqData);
-      setMyRequests([{ ...newReqData, id: docRef.id }, ...myRequests]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setMyRequests([{ ...newReqData, id: docRef.id } as any, ...myRequests]);
       setMessage('');
+      setChatFile(null); // Reset file
+      alert('Обращение отправлено!');
     } catch { alert('Ошибка'); } finally { setIsSending(false); }
   };
+
+
 
   const handleSaveProfile = async () => {
     if (!user || !userData) return;
@@ -396,6 +416,15 @@ export default function DashboardPage() {
               >
                 {isSending ? 'Отправка...' : 'Отправить обращение'}
               </button>
+              {/* FILE INPUT ADDED HERE */}
+              <div className="mt-4">
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2 ml-2">Прикрепить документ/фото</label>
+                <input
+                  type="file"
+                  onChange={e => setChatFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition"
+                />
+              </div>
             </div>
 
             <div className="space-y-4">
