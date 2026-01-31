@@ -331,6 +331,22 @@ export default function DashboardPage() {
         {/* НОВОСТИ */}
         {activeTab === 'news' && (
           <div className="space-y-6">
+            {/* БЛОК СЛЕДУЮЩЕГО СОБРАНИЯ */}
+            {nextConference && (
+              <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 rounded-[2rem] shadow-lg shadow-indigo-200 text-white relative overflow-hidden">
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide backdrop-blur-md">📅 Ближайшее событие</span>
+                  </div>
+                  <h3 className="font-black text-2xl mb-1">{nextConference.title}</h3>
+                  <p className="text-indigo-100 font-bold text-sm bg-white/10 inline-block px-3 py-1 rounded-lg mt-2">
+                    {new Date(nextConference.date).toLocaleString()}
+                  </p>
+                </div>
+                <div className="absolute top-0 right-0 text-9xl opacity-10 -mr-4 -mt-4 rotate-12">🗓</div>
+              </div>
+            )}
+
             {news.map(i => (
               <div key={i.id} className="bg-white rounded-[2rem] shadow-lg shadow-indigo-100/50 border border-white overflow-hidden hover:shadow-xl transition-all duration-300 group">
                 {i.imageUrl && (
