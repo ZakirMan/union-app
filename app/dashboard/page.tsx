@@ -130,7 +130,7 @@ export default function DashboardPage() {
           setEditPhone(data.phoneNumber || '');
         }
 
-        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap, docsSnap] = await Promise.all([
+        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap, docsSnap, pollsSnap] = await Promise.all([
           getDocs(collection(db, 'links')),
           getDocs(collection(db, 'templates')),
           getDocs(collection(db, 'news')),
@@ -146,7 +146,7 @@ export default function DashboardPage() {
         setTests(testsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
         setUnionDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() } as UnionDocument))); // <--- SET STATE
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setPolls((arguments[7] as any).docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive));
+        setPolls(pollsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive));
 
         const newsList = nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
         newsList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
