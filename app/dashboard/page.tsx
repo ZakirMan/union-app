@@ -276,9 +276,13 @@ export default function DashboardPage() {
 
       // Отправляем уведомление в Telegram группу совета
       try {
+        const token = await user.getIdToken();
         await fetch('/api/send-telegram', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             text: `💬 <b>Новое обращение!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n📝 <b>Текст:</b>\n${message}${fileUrl ? '\n\n📎 <i>К сообщению прикреплен файл</i>' : ''}`
           })

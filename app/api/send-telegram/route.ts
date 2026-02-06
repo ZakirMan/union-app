@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
     try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const idToken = authHeader.split('Bearer ')[1];
+        try {
+            await adminAuth.verifyIdToken(idToken);
+        } catch {
+            return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+        }
+
         const { text, chatId } = await request.json();
 
         const botToken = process.env.TELEGRAM_BOT_TOKEN;

@@ -41,9 +41,13 @@ export default function RegisterPage() {
 
       // Отправляем уведомление в Telegram администратору
       try {
+        const token = await user.getIdToken();
         await fetch('/api/send-telegram', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}`
           })

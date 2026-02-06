@@ -193,9 +193,13 @@ export default function AdminPage() {
   // --- 🔥 ФУНКЦИЯ ОТПРАВКИ PUSH-УВЕДОМЛЕНИЙ ---
   const sendPushNotification = async (title: string, body: string) => {
     try {
+      const token = await auth.currentUser?.getIdToken();
       await fetch('/api/send-notification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ title, body }),
       });
       console.log('Уведомление отправлено:', title);
