@@ -111,6 +111,7 @@ export default function AdminPage() {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [pollExpiry, setPollExpiry] = useState('');
+  const [selectedPollStats, setSelectedPollStats] = useState<Poll | null>(null); // <--- NEW STATE
 
   // Формы
   const [confTitle, setConfTitle] = useState(''); const [confDate, setConfDate] = useState('');
@@ -378,6 +379,14 @@ export default function AdminPage() {
       fetchData();
       alert('Опрос запущен');
     } catch { alert('Ошибка'); }
+  };
+
+  const handleDeletePoll = async (id: string) => {
+    if (confirm('Удалить опрос? Это действие нельзя отменить.')) {
+      await deleteDoc(doc(db, 'polls', id));
+      await logAction('delete_poll', 'poll', `Удален опрос: ${id}`);
+      fetchData();
+    }
   };
 
   const handleExportDelegations = () => {
@@ -654,9 +663,59 @@ export default function AdminPage() {
                         )
                       })}
                     </div>
+                    {/* BUTTONS */}
+                    <div className="mt-4 flex gap-2 border-t border-gray-100 pt-3">
+                      <button onClick={() => setSelectedPollStats(poll)} className="flex-1 bg-indigo-50 text-indigo-700 py-2 rounded-xl text-xs font-black hover:bg-indigo-100 transition">
+                        📊 Детали и голоса
+                      </button>
+                      <button onClick={() => handleDeletePoll(poll.id)} className="w-10 flex items-center justify-center bg-red-50 text-red-400 rounded-xl hover:bg-red-100 transition">
+                        🗑
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
+
+              {/* MODAL FOR POLL DETAILS */}
+              {selectedPollStats && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
+                  <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
+                    <button onClick={() => setSelectedPollStats(null)} className="absolute top-6 right-6 text-gray-300 hover:text-gray-600 font-bold text-2xl transition">✕</button>
+
+                    <h2 className="font-black text-2xl mb-1 text-gray-900 pr-8">{selectedPollStats.question}</h2>
+                    <p className="text-gray-400 font-bold text-xs uppercase mb-6">{selectedPollStats.isActive ? '🟢 Активен' : '🔴 Завершен'}</p>
+
+                    <div className="space-y-6">
+                      {selectedPollStats.options.map(opt => {
+                        const voters = opt.votes.map(uid => users.find(u => u.id === uid)).filter(Boolean);
+                        return (
+                          <div key={opt.id} className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="font-black text-lg text-gray-800">{opt.text}</span>
+                              <span className="bg-white px-3 py-1 rounded-lg border border-gray-200 text-xs font-bold text-gray-500">Голосов: {opt.votes.length}</span>
+                            </div>
+                            {voters.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {voters.map((v, idx) => (
+                                  <span key={idx} className="bg-white border border-blue-100 text-blue-800 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden relative">
+                                      {v?.photoUrl ? <img src={v.photoUrl} className="w-full h-full object-cover" /> : '👤'}
+                                    </span>
+                                    {v?.displayName || 'Unknown'}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-400 italic">Нет голосов</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -1129,7 +1188,7 @@ export default function AdminPage() {
           )}
 
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
