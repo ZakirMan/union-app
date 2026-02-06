@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth'; // <--- Добавили signOut
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import Image from 'next/image';
 
@@ -49,109 +49,143 @@ export default function HomePage() {
     return () => unsubscribe();
   }, []);
 
-  // --- ФУНКЦИЯ ВЫХОДА ---
   const handleLogout = async () => {
     if (confirm('Вы уверены, что хотите выйти?')) {
       await signOut(auth);
-      // После выхода пользователь автоматически увидит кнопки "Войти/Вступить" 
-      // благодаря onAuthStateChanged
     }
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-800 font-sans">
+    <div className="min-h-screen bg-[#F2F6FF] font-sans text-[#1A1A1A] overflow-x-hidden">
 
-      {/* HEADER */}
-      <nav className="border-b bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-
-          {/* ЛОГОТИП И НАЗВАНИЕ */}
-          <div className="flex items-center gap-4">
-            {/* Картинка логотипа */}
-            {/* Картинка логотипа */}
-            <Image
-              src="/icon-512.png"
-              alt="Логотип"
-              width={48}
-              height={48}
-              className="h-12 w-auto object-contain"
-            />
-
-            {/* Текст */}
-            <div className="text-xl font-bold text-blue-900 leading-tight">
-              Профсоюз Работников<br />
-              <span className="text-blue-600">Авиации Казахстана</span>
+      {/* NAVBAR */}
+      <nav className="sticky top-0 z-50 transition-all duration-300 backdrop-blur-md bg-white/80 border-b border-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-4 group cursor-pointer">
+            <div className="relative w-12 h-12 transition-transform duration-500 group-hover:rotate-6">
+              <Image src="/icon-512.png" alt="Logo" fill className="object-contain" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black leading-none text-blue-900 uppercase tracking-wide">Профсоюз</h1>
+              <p className="text-[10px] font-bold text-blue-400 tracking-wider">Работников Авиации Казахстана</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {user ? (
-              <>
-                <Link href="/dashboard" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium transition">
-                  Кабинет
+              <div className="flex items-center gap-3">
+                <Link href="/dashboard" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                  Личный кабинет
                 </Link>
-
                 {role === 'admin' && (
-                  <Link href="/admin" className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition">
+                  <Link href="/admin" className="px-5 py-2.5 rounded-xl bg-gray-900 text-white font-bold hover:bg-black transition">
                     Админ
                   </Link>
                 )}
-
-                {/* КНОПКА ВЫХОДА (LOGOUT) */}
-                <button
-                  onClick={handleLogout}
-                  className="text-red-500 hover:text-red-700 font-medium px-2 py-2 border border-transparent hover:border-red-100 rounded transition text-sm"
-                  title="Выйти из аккаунта"
-                >
-                  Выйти
+                <button onClick={handleLogout} className="w-10 h-10 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition">
+                  🚪
                 </button>
-              </>
+              </div>
             ) : (
-              <>
-                <Link href="/login" className="text-gray-600 hover:text-blue-600 font-medium py-2">Войти</Link>
-                <Link href="/register" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full font-medium transition">Вступить</Link>
-              </>
+              <div className="flex gap-2">
+                <Link href="/login" className="px-6 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition">Войти</Link>
+                <Link href="/register" className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 transition">Вступить</Link>
+              </div>
             )}
           </div>
         </div>
       </nav>
 
       {/* HERO SECTION */}
-      <header className="bg-gradient-to-r from-blue-900 to-blue-800 text-white py-20 px-4 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6">Вместе мы — сила!</h1>
-        <p className="text-xl text-blue-100 mb-8">Защита прав, юридическая помощь и поддержка.</p>
-        {!user && (
-          <Link href="/register" className="bg-yellow-400 text-blue-900 font-bold px-8 py-3 rounded-lg hover:bg-yellow-300 shadow-lg transition">
-            Подать заявку
-          </Link>
-        )}
-      </header>
+      <div className="relative pt-20 pb-32 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-indigo-900 to-blue-800"></div>
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-30">
+          <div className="absolute -top-[50%] -left-[20%] w-[80%] h-[80%] bg-blue-500 rounded-full blur-[150px]"></div>
+          <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
+          <span className="inline-block py-1 px-3 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-black uppercase tracking-widest mb-6 backdrop-blur-md">
+            Единство • Защита • Прогресс
+          </span>
+          <h1 className="text-5xl md:text-7xl font-black text-white mb-8 leading-tight tracking-tight">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-200">Вместе мы сила!</span>
+          </h1>
+          <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto leading-relaxed opacity-90 font-medium">
+            Мы объединяем профессионалов для защиты трудовых прав, обеспечения безопасности и повышения качества жизни каждого сотрудника.
+          </p>
+
+          {!user && (
+            <div className="flex justify-center gap-4">
+              <Link href="/register" className="px-10 py-4 rounded-2xl bg-white text-blue-900 font-black text-lg shadow-2xl hover:shadow-white/20 hover:-translate-y-1 transition-all">
+                Стать частью команды
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* STATS DECORATION */}
+        <div className="max-w-5xl mx-auto mt-20 grid md:grid-cols-3 gap-6 px-6 relative z-10">
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
+            <div className="text-4xl font-black text-white mb-1">500+</div>
+            <div className="text-blue-200 text-sm font-bold uppercase">Участников</div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
+            <div className="text-4xl font-black text-white mb-1">24/7</div>
+            <div className="text-blue-200 text-sm font-bold uppercase">Поддержка</div>
+          </div>
+          <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
+            <div className="text-4xl font-black text-white mb-1">100%</div>
+            <div className="text-blue-200 text-sm font-bold uppercase">Защита прав</div>
+          </div>
+        </div>
+      </div>
+
+      {/* WAVE SEPARATOR */}
+      <div className="relative -mt-24 h-24 overflow-hidden">
+        <svg viewBox="0 0 1440 320" className="absolute bottom-0 w-full h-full text-[#F2F6FF] fill-current preserve-3d">
+          <path fillOpacity="1" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,250.7C960,235,1056,181,1152,165.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+      </div>
+
 
       {/* NEWS SECTION */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-8 text-center text-gray-800">Новости</h2>
+      <section className="py-20 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <p className="text-blue-600 font-bold uppercase tracking-widest text-xs mb-2">Актуально</p>
+              <h2 className="text-4xl font-black text-gray-900">Новости Профсоюза</h2>
+            </div>
+            {!loadingNews && news.length > 0 && <span className="hidden md:block bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-sm">Всего: {news.length}</span>}
+          </div>
 
           {loadingNews ? (
-            <div className="text-center text-gray-500">Загрузка...</div>
+            <div className="flex justify-center p-20"><div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
           ) : news.length === 0 ? (
-            <div className="text-center text-gray-400">Новостей пока нет</div>
+            <div className="bg-white p-20 rounded-[3rem] text-center border border-dashed border-gray-200">
+              <p className="text-gray-400 font-bold text-xl">Лента новостей пока пуста</p>
+            </div>
           ) : (
             <div className="grid md:grid-cols-3 gap-8">
               {news.map((item) => (
-                <Link href={`/news/${item.id}`} key={item.id} className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition flex flex-col h-full cursor-pointer">
-                  <div className="h-48 overflow-hidden bg-gray-200 relative">
+                <Link href={`/news/${item.id}`} key={item.id} className="group bg-white rounded-[2.5rem] shadow-xl shadow-blue-100/50 border border-white overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col h-full">
+                  <div className="h-60 overflow-hidden bg-gray-100 relative">
                     {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt={item.title} fill className="object-cover group-hover:scale-105 transition duration-500" />
+                      <Image src={item.imageUrl} alt={item.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-gray-400 text-4xl">📰</div>
+                      <div className="flex h-full items-center justify-center text-gray-300 text-5xl bg-gradient-to-br from-gray-50 to-gray-200">📰</div>
                     )}
+                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase text-gray-500 shadow-sm">
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div className="p-6 flex flex-col flex-grow">
-                    <span className="text-xs text-gray-400 mb-2">{new Date(item.createdAt).toLocaleDateString()}</span>
-                    <h3 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition">{item.title}</h3>
-                    <p className="text-gray-600 text-sm line-clamp-3 mb-4">{item.body}</p>
-                    <span className="text-blue-600 text-sm font-medium mt-auto">Читать далее →</span>
+                  <div className="p-8 flex flex-col flex-grow relative">
+                    <h3 className="text-2xl font-black text-gray-900 mb-3 leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
+                    <p className="text-gray-500 font-medium leading-relaxed line-clamp-3 mb-6">{item.body}</p>
+                    <div className="mt-auto flex items-center gap-2 text-blue-600 font-bold text-sm group-hover:gap-4 transition-all">
+                      Читать полностью <span>→</span>
+                    </div>
                   </div>
                 </Link>
               ))}
@@ -161,25 +195,50 @@ export default function HomePage() {
       </section>
 
       {/* TEAM SECTION */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center text-gray-800">Совет Профсоюза</h2>
-          <div className="flex flex-wrap justify-center gap-10">
+      <section className="py-20 px-6 bg-white relative">
+        {/* Decor */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-indigo-500 font-bold uppercase tracking-widest text-xs mb-3">Команда</p>
+          <h2 className="text-4xl font-black text-gray-900 mb-16">Совет Профсоюза</h2>
+
+          <div className="flex flex-wrap justify-center gap-12 md:gap-16">
             {team.map(member => (
-              <div key={member.id} className="flex flex-col items-center text-center w-40">
-                <div className="w-32 h-32 rounded-full mb-4 overflow-hidden border-4 border-blue-50 shadow-sm relative">
-                  <Image src={member.photoUrl || '/default-avatar.png'} alt={member.name} fill className="object-cover" />
+              <div key={member.id} className="flex flex-col items-center group">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full mb-6 p-1 bg-gradient-to-br from-blue-100 to-indigo-100 relative">
+                  <div className="w-full h-full rounded-full overflow-hidden relative bg-white border-4 border-white shadow-xl group-hover:scale-105 transition-transform duration-300">
+                    <Image src={member.photoUrl || '/default-avatar.png'} alt={member.name} fill className="object-cover" />
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold leading-tight text-gray-900">{member.name}</h3>
-                <p className="text-blue-600 text-sm">{member.role}</p>
+                <h3 className="text-xl font-black text-gray-900 leading-tight mb-1">{member.name}</h3>
+                <p className="text-indigo-500 font-bold text-sm bg-indigo-50 px-3 py-1 rounded-lg">{member.role}</p>
               </div>
             ))}
           </div>
+
+          {team.length === 0 && (
+            <p className="text-gray-400 font-bold">Информация о составе обновляется...</p>
+          )}
         </div>
       </section>
 
-      <footer className="bg-gray-900 text-gray-400 py-10 text-center">
-        <p>© 2026 Профсоюз Работников Авиации Казахстана.</p>
+      {/* FOOTER */}
+      <footer className="bg-gray-900 text-white py-16 px-6 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-widest mb-2">Профсоюз</h2>
+            <p className="text-gray-500 text-sm max-w-sm">Мы работаем для вас. Вместе мы делаем труд безопаснее, а жизнь — достойнее.</p>
+          </div>
+          <div className="flex gap-6 text-sm font-bold text-gray-400">
+            <a href="#" className="hover:text-white transition">Устав</a>
+            <a href="#" className="hover:text-white transition">Контакты</a>
+            <a href="#" className="hover:text-white transition">Помощь</a>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-gray-800 text-center text-xs font-bold text-gray-600">
+          © 2026 Профсоюз Работников Авиации Казахстана. Все права защищены.
+        </div>
       </footer>
     </div>
   );

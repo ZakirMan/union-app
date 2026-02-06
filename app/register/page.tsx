@@ -39,6 +39,19 @@ export default function RegisterPage() {
         createdAt: new Date().toISOString()
       });
 
+      // Отправляем уведомление в Telegram администратору
+      try {
+        await fetch('/api/send-telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}`
+          })
+        });
+      } catch (tgError) {
+        console.error('Telegram notification failed:', tgError);
+      }
+
       router.push('/');
     } catch (err: unknown) {
       console.error(err);

@@ -5,11 +5,16 @@ import { auth, db, storage, messaging } from '@/lib/firebase';
 import { getToken } from 'firebase/messaging';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arrayUnion, deleteDoc, deleteField } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 
 // --- ТИПЫ ДАННЫХ ---
+interface DelegationRequest {
+  id: string; fromId: string; fromName: string; toId: string; toName: string; docUrl?: string; createdAt: string;
+  status: 'pending' | 'approved' | 'rejected'; conferenceId?: string;
+}
+
 interface UserProfile {
   id: string;
   displayName: string;
@@ -23,13 +28,21 @@ interface UserProfile {
   delegatedTo?: string;
   delegatedToName?: string;
   delegationStatus?: 'pending' | 'approved';
+  delegationConferenceId?: string; // <--- ADDED
   delegatedFrom?: string[];
 }
 
 interface NewsItem { id: string; title: string; body: string; imageUrl?: string; createdAt: string; }
 interface LinkItem { id: string; title: string; url: string; }
-interface TemplateItem { id: string; title: string; fileUrl: string; }
+interface TemplateItem { id: string; title: string; description?: string; fileUrl: string; }
 interface RequestItem { id: string; text: string; response?: string; createdAt: string; userId: string; userEmail: string; status: string; }
+
+interface UnionDocument {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
 
 interface Conference {
   id: string;
@@ -45,17 +58,29 @@ interface Test {
   createdAt: string; completedBy?: string[];
 }
 
+interface Poll {
+  id: string;
+  question: string;
+  options: { id: string; text: string; votes: string[] }[];
+  createdAt: string;
+  expiresAt?: string;
+  createdBy: string;
+  isActive: boolean;
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'training' | 'profile'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls'>('news');
 
   // Данные
   const [news, setNews] = useState<NewsItem[]>([]);
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [unionDocs, setUnionDocs] = useState<UnionDocument[]>([]); // <--- NEW STATE
   const [tests, setTests] = useState<Test[]>([]);
+  const [polls, setPolls] = useState<Poll[]>([]); // <--- POLLS STATE
   const [myRequests, setMyRequests] = useState<RequestItem[]>([]);
   const [colleagues, setColleagues] = useState<UserProfile[]>([]);
   const [nextConference, setNextConference] = useState<Conference | null>(null);
@@ -75,6 +100,7 @@ export default function DashboardPage() {
   // Делегирование (обновленные стейты для поиска)
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [selectedDelegateId, setSelectedDelegateId] = useState('');
+  const [incomingDelegations, setIncomingDelegations] = useState<DelegationRequest[]>([]); // <--- ADDED
   const [delegateFile, setDelegateFile] = useState<File | null>(null);
   const [isSubmittingDelegation, setIsSubmittingDelegation] = useState(false);
 
@@ -104,18 +130,23 @@ export default function DashboardPage() {
           setEditPhone(data.phoneNumber || '');
         }
 
-        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap] = await Promise.all([
+        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap, docsSnap] = await Promise.all([
           getDocs(collection(db, 'links')),
           getDocs(collection(db, 'templates')),
           getDocs(collection(db, 'news')),
           getDocs(query(collection(db, 'users'), where('status', '==', 'approved'))),
           getDocs(collection(db, 'conferences')),
-          getDocs(collection(db, 'tests'))
+          getDocs(collection(db, 'tests')),
+          getDocs(collection(db, 'union_documents')), // <--- NEW FETCH
+          getDocs(collection(db, 'polls')) // <--- FETCH POLLS
         ]);
 
         setLinks(lSnap.docs.map(d => ({ id: d.id, ...d.data() } as LinkItem)));
         setTemplates(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TemplateItem)));
         setTests(testsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
+        setUnionDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() } as UnionDocument))); // <--- SET STATE
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setPolls((arguments[7] as any).docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive));
 
         const newsList = nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
         newsList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -139,6 +170,15 @@ export default function DashboardPage() {
 
         if (upcoming.length > 0) {
           setNextConference(upcoming[0]);
+          // FETCH INCOMING DELEGATIONS FOR THIS CONFERENCE
+          const qDelegations = query(
+            collection(db, 'delegation_requests'),
+            where('toId', '==', currentUser.uid),
+            where('conferenceId', '==', upcoming[0].id),
+            where('status', '==', 'approved')
+          );
+          const dSnap = await getDocs(qDelegations);
+          setIncomingDelegations(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as DelegationRequest)));
         } else if (confs.length > 0) {
           setNextConference(confs[confs.length - 1]);
         }
@@ -153,6 +193,17 @@ export default function DashboardPage() {
     });
     return () => unsubscribe();
   }, [router]);
+
+  const handleDeleteRequest = async (id: string) => {
+    if (!confirm('Удалить обращение?')) return;
+    try {
+      await deleteDoc(doc(db, 'requests', id));
+      setMyRequests(prev => prev.filter(r => r.id !== id));
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при удалении');
+    }
+  };
 
   // --- PUSH NOTIFICATIONS ---
   useEffect(() => {
@@ -222,6 +273,20 @@ export default function DashboardPage() {
       setMyRequests([{ ...newReqData, id: docRef.id } as any, ...myRequests]);
       setMessage('');
       setChatFile(null); // Reset file
+
+      // Отправляем уведомление в Telegram группу совета
+      try {
+        await fetch('/api/send-telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `💬 <b>Новое обращение!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n📝 <b>Текст:</b>\n${message}${fileUrl ? '\n\n📎 <i>К сообщению прикреплен файл</i>' : ''}`
+          })
+        });
+      } catch (tgError) {
+        console.error('Telegram notification failed:', tgError);
+      }
+
       alert('Обращение отправлено!');
     } catch { alert('Ошибка'); } finally { setIsSending(false); }
   };
@@ -244,12 +309,58 @@ export default function DashboardPage() {
     } catch { alert('Ошибка'); } finally { setIsSavingProfile(false); }
   };
 
+
+  const handleRevokeDelegation = async () => {
+    if (!user || !userData) return;
+    if (!confirm('Вы уверены, что хотите отозвать свой голос?')) return;
+
+    try {
+      // 1. Находим активную заявку
+      const q = query(
+        collection(db, 'delegation_requests'),
+        where('fromId', '==', user.uid)
+      );
+      const snap = await getDocs(q);
+
+      const batch = [];
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, 'delegation_requests', d.id));
+      }
+
+      // 2. Обновляем профиль пользователя
+      await updateDoc(doc(db, 'users', user.uid), {
+        delegationStatus: deleteField(),
+        delegatedTo: deleteField(),
+        delegatedToName: deleteField(),
+        delegationConferenceId: deleteField()
+      });
+
+      setUserData({
+        ...userData,
+        delegationStatus: undefined,
+        delegatedTo: undefined,
+        delegatedToName: undefined,
+        delegationConferenceId: undefined
+      });
+
+      alert('Голос отозван.');
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при отзыве голоса');
+    }
+  };
+
   const handleSubmitDelegation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedDelegateId) {
       alert('Пожалуйста, выберите коллегу из списка');
       return;
     }
+    if (!nextConference) {
+      alert('Нет активного собрания');
+      return;
+    }
+
     setIsSubmittingDelegation(true);
     try {
       let docUrl = '';
@@ -265,6 +376,8 @@ export default function DashboardPage() {
         fromName: userData?.displayName,
         toId: selectedDelegateId,
         toName: delegateUser?.displayName,
+        conferenceId: nextConference.id, // <--- SAVE ID
+        conferenceTitle: nextConference.title,
         docUrl,
         createdAt: new Date().toISOString(),
         status: 'pending'
@@ -272,10 +385,17 @@ export default function DashboardPage() {
 
       await updateDoc(doc(db, 'users', user.uid), {
         delegationStatus: 'pending',
-        delegatedToName: delegateUser?.displayName
+        delegatedToName: delegateUser?.displayName,
+        delegationConferenceId: nextConference.id // <--- SAVE ID
       });
 
-      setUserData(prev => prev ? ({ ...prev, delegationStatus: 'pending', delegatedToName: delegateUser?.displayName }) : null);
+      setUserData(prev => prev ? ({
+        ...prev,
+        delegationStatus: 'pending',
+        delegatedToName: delegateUser?.displayName,
+        delegationConferenceId: nextConference.id
+      }) : null);
+
       setShowDelegateModal(false);
       alert('Заявка отправлена.');
     } catch { alert('Ошибка'); } finally { setIsSubmittingDelegation(false); }
@@ -320,6 +440,31 @@ export default function DashboardPage() {
   };
 
 
+  const handleVote = async (pollId: string, optionId: string) => {
+    if (!user) return;
+    try {
+      const poll = polls.find(p => p.id === pollId);
+      if (!poll) return;
+
+      const newOptions = poll.options.map(opt => {
+        if (opt.id === optionId) {
+          return { ...opt, votes: [...opt.votes, user.uid] };
+        }
+        return opt;
+      });
+
+      setPolls(prev => prev.map(p => p.id === pollId ? { ...p, options: newOptions } : p));
+
+      await updateDoc(doc(db, 'polls', pollId), {
+        options: newOptions
+      });
+
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при голосовании');
+    }
+  };
+
   // --- ФИЛЬТРАЦИЯ ДЛЯ ПОИСКА ---
   const filteredColleagues = colleagues.filter(c =>
     c.displayName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -339,8 +484,18 @@ export default function DashboardPage() {
               <p className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">Профсоюз</p>
               <h1 className="text-3xl font-black">{activeTab === 'news' ? 'Новости' : activeTab === 'chat' ? 'Связь' : activeTab === 'training' ? 'Обучение' : 'Ресурсы'}</h1>
             </div>
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <span className="text-xl">🔔</span>
+            <div className="flex gap-3 items-center">
+              {userData?.role === 'admin' && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10"
+                >
+                  Админ панель →
+                </button>
+              )}
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner cursor-pointer hover:bg-white/30 transition">
+                <span className="text-xl">🔔</span>
+              </div>
             </div>
           </div>
         </div>
@@ -434,7 +589,10 @@ export default function DashboardPage() {
                 <div key={r.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
                   <div className="flex justify-between mb-2">
                     <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-2 py-1 rounded">{new Date(r.createdAt).toLocaleDateString()}</span>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded ${r.response ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>{r.response ? 'ОТВЕТ ПОЛУЧЕН' : 'НА РАССМОТРЕНИИ'}</span>
+                    <div className="flex gap-2">
+                      <span className={`text-[10px] font-black px-2 py-1 rounded ${r.response ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>{r.response ? 'ОТВЕТ ПОЛУЧЕН' : 'НА РАССМОТРЕНИИ'}</span>
+                      <button onClick={() => handleDeleteRequest(r.id)} className="text-gray-400 hover:text-red-500 font-bold px-1 transition">✕</button>
+                    </div>
                   </div>
                   <p className="font-bold text-gray-800 mb-3">{r.text}</p>
                   {r.response && (
@@ -452,6 +610,34 @@ export default function DashboardPage() {
         {/* РЕСУРСЫ */}
         {activeTab === 'resources' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+
+            {/* ДОКУМЕНТЫ ПРОФСОЮЗА */}
+            {unionDocs.length > 0 && (
+              <div>
+                <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Документы профсоюза</h2>
+                <div className="grid gap-3">
+                  {unionDocs.map(doc => (
+                    <div
+                      key={doc.id}
+                      onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
+                      className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-indigo-100 flex justify-between items-center hover:shadow-md transition cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl group-hover:bg-indigo-600 group-hover:text-white transition">📜</div>
+                        <div>
+                          <span className="font-bold text-gray-800 block text-lg">{doc.title}</span>
+                          <span className="text-xs text-gray-400 font-bold block mt-0.5">Нажмите, чтобы открыть</span>
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition">
+                        ↗
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Шаблоны</h2>
               <div className="grid gap-3">
@@ -459,7 +645,10 @@ export default function DashboardPage() {
                   <div key={t.id} className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xl">📄</div>
-                      <span className="font-bold text-gray-700">{t.title}</span>
+                      <div>
+                        <span className="font-bold text-gray-700 block">{t.title}</span>
+                        {t.description && <span className="text-xs text-gray-500 font-medium block mt-1 leading-tight max-w-[200px] md:max-w-xs">{t.description}</span>}
+                      </div>
                     </div>
                     <a href={t.fileUrl} className="bg-gray-100 hover:bg-orange-50 text-gray-600 hover:text-orange-600 px-4 py-2 rounded-xl font-bold text-sm transition">Скачать</a>
                   </div>
@@ -510,6 +699,61 @@ export default function DashboardPage() {
                   </button>
                   {/* Декоративный фон */}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 opacity-50"></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+
+
+        {/* ОПРОСЫ */}
+        {activeTab === 'polls' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            {polls.length === 0 && (
+              <div className="bg-white p-10 rounded-[2rem] text-center border-2 border-dashed border-gray-200">
+                <p className="text-gray-400 font-bold">Нет активных опросов</p>
+              </div>
+            )}
+            {polls.map(poll => {
+              const hasVoted = poll.options.some(opt => opt.votes.includes(user?.uid || ''));
+              const totalVotes = poll.options.reduce((acc, o) => acc + (o.votes?.length || 0), 0) || 1;
+
+              return (
+                <div key={poll.id} className="bg-white p-6 rounded-[2rem] shadow-lg border border-green-50">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="font-black text-xl text-gray-800">{poll.question}</h3>
+                    {hasVoted && <span className="bg-green-100 text-green-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Голос учтен</span>}
+                  </div>
+
+                  <div className="space-y-3">
+                    {poll.options.map(opt => {
+                      const percent = Math.round(((opt.votes?.length || 0) / totalVotes) * 100);
+                      const isMyVote = opt.votes.includes(user?.uid || '');
+
+                      return hasVoted ? (
+                        // RESULT VIEW
+                        <div key={opt.id} className="relative">
+                          <div className="flex justify-between text-xs font-bold mb-1 pl-1">
+                            <span className={isMyVote ? 'text-green-600' : 'text-gray-600'}>{opt.text} {isMyVote && '(Вы)'}</span>
+                            <span className="text-gray-400">{percent}%</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-1000 ${isMyVote ? 'bg-green-500' : 'bg-gray-400'}`} style={{ width: `${percent}%` }}></div>
+                          </div>
+                        </div>
+                      ) : (
+                        // VOTING VIEW
+                        <button
+                          key={opt.id}
+                          onClick={() => handleVote(poll.id, opt.id)}
+                          className="w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-green-400 hover:bg-green-50 transition-all font-bold text-gray-700 active:scale-[0.99]"
+                        >
+                          {opt.text}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
@@ -574,20 +818,39 @@ export default function DashboardPage() {
 
               <div className="flex justify-between items-center mb-6 bg-gray-50 p-4 rounded-2xl">
                 <span className="font-bold text-gray-500">Сила вашего голоса</span>
-                <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-black text-lg shadow-md">{userData.voteWeight || 1}</span>
+                <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-black text-lg shadow-md">{1 + incomingDelegations.length}</span>
               </div>
 
-              {userData.delegatedTo ? (
+              {/* СПИСОК ДОВЕРИВШИХ ГОЛОС */}
+              {incomingDelegations.length > 0 && (
+                <div className="mb-6 bg-blue-50 p-6 rounded-[1.5rem] border border-blue-100">
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-wider mb-2">Вам доверили голос ({incomingDelegations.length})</p>
+                  <div className="space-y-2">
+                    {incomingDelegations.map(d => (
+                      <div key={d.id} className="bg-white p-3 rounded-xl border border-blue-50 flex justify-between items-center">
+                        <span className="font-black text-blue-900 text-sm">{d.fromName}</span>
+                        <span className="text-[10px] font-bold text-gray-400">{new Date(d.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
+              {/* ЛОГИКА ОТОБРАЖЕНИЯ: Проверяем ID конференции */}
+              {userData.delegatedTo && userData.delegationConferenceId === nextConference?.id ? (
                 <div className="bg-yellow-50 p-6 rounded-[1.5rem] border border-yellow-100 text-center">
                   <div className="text-3xl mb-2">🤝</div>
                   <p className="text-xs font-black text-yellow-700 uppercase mb-1">Вы передали право голоса</p>
-                  <p className="font-black text-gray-900 text-xl">{userData.delegatedToName}</p>
+                  <p className="font-black text-gray-900 text-xl mb-4">{userData.delegatedToName}</p>
+                  <button onClick={handleRevokeDelegation} className="bg-white text-red-500 text-xs font-bold px-4 py-2 rounded-xl border border-red-100 hover:bg-red-50 transition">Отозвать голос</button>
                 </div>
-              ) : userData.delegationStatus === 'pending' ? (
+              ) : userData.delegationStatus === 'pending' && userData.delegationConferenceId === nextConference?.id ? (
                 <div className="bg-blue-50 p-6 rounded-[1.5rem] border border-blue-100 text-center">
                   <div className="text-3xl mb-2">⏳</div>
                   <p className="font-black text-blue-800">Заявка на рассмотрении</p>
-                  <p className="text-xs text-blue-600 font-bold mt-1">Ожидайте подтверждения коллеги</p>
+                  <p className="text-xs text-blue-600 font-bold mt-1 mb-4">Ожидайте подтверждения коллеги</p>
+                  <button onClick={handleRevokeDelegation} className="bg-white text-red-500 text-xs font-bold px-4 py-2 rounded-xl border border-red-100 hover:bg-red-50 transition">Отменить заявку</button>
                 </div>
               ) : (
                 delegationState.isOpen ? (
@@ -622,133 +885,137 @@ export default function DashboardPage() {
       </div>
 
       {/* МОДАЛКА ДЕЛЕГИРОВАНИЯ */}
-      {showDelegateModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl transform transition-transform scale-100">
-            <h3 className="font-black text-2xl mb-2 text-gray-900">Передача голоса</h3>
-            <p className="text-sm font-medium text-gray-500 mb-6 leading-relaxed">Выберите коллегу, которому вы доверяете свой голос на предстоящем собрании.</p>
+      {
+        showDelegateModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl transform transition-transform scale-100">
+              <h3 className="font-black text-2xl mb-2 text-gray-900">Передача голоса</h3>
+              <p className="text-sm font-medium text-gray-500 mb-6 leading-relaxed">Выберите коллегу, которому вы доверяете свой голос на предстоящем собрании.</p>
 
-            <form onSubmit={handleSubmitDelegation} className="space-y-5">
-              <div className="relative">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Поиск коллеги</label>
-                <input
-                  type="text"
-                  placeholder="Введите имя..."
-                  className="w-full p-4 bg-gray-50 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 rounded-2xl font-bold outline-none transition-all"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setIsDropdownOpen(true);
-                    setSelectedDelegateId('');
-                  }}
-                  onFocus={() => setIsDropdownOpen(true)}
-                />
+              <form onSubmit={handleSubmitDelegation} className="space-y-5">
+                <div className="relative">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Поиск коллеги</label>
+                  <input
+                    type="text"
+                    placeholder="Введите имя..."
+                    className="w-full p-4 bg-gray-50 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 rounded-2xl font-bold outline-none transition-all"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setIsDropdownOpen(true);
+                      setSelectedDelegateId('');
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                  />
 
-                {isDropdownOpen && (
-                  <div className="absolute z-20 w-full bg-white border border-gray-100 rounded-2xl mt-2 max-h-48 overflow-y-auto shadow-2xl left-0">
-                    {filteredColleagues.length > 0 ? (
-                      filteredColleagues.map(c => (
-                        <div
-                          key={c.id}
-                          className="p-4 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
-                          onClick={() => {
-                            setSelectedDelegateId(c.id);
-                            setSearchTerm(c.displayName);
-                            setIsDropdownOpen(false);
-                          }}
-                        >
-                          <p className="font-bold text-gray-900">{c.displayName}</p>
-                          <p className="text-xs font-bold text-gray-400 mt-0.5">{c.position}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 text-sm font-bold text-gray-400 text-center">Никого не найдено</div>
-                    )}
-                  </div>
-                )}
-                {selectedDelegateId && !isDropdownOpen && <div className="absolute right-4 top-[34px] text-green-500 text-xl">✅</div>}
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Документ (если есть)</label>
-                <input type="file" onChange={e => setDelegateFile(e.target.files?.[0] || null)} className="w-full text-xs bg-gray-50 p-3 rounded-xl font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowDelegateModal(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 hover:bg-gray-200 transition">Отмена</button>
-                <button disabled={isSubmittingDelegation} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">
-                  {isSubmittingDelegation ? '...' : 'Подтвердить'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* МОДАЛКА ТЕСТА */}
-      {activeTest && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
-            <button onClick={() => setActiveTest(null)} className="absolute top-6 right-6 text-gray-300 hover:text-gray-600 font-bold text-2xl transition">✕</button>
-
-            <h2 className="font-black text-3xl mb-2 pr-8 text-gray-900">{activeTest.title}</h2>
-            <p className="text-gray-500 font-medium mb-8 border-b border-gray-100 pb-6">{activeTest.description || 'Пройдите тест, чтобы проверить свои знания.'}</p>
-
-            {testResult ? (
-              <div className="text-center py-4">
-                <div className={`text-8xl mb-6 transform transition-transform duration-500 hover:scale-110 ${testResult.passed ? 'text-green-500' : 'text-red-500'}`}>
-                  {testResult.passed ? '🎉' : '😕'}
-                </div>
-                <h3 className="font-black text-3xl mb-2 text-gray-900">{testResult.passed ? 'Отличный результат!' : 'Попробуйте еще раз'}</h3>
-                <p className="text-gray-500 font-bold mb-8 text-lg">Вы набрали {testResult.score} из {activeTest.questions.length}</p>
-                <button onClick={() => setActiveTest(null)} className="bg-gray-900 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-black transition w-full">Завершить</button>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {activeTest.questions.map((q, idx) => (
-                  <div key={q.id}>
-                    <p className="font-black text-xl mb-4 block text-gray-800"><span className="text-indigo-500 mr-2 opacity-50">#{idx + 1}</span> {q.text}</p>
-                    <div className="space-y-3">
-                      {q.options.map(opt => (
-                        <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 group ${testAnswers[q.id] === opt.id ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-100 bg-white hover:border-indigo-200'}`}>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${testAnswers[q.id] === opt.id ? 'border-indigo-600' : 'border-gray-300 group-hover:border-indigo-300'}`}>
-                            {testAnswers[q.id] === opt.id && <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>}
+                  {isDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white border border-gray-100 rounded-2xl mt-2 max-h-48 overflow-y-auto shadow-2xl left-0">
+                      {filteredColleagues.length > 0 ? (
+                        filteredColleagues.map(c => (
+                          <div
+                            key={c.id}
+                            className="p-4 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
+                            onClick={() => {
+                              setSelectedDelegateId(c.id);
+                              setSearchTerm(c.displayName);
+                              setIsDropdownOpen(false);
+                            }}
+                          >
+                            <p className="font-bold text-gray-900">{c.displayName}</p>
+                            <p className="text-xs font-bold text-gray-400 mt-0.5">{c.position}</p>
                           </div>
-                          <span className={`font-bold text-base ${testAnswers[q.id] === opt.id ? 'text-indigo-900' : 'text-gray-600'}`}>{opt.text}</span>
-                          <input
-                            type="radio"
-                            name={q.id}
-                            value={opt.id}
-                            checked={testAnswers[q.id] === opt.id}
-                            onChange={() => setTestAnswers({ ...testAnswers, [q.id]: opt.id })}
-                            className="hidden"
-                          />
-                        </label>
-                      ))}
+                        ))
+                      ) : (
+                        <div className="p-4 text-sm font-bold text-gray-400 text-center">Никого не найдено</div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )}
+                  {selectedDelegateId && !isDropdownOpen && <div className="absolute right-4 top-[34px] text-green-500 text-xl">✅</div>}
+                </div>
 
-                <div className="pt-6 border-t border-gray-100">
-                  <button
-                    onClick={handleSubmitTest}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-indigo-200 hover:shadow-2xl hover:scale-[1.01] transition-all"
-                  >
-                    Завершить тест
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Документ (если есть)</label>
+                  <input type="file" onChange={e => setDelegateFile(e.target.files?.[0] || null)} className="w-full text-xs bg-gray-50 p-3 rounded-xl font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowDelegateModal(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 hover:bg-gray-200 transition">Отмена</button>
+                  <button disabled={isSubmittingDelegation} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">
+                    {isSubmittingDelegation ? '...' : 'Подтвердить'}
                   </button>
                 </div>
-              </div>
-            )}
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
+
+      {/* МОДАЛКА ТЕСТА */}
+      {
+        activeTest && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
+              <button onClick={() => setActiveTest(null)} className="absolute top-6 right-6 text-gray-300 hover:text-gray-600 font-bold text-2xl transition">✕</button>
+
+              <h2 className="font-black text-3xl mb-2 pr-8 text-gray-900">{activeTest.title}</h2>
+              <p className="text-gray-500 font-medium mb-8 border-b border-gray-100 pb-6">{activeTest.description || 'Пройдите тест, чтобы проверить свои знания.'}</p>
+
+              {testResult ? (
+                <div className="text-center py-4">
+                  <div className={`text-8xl mb-6 transform transition-transform duration-500 hover:scale-110 ${testResult.passed ? 'text-green-500' : 'text-red-500'}`}>
+                    {testResult.passed ? '🎉' : '😕'}
+                  </div>
+                  <h3 className="font-black text-3xl mb-2 text-gray-900">{testResult.passed ? 'Отличный результат!' : 'Попробуйте еще раз'}</h3>
+                  <p className="text-gray-500 font-bold mb-8 text-lg">Вы набрали {testResult.score} из {activeTest.questions.length}</p>
+                  <button onClick={() => setActiveTest(null)} className="bg-gray-900 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-black transition w-full">Завершить</button>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {activeTest.questions.map((q, idx) => (
+                    <div key={q.id}>
+                      <p className="font-black text-xl mb-4 block text-gray-800"><span className="text-indigo-500 mr-2 opacity-50">#{idx + 1}</span> {q.text}</p>
+                      <div className="space-y-3">
+                        {q.options.map(opt => (
+                          <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 group ${testAnswers[q.id] === opt.id ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-100 bg-white hover:border-indigo-200'}`}>
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${testAnswers[q.id] === opt.id ? 'border-indigo-600' : 'border-gray-300 group-hover:border-indigo-300'}`}>
+                              {testAnswers[q.id] === opt.id && <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>}
+                            </div>
+                            <span className={`font-bold text-base ${testAnswers[q.id] === opt.id ? 'text-indigo-900' : 'text-gray-600'}`}>{opt.text}</span>
+                            <input
+                              type="radio"
+                              name={q.id}
+                              value={opt.id}
+                              checked={testAnswers[q.id] === opt.id}
+                              onChange={() => setTestAnswers({ ...testAnswers, [q.id]: opt.id })}
+                              className="hidden"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="pt-6 border-t border-gray-100">
+                    <button
+                      onClick={handleSubmitTest}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-indigo-200 hover:shadow-2xl hover:scale-[1.01] transition-all"
+                    >
+                      Завершить тест
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      }
 
       {/* Footer Nav */}
       <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto">
-        {['news', 'chat', 'training', 'resources', 'profile'].map((tab) => {
+        {['news', 'chat', 'training', 'polls', 'resources', 'profile'].map((tab) => {
           const isActive = activeTab === tab;
-          const icons: { [key: string]: string } = { news: '📰', chat: '💬', training: '🎓', resources: '📂', profile: '👤' };
-          const labels: { [key: string]: string } = { news: 'Главная', chat: 'Чат', training: 'Учеба', resources: 'Инфо', profile: 'Я' };
+          const icons: { [key: string]: string } = { news: '📰', chat: '💬', training: '🎓', polls: '📊', resources: '📂', profile: '👤' };
+          const labels: { [key: string]: string } = { news: 'Главная', chat: 'Чат', training: 'Учеба', polls: 'Опросы', resources: 'Инфо', profile: 'Я' };
           return (
             <button
               key={tab}
@@ -761,6 +1028,6 @@ export default function DashboardPage() {
           );
         })}
       </div>
-    </div>
+    </div >
   );
 }
