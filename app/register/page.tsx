@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState(''); // <-- НОВОЕ ПОЛЕ
   const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [isAlreadyMember, setIsAlreadyMember] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     if (!statementFile) {
-      setError('Без прикрепленного заявления о вступлении заявка не может быть принята');
+      setError(isAlreadyMember ? 'Без фото пропуска заявка не может быть принята' : 'Без прикрепленного заявления о вступлении заявка не может быть принята');
       setLoading(false);
       return;
     }
@@ -50,6 +51,7 @@ export default function RegisterPage() {
         position: position,
         phoneNumber: phone, // <-- СОХРАНЯЕМ ТЕЛЕФОН
         statementUrl: statementUrl,
+        isAlreadyMember: isAlreadyMember,
         role: 'member',
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -65,7 +67,7 @@ export default function RegisterPage() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}`
+            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? 'Да' : 'Нет'}`
           })
         });
       } catch (tgError) {
@@ -127,14 +129,33 @@ export default function RegisterPage() {
             <input type="password" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
+          <div className="flex items-center gap-2 mt-4">
+            <input 
+              type="checkbox" 
+              id="alreadyMember" 
+              checked={isAlreadyMember} 
+              onChange={(e) => setIsAlreadyMember(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="alreadyMember" className="text-sm font-medium text-gray-900 cursor-pointer select-none">
+              Я уже состою в профсоюзе
+            </label>
+          </div>
+
           <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-4">
-            <p className="text-sm font-bold text-gray-900 mb-2">Бланки заявлений</p>
-            <div className="flex gap-2 mb-4">
-              <a href="/zayavlenie_1.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 1</a>
-              <a href="/zayavlenie_2.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 2</a>
-            </div>
+            {!isAlreadyMember && (
+              <>
+                <p className="text-sm font-bold text-gray-900 mb-2">Бланки заявлений</p>
+                <div className="flex gap-2 mb-4">
+                  <a href="/zayavlenie_1.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 1</a>
+                  <a href="/zayavlenie_2.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 2</a>
+                </div>
+              </>
+            )}
             
-            <label className="block text-sm font-bold text-gray-900 mb-1">Прикрепить подписанное заявление *</label>
+            <label className="block text-sm font-bold text-gray-900 mb-1">
+              {isAlreadyMember ? 'Прикрепить фото пропуска *' : 'Прикрепить подписанное заявление *'}
+            </label>
             <input
               type="file"
               accept="image/*,.pdf"
