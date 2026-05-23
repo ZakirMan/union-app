@@ -9,10 +9,17 @@ export async function POST(request: Request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
+    let decodedToken;
     try {
-      await adminAuth.verifyIdToken(idToken);
+      decodedToken = await adminAuth.verifyIdToken(idToken);
     } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    // Проверка роли пользователя (только admin может отправлять уведомления)
+    const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
+    if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden: Admins only' }, { status: 403 });
     }
 
     const { title, body } = await request.json();

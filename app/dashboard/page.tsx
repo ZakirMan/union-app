@@ -112,6 +112,7 @@ export default function DashboardPage() {
   const [activeTest, setActiveTest] = useState<Test | null>(null);
   const [testAnswers, setTestAnswers] = useState<{ [key: string]: string }>({});
   const [testResult, setTestResult] = useState<{ score: number; passed: boolean } | null>(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const router = useRouter();
 
@@ -410,6 +411,14 @@ export default function DashboardPage() {
     setActiveTest(test);
     setTestAnswers({});
     setTestResult(null);
+    setCurrentQuestionIndex(0);
+  };
+
+  const handleNextQuestion = () => {
+    if (!activeTest) return;
+    if (currentQuestionIndex < activeTest.questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    }
   };
 
   const handleSubmitTest = async () => {
@@ -641,6 +650,18 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+
+            {/* SALARY CALCULATOR BUTTON */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-lg shadow-blue-200 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/salary-calculator')}>
+              <div className="relative z-10">
+                <h2 className="font-black text-2xl mb-2">Калькулятор Зарплаты</h2>
+                <p className="text-blue-100 font-bold text-sm mb-6 opacity-90 max-w-xs">Рассчитайте примерную заработную плату исходя из вашего налета и должности.</p>
+                <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-blue-50 transition transform group-hover:scale-105">
+                  Открыть калькулятор
+                </button>
+              </div>
+              <div className="absolute -right-6 -bottom-6 text-9xl opacity-20 rotate-12 group-hover:rotate-6 transition-transform duration-500">🧮</div>
+            </div>
 
             <div>
               <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Шаблоны</h2>
@@ -974,38 +995,95 @@ export default function DashboardPage() {
                   <button onClick={() => setActiveTest(null)} className="bg-gray-900 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-black transition w-full">Завершить</button>
                 </div>
               ) : (
-                <div className="space-y-8">
-                  {activeTest.questions.map((q, idx) => (
-                    <div key={q.id}>
-                      <p className="font-black text-xl mb-4 block text-gray-800"><span className="text-indigo-500 mr-2 opacity-50">#{idx + 1}</span> {q.text}</p>
-                      <div className="space-y-3">
-                        {q.options.map(opt => (
-                          <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 group ${testAnswers[q.id] === opt.id ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-100 bg-white hover:border-indigo-200'}`}>
-                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${testAnswers[q.id] === opt.id ? 'border-indigo-600' : 'border-gray-300 group-hover:border-indigo-300'}`}>
-                              {testAnswers[q.id] === opt.id && <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>}
-                            </div>
-                            <span className={`font-bold text-base ${testAnswers[q.id] === opt.id ? 'text-indigo-900' : 'text-gray-600'}`}>{opt.text}</span>
-                            <input
-                              type="radio"
-                              name={q.id}
-                              value={opt.id}
-                              checked={testAnswers[q.id] === opt.id}
-                              onChange={() => setTestAnswers({ ...testAnswers, [q.id]: opt.id })}
-                              className="hidden"
-                            />
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
 
-                  <div className="pt-6 border-t border-gray-100">
-                    <button
-                      onClick={handleSubmitTest}
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-indigo-200 hover:shadow-2xl hover:scale-[1.01] transition-all"
-                    >
-                      Завершить тест
-                    </button>
+                <div className="space-y-6">
+                  {/* PROGRESS */}
+                  <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl mb-2">
+                    <span className="font-bold text-gray-500 text-sm">Вопрос {currentQuestionIndex + 1} из {activeTest.questions.length}</span>
+                    <div className="flex gap-1">
+                      {activeTest.questions.map((_, idx) => (
+                        <div key={idx} className={`h-1.5 w-6 rounded-full transition-colors ${idx === currentQuestionIndex ? 'bg-indigo-500' : idx < currentQuestionIndex ? 'bg-green-400' : 'bg-gray-200'}`}></div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* QUESTION */}
+                  <div>
+                    <h3 className="font-black text-2xl mb-6 text-gray-900 leading-tight">{activeTest.questions[currentQuestionIndex].text}</h3>
+                    <div className="space-y-3">
+                      {activeTest.questions[currentQuestionIndex].options.map(opt => {
+                        const questionId = activeTest.questions[currentQuestionIndex].id;
+                        const isAnswered = !!testAnswers[questionId];
+                        const isSelected = testAnswers[questionId] === opt.id;
+                        const isCorrect = opt.isCorrect;
+
+                        let containerClass = "border-gray-100 bg-white hover:border-indigo-200";
+                        let textClass = "text-gray-600";
+                        let dotClass = "border-gray-300 group-hover:border-indigo-300";
+
+                        if (isAnswered) {
+                          if (isSelected && isCorrect) {
+                            containerClass = "border-green-500 bg-green-50 ring-2 ring-green-200";
+                            textClass = "text-green-800";
+                            dotClass = "border-green-600 bg-green-600 text-white";
+                          } else if (isSelected && !isCorrect) {
+                            containerClass = "border-red-500 bg-red-50 ring-2 ring-red-200";
+                            textClass = "text-red-800";
+                            dotClass = "border-red-600 bg-red-600 text-white";
+                          } else if (!isSelected && isCorrect) {
+                            containerClass = "border-green-500 bg-green-50 ring-2 ring-green-100 opacity-80";
+                            textClass = "text-green-800";
+                            dotClass = "border-green-600 bg-green-600 text-white";
+                          } else {
+                            containerClass = "border-gray-100 bg-gray-50 opacity-40 grayscale";
+                            textClass = "text-gray-400";
+                            dotClass = "border-gray-200 bg-gray-100";
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={opt.id}
+                            onClick={() => {
+                              if (!isAnswered) {
+                                setTestAnswers(prev => ({ ...prev, [questionId]: opt.id }));
+                              }
+                            }}
+                            className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 group cursor-pointer relative overflow-hidden ${containerClass}`}
+                          >
+                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${dotClass}`}>
+                              {isAnswered && isCorrect && <span className="font-bold">✓</span>}
+                              {isAnswered && !isCorrect && isSelected && <span className="font-bold">✕</span>}
+                            </div>
+                            <span className={`font-bold text-base ${textClass}`}>{opt.text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-100 mt-4">
+                    {testAnswers[activeTest.questions[currentQuestionIndex].id] ? (
+                      currentQuestionIndex < activeTest.questions.length - 1 ? (
+                        <button
+                          onClick={handleNextQuestion}
+                          className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:scale-[1.02] transition-all"
+                        >
+                          Следующий вопрос →
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleSubmitTest}
+                          className="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-xl shadow-xl shadow-green-200 hover:bg-green-700 hover:scale-[1.02] transition-all"
+                        >
+                          Завершить и узнать результат
+                        </button>
+                      )
+                    ) : (
+                      <div className="text-center text-gray-400 font-bold py-3 bg-gray-50 rounded-2xl">
+                        Выберите вариант ответа, чтобы продолжить
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

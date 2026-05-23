@@ -15,21 +15,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
 
-        const { text, chatId } = await request.json();
+        const { text } = await request.json();
 
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        const defaultChatId = process.env.TELEGRAM_COUNCIL_CHAT_ID;
+        const targetChatId = process.env.TELEGRAM_COUNCIL_CHAT_ID;
 
-        if (!botToken) {
-            console.error('TELEGRAM_BOT_TOKEN not configured');
-            return NextResponse.json({ error: 'Bot token not configured' }, { status: 500 });
-        }
-
-        const targetChatId = chatId || defaultChatId;
-
-        if (!targetChatId) {
-            console.error('No chat ID provided');
-            return NextResponse.json({ error: 'Chat ID not provided' }, { status: 400 });
+        if (!botToken || !targetChatId) {
+            console.error('Telegram bot token or council chat ID not configured');
+            return NextResponse.json({ error: 'Telegram configuration missing' }, { status: 500 });
         }
 
         const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
