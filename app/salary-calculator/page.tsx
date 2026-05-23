@@ -66,7 +66,7 @@ export default function SalaryCalculatorPage() {
         let transport = 78000 - ((78000 / daysInMonth) * absenceDays);
         if (transport < 0) transport = 0;
 
-        let gross = currentBaseSalary + flightBonus + holidayBonus + passengerBonus + countBonus + transport;
+        const gross = currentBaseSalary + flightBonus + holidayBonus + passengerBonus + countBonus + transport;
 
         const ins = Math.min(gross * 0.02, 17000);
         const union = isLaborUnionMember ? (gross - ins) * 0.005 : 0;

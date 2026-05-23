@@ -1023,7 +1023,7 @@ export default function AdminPage() {
           )}
           {activeTab === 'requests' && <div className="grid gap-4">{requests.map(req => (<div key={req.id} className="bg-white p-4 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm"><div className="flex justify-between items-start mb-3"><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black">{req.userEmail}</span><span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span></div><p className="font-bold text-gray-800 text-lg mb-4">&quot;{req.text}&quot;</p>
             {/* FILE DISPLAY */}
-            {/* @ts-ignore */}
+            {/* @ts-expect-error - fileUrl may not be defined in type */}
             {req.fileUrl && (
               <div className="mb-4">
                 <a href={req.fileUrl} target="_blank" className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm hover:bg-indigo-100 transition">

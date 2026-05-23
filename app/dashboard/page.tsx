@@ -1101,7 +1101,7 @@ export default function DashboardPage() {
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as any)}
+              onClick={() => setActiveTab(tab as 'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls')}
               className={`flex-1 flex flex-col items-center py-3 rounded-[1.5rem] transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 transform -translate-y-2' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="text-xl mb-0.5">{icons[tab]}</span>
