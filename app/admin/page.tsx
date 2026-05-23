@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { db, auth, storage } from '@/lib/firebase';
 import { collection, getDocs, updateDoc, doc, addDoc, deleteDoc, getDoc, increment, arrayUnion } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import Image from 'next/image';
@@ -425,7 +425,36 @@ export default function AdminPage() {
   const handleApproveDelegation = async (req: DelegationRequest) => { if (!confirm(`Одобрить?`)) return; await updateDoc(doc(db, 'delegation_requests', req.id), { status: 'approved' }); await updateDoc(doc(db, 'users', req.fromId), { voteWeight: 0, delegationStatus: 'approved', delegatedTo: req.toId, delegatedToName: req.toName, delegationConferenceId: req.conferenceId || null }); await updateDoc(doc(db, 'users', req.toId), { voteWeight: increment(1), delegatedFrom: arrayUnion(req.fromName) }); await logAction('approve_delegation', 'delegation', `Делегирование: ${req.fromName} -> ${req.toName}`); fetchData(); };
   const handleRejectDelegation = async (reqId: string, fromId: string) => { if (!confirm('Отклонить?')) return; await deleteDoc(doc(db, 'delegation_requests', reqId)); await updateDoc(doc(db, 'users', fromId), { delegationStatus: null, delegatedToName: null }); await logAction('reject_delegation', 'delegation', `Отклонено делегирование: ${reqId}`); fetchData(); };
   const handleApproveUser = async (id: string) => { if (confirm('Подтвердить?')) { await updateDoc(doc(db, 'users', id), { status: 'approved', voteWeight: 1 }); await logAction('approve_user', 'user', `Участник принят: ${id}`); fetchData(); } };
-  const handleRejectUser = async (id: string) => { if (confirm('Удалить?')) { await deleteDoc(doc(db, 'users', id)); await logAction('reject_user', 'user', `Участник удален/отколен: ${id}`); fetchData(); } };
+  const handleRejectUser = async (id: string, statementUrl?: string) => { 
+    if (confirm('Удалить?')) { 
+      if (statementUrl) {
+        try {
+          const fileRef = ref(storage, statementUrl);
+          await deleteObject(fileRef);
+        } catch (e) {
+          console.error("Ошибка при удалении файла", e);
+        }
+      }
+      await deleteDoc(doc(db, 'users', id)); 
+      await logAction('reject_user', 'user', `Участник удален/отклонен: ${id}`); 
+      fetchData(); 
+    } 
+  };
+
+  const handleDeleteUserStatement = async (id: string, statementUrl: string) => {
+    if (confirm('Удалить прикрепленный файл пользователя из облака?')) {
+      try {
+        const fileRef = ref(storage, statementUrl);
+        await deleteObject(fileRef);
+        await updateDoc(doc(db, 'users', id), { statementUrl: '' });
+        await logAction('delete_user_statement', 'user', `Удален файл у пользователя: ${id}`);
+        fetchData();
+      } catch (e) {
+        console.error("Ошибка при удалении файла", e);
+        alert('Ошибка при удалении файла. Возможно, он уже удален.');
+      }
+    }
+  };
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -858,7 +887,7 @@ export default function AdminPage() {
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
                           <button onClick={() => handleApproveUser(u.id)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
-                          <button onClick={() => handleRejectUser(u.id)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
+                          <button onClick={() => handleRejectUser(u.id, u.statementUrl)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
                         </div>
                       </div>
                     ))}
@@ -872,12 +901,12 @@ export default function AdminPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
-                    <thead className="bg-gray-100 text-gray-400 uppercase text-xs font-black"><tr><th className="p-6">Сотрудник</th><th className="p-6">Контакты</th><th className="p-6 text-center">Статус</th><th className="p-6 text-right"></th></tr></thead>
+                    <thead className="bg-gray-100 text-gray-400 uppercase text-xs font-black"><tr><th className="p-6">Сотрудник</th><th className="p-6">Контакты</th><th className="p-6 text-center">Файл</th><th className="p-6 text-center">Статус</th><th className="p-6 text-right"></th></tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {users
                         .filter(u => u.status === 'approved')
                         .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600">{u.displayName}</div><div className="text-xs font-bold text-gray-500">{u.position}</div></div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
+                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600">{u.displayName}</div><div className="text-xs font-bold text-gray-500">{u.position}</div></div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center">{u.statementUrl ? (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs font-bold" onClick={e => e.stopPropagation()}>Смотреть</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserStatement(u.id, u.statementUrl!); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">Удалить</button></div>) : <span className="text-gray-300 text-xs">—</span>}</td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
                     </tbody>
                   </table>
                 </div>
