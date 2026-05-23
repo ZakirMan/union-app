@@ -4,7 +4,8 @@
 import { useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState(''); // <-- НОВОЕ ПОЛЕ
+  const [statementFile, setStatementFile] = useState<File | null>(null);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,9 +26,22 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
+    if (!statementFile) {
+      setError('Без прикрепленного заявления о вступлении заявка не может быть принята');
+      setLoading(false);
+      return;
+    }
+
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+
+      let statementUrl = '';
+      if (statementFile) {
+        const storageRef = ref(storage, `registration_statements/${user.uid}_${statementFile.name}`);
+        await uploadBytes(storageRef, statementFile);
+        statementUrl = await getDownloadURL(storageRef);
+      }
 
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
@@ -34,6 +49,7 @@ export default function RegisterPage() {
         displayName: name,
         position: position,
         phoneNumber: phone, // <-- СОХРАНЯЕМ ТЕЛЕФОН
+        statementUrl: statementUrl,
         role: 'member',
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -71,8 +87,8 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-10">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold text-center mb-2 text-black">Регистрация</h2>
-        <p className="text-center text-gray-600 mb-6 text-sm">Подайте заявку на вступление</p>
-        <p className="text-center text-gray-600 mb-6 text-sm">Ежемесячные членские взносы составляют 0,5% от заработной платы</p>
+        <p className="text-center text-gray-600 mb-4 text-sm">Подайте заявку на вступление</p>
+        <p className="text-center text-gray-600 mb-6 text-sm">Ежемесячные членские взносы составляют 0,5% от заработной платы (для пилотов — не более 15 000 тенге).</p>
 
         {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>}
 
@@ -103,11 +119,29 @@ export default function RegisterPage() {
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-1">Email</label>
             <input type="email" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Будет вашим логином" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <p className="text-xs text-gray-500 mt-1">Пожалуйста, не используйте корпоративную почту</p>
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-1">Пароль</label>
             <input type="password" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-4">
+            <p className="text-sm font-bold text-gray-900 mb-2">Бланки заявлений</p>
+            <div className="flex gap-2 mb-4">
+              <a href="/zayavlenie_1.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 1</a>
+              <a href="/zayavlenie_2.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 2</a>
+            </div>
+            
+            <label className="block text-sm font-bold text-gray-900 mb-1">Прикрепить подписанное заявление *</label>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              required
+              className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer"
+              onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
+            />
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-bold mt-4">
