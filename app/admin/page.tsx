@@ -12,7 +12,9 @@ import Image from 'next/image';
 interface UserData {
   id: string; displayName: string; email: string; phoneNumber?: string; position: string; role: string; status: string;
   voteWeight?: number; delegatedTo?: string; delegatedToName?: string; delegatedFrom?: string[];
-  delegationStatus?: string; delegationConferenceId?: string; photoUrl?: string; // <--- UPDATE
+  delegationStatus?: string; delegationConferenceId?: string; photoUrl?: string;
+  statementUrl?: string;
+  isAlreadyMember?: boolean;
 }
 
 // Тесты
@@ -829,7 +831,38 @@ export default function AdminPage() {
               {pendingUsers.length > 0 && (
                 <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-6 rounded-[2rem] border border-yellow-200 shadow-lg">
                   <h2 className="font-black text-xl mb-4 text-yellow-900">🔔 Ожидают доступа</h2>
-                  <div className="grid gap-3">{pendingUsers.map(u => (<div key={u.id} className="flex justify-between items-center bg-white/80 p-3 md:p-4 rounded-2xl"><div><span className="font-black block">{u.displayName}</span><span className="text-sm text-gray-500">{u.position}</span></div><div className="flex gap-2"><button onClick={() => handleApproveUser(u.id)} className="bg-green-500 text-white px-4 py-2 rounded-xl font-bold">Принять</button><button onClick={() => handleRejectUser(u.id)} className="bg-red-100 text-red-500 px-4 py-2 rounded-xl font-bold">Откл</button></div></div>))}</div>
+                  <div className="grid gap-4">
+                    {pendingUsers.map(u => (
+                      <div key={u.id} className="flex flex-col md:flex-row md:justify-between items-start md:items-center bg-white/80 p-5 rounded-2xl gap-4 shadow-sm">
+                        <div className="flex-1">
+                          <span className="font-black block text-lg text-gray-900">{u.displayName}</span>
+                          <span className="text-sm text-gray-500 font-bold block mt-1">
+                            {u.position} <span className="opacity-50 mx-1">•</span> {u.phoneNumber || 'Без телефона'}
+                          </span>
+                          <span className="text-xs text-gray-400 block mt-1">{u.email}</span>
+                          
+                          <div className="mt-3 flex flex-wrap gap-2 items-center">
+                            {u.statementUrl ? (
+                              <a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-100 transition border border-blue-100">
+                                📎 Скачать {u.isAlreadyMember ? 'фото пропуска' : 'заявление'}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-red-500 font-bold">Файл не прикреплен</span>
+                            )}
+                            {u.isAlreadyMember && (
+                              <span className="inline-flex items-center bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-black border border-green-100">
+                                🔰 Уже в профсоюзе
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto">
+                          <button onClick={() => handleApproveUser(u.id)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
+                          <button onClick={() => handleRejectUser(u.id)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
