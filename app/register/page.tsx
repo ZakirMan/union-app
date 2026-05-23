@@ -160,10 +160,10 @@ export default function RegisterPage() {
             {!isAlreadyMember && (
               <>
                 <p className="text-sm font-bold text-gray-900 mb-2">Бланки заявлений</p>
-                <div className="flex gap-2 mb-4 flex-wrap">
+                <div className="flex flex-col gap-2 mb-4">
                   {templates.length > 0 ? templates.map(t => (
-                    <a key={t.id} href={t.fileUrl} target="_blank" rel="noopener noreferrer" className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 px-3 rounded-lg text-xs font-bold hover:bg-gray-100 transition whitespace-nowrap min-w-[140px]">
-                      Скачать: {t.title}
+                    <a key={t.id} href={t.fileUrl} target="_blank" rel="noopener noreferrer" className="w-full bg-white border border-gray-300 text-blue-700 text-center py-2.5 px-3 rounded-lg text-xs font-bold hover:bg-gray-100 transition shadow-sm flex items-center justify-center gap-2">
+                      📄 Скачать: {t.title}
                     </a>
                   )) : (
                     <span className="text-xs text-gray-400">Бланки пока не загружены</span>
