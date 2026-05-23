@@ -1,9 +1,9 @@
 // app/register/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -20,7 +20,21 @@ export default function RegisterPage() {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [templates, setTemplates] = useState<{id: string, title: string, fileUrl: string}[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const tSnap = await getDocs(collection(db, 'templates'));
+        const allTemplates = tSnap.docs.map(d => ({ id: d.id, ...d.data() })) as { id: string, title: string, fileUrl: string, isRegistrationTemplate?: boolean }[];
+        setTemplates(allTemplates.filter(t => t.isRegistrationTemplate));
+      } catch (e) {
+        console.error("Ошибка загрузки шаблонов", e);
+      }
+    };
+    fetchTemplates();
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,9 +160,14 @@ export default function RegisterPage() {
             {!isAlreadyMember && (
               <>
                 <p className="text-sm font-bold text-gray-900 mb-2">Бланки заявлений</p>
-                <div className="flex gap-2 mb-4">
-                  <a href="/zayavlenie_1.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 1</a>
-                  <a href="/zayavlenie_2.docx" download className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 rounded-lg text-xs font-bold hover:bg-gray-100 transition">Скачать заявление 2</a>
+                <div className="flex gap-2 mb-4 flex-wrap">
+                  {templates.length > 0 ? templates.map(t => (
+                    <a key={t.id} href={t.fileUrl} target="_blank" rel="noopener noreferrer" className="flex-1 bg-white border border-gray-300 text-gray-700 text-center py-2 px-3 rounded-lg text-xs font-bold hover:bg-gray-100 transition whitespace-nowrap min-w-[140px]">
+                      Скачать: {t.title}
+                    </a>
+                  )) : (
+                    <span className="text-xs text-gray-400">Бланки пока не загружены</span>
+                  )}
                 </div>
               </>
             )}

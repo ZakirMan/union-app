@@ -48,7 +48,7 @@ interface RequestData {
   response?: string;
 }
 interface LinkItem { id: string; title: string; url: string; }
-interface DocTemplate { id: string; title: string; description?: string; fileUrl: string; }
+interface DocTemplate { id: string; title: string; description?: string; fileUrl: string; isRegistrationTemplate?: boolean; }
 
 interface UnionDocument { id: string; title: string; content: string; createdAt: string; }
 
@@ -504,6 +504,16 @@ export default function AdminPage() {
       });
       fetchData();
     } catch (e) { alert('Ошибка при обновлении'); }
+  };
+  const handleToggleRegistrationTemplate = async (t: DocTemplate) => {
+    try {
+      await updateDoc(doc(db, 'templates', t.id), {
+        isRegistrationTemplate: !t.isRegistrationTemplate
+      });
+      fetchData();
+    } catch (e) {
+      alert('Ошибка обновления');
+    }
   };
   const handleReplyRequest = async (id: string) => { if (replyText[id]) { await updateDoc(doc(db, 'requests', id), { response: replyText[id], responseAt: new Date().toISOString() }); fetchData(); } };
 
@@ -1191,8 +1201,12 @@ export default function AdminPage() {
                   {templates.map(t => (
                     <div key={t.id} className="flex flex-col border-b py-2">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-700">{t.title}</span>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-700">{t.title}</span>
+                          {t.isRegistrationTemplate && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded uppercase font-black w-fit mt-1">Отображается при регистрации</span>}
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <button onClick={() => handleToggleRegistrationTemplate(t)} className={`text-[10px] uppercase font-black px-2 py-1 rounded ${t.isRegistrationTemplate ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-500 hover:bg-green-50 hover:text-green-600'}`}>{t.isRegistrationTemplate ? 'Скрыть из реги' : 'В регу'}</button>
                           <button onClick={() => handleEditTemplate(t)} className="text-blue-400 font-bold text-xs uppercase">Edit</button>
                           <button onClick={() => handleDeleteTemplate(t.id)} className="text-red-400 font-bold">✕</button>
                         </div>
