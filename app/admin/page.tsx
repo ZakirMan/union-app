@@ -100,6 +100,8 @@ export default function AdminPage() {
   // Состояние для просмотра результатов теста
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '' });
 
   // Конструктор теста
   const [isCreatingTest, setIsCreatingTest] = useState(false);
@@ -439,6 +441,24 @@ export default function AdminPage() {
       await logAction('reject_user', 'user', `Участник удален/отклонен: ${id}`); 
       fetchData(); 
     } 
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!selectedUser) return;
+    try {
+      await updateDoc(doc(db, 'users', selectedUser.id), {
+        displayName: editUserForm.name,
+        position: editUserForm.pos,
+        phoneNumber: editUserForm.phone,
+        email: editUserForm.email
+      });
+      setSelectedUser({...selectedUser, displayName: editUserForm.name, position: editUserForm.pos, phoneNumber: editUserForm.phone, email: editUserForm.email});
+      setIsEditingUser(false);
+      await logAction('edit_user', 'user', `Отредактирован профиль: ${selectedUser.id}`);
+      fetchData();
+    } catch (e) {
+      alert("Ошибка при сохранении");
+    }
   };
 
   const handleDeleteUserStatement = async (id: string, statementUrl: string) => {
@@ -962,8 +982,29 @@ export default function AdminPage() {
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in" onClick={() => setSelectedUser(null)}>
                 <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white relative">
-                    <button onClick={() => setSelectedUser(null)} className="absolute top-6 right-6 bg-white/20 rounded-full p-2 hover:bg-white/30">✕</button>
-                    <div className="flex items-center gap-6"><div className="w-24 h-24 bg-white rounded-full border-4 border-white/30 flex items-center justify-center text-4xl overflow-hidden relative">{selectedUser.photoUrl ? <Image src={selectedUser.photoUrl} alt={selectedUser.displayName} fill className="object-cover" /> : '👤'}</div><div><h2 className="text-3xl font-black">{selectedUser.displayName}</h2><p className="font-bold text-blue-100 text-lg opacity-90">{selectedUser.position}</p></div></div>
+                    <div className="absolute top-6 right-6 flex gap-2">
+                      {!isEditingUser ? (
+                        <button onClick={() => { setIsEditingUser(true); setEditUserForm({ name: selectedUser.displayName, pos: selectedUser.position, phone: selectedUser.phoneNumber || '', email: selectedUser.email }); }} className="bg-white/20 rounded-full p-2 hover:bg-white/30 text-sm font-bold px-4">✏️ Редактировать</button>
+                      ) : (
+                        <button onClick={handleSaveUserEdit} className="bg-green-500 rounded-full p-2 hover:bg-green-600 text-sm font-bold px-4 shadow-lg">✅ Сохранить</button>
+                      )}
+                      <button onClick={() => { setSelectedUser(null); setIsEditingUser(false); }} className="bg-white/20 rounded-full p-2 hover:bg-white/30">✕</button>
+                    </div>
+                    <div className="flex items-center gap-6"><div className="w-24 h-24 bg-white rounded-full border-4 border-white/30 flex items-center justify-center text-4xl overflow-hidden relative">{selectedUser.photoUrl ? <Image src={selectedUser.photoUrl} alt={selectedUser.displayName} fill className="object-cover" /> : '👤'}</div>
+                      <div className="flex-grow">
+                        {isEditingUser ? (
+                          <>
+                            <input className="text-3xl font-black bg-black/20 rounded-lg px-3 py-1 outline-none w-full mb-2 placeholder-white/50" value={editUserForm.name} onChange={e => setEditUserForm({...editUserForm, name: e.target.value})} placeholder="ФИО" />
+                            <input className="font-bold text-blue-100 bg-black/20 rounded-lg px-3 py-1 outline-none w-full placeholder-white/50" value={editUserForm.pos} onChange={e => setEditUserForm({...editUserForm, pos: e.target.value})} placeholder="Должность" />
+                          </>
+                        ) : (
+                          <>
+                            <h2 className="text-3xl font-black">{selectedUser.displayName}</h2>
+                            <p className="font-bold text-blue-100 text-lg opacity-90">{selectedUser.position}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
                     {/* DISPLAY DYNAMIC VOTE WEIGHT */}
                     <div className="mt-4 bg-white/10 p-3 rounded-xl inline-flex items-center gap-2">
@@ -971,7 +1012,19 @@ export default function AdminPage() {
                       <span className="text-2xl font-black">{1 + activeDelegationsIn.length}</span>
                     </div>
 
-                    <div className="mt-6 flex gap-6 text-sm font-bold opacity-80"><span>📞 {selectedUser.phoneNumber}</span><span>✉️ {selectedUser.email}</span></div>
+                    <div className="mt-6 flex gap-6 text-sm font-bold opacity-80">
+                      {isEditingUser ? (
+                        <>
+                          <div className="flex items-center gap-2">📞 <input className="bg-black/20 rounded-lg px-3 py-1 outline-none placeholder-white/50" value={editUserForm.phone} onChange={e => setEditUserForm({...editUserForm, phone: e.target.value})} placeholder="Телефон" /></div>
+                          <div className="flex items-center gap-2">✉️ <input className="bg-black/20 rounded-lg px-3 py-1 outline-none placeholder-white/50" value={editUserForm.email} onChange={e => setEditUserForm({...editUserForm, email: e.target.value})} placeholder="Email" /></div>
+                        </>
+                      ) : (
+                        <>
+                          <span>📞 {selectedUser.phoneNumber}</span>
+                          <span>✉️ {selectedUser.email}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="p-8 max-h-[60vh] overflow-y-auto bg-gray-50 grid md:grid-cols-2 gap-8">
                     <div>
