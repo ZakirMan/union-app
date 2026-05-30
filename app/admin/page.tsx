@@ -17,6 +17,7 @@ interface UserData {
   isAlreadyMember?: boolean;
   joinDate?: string;
   idCardUrl?: string;
+  category?: string;
 }
 
 // Тесты
@@ -103,7 +104,8 @@ export default function AdminPage() {
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isEditingUser, setIsEditingUser] = useState(false);
-  const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '' });
+  const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '', category: '' });
+  const [pendingCategories, setPendingCategories] = useState<{[key: string]: string}>({});
 
   // Конструктор теста
   const [isCreatingTest, setIsCreatingTest] = useState(false);
@@ -429,9 +431,14 @@ export default function AdminPage() {
   const handleApproveDelegation = async (req: DelegationRequest) => { if (!confirm(`Одобрить?`)) return; await updateDoc(doc(db, 'delegation_requests', req.id), { status: 'approved' }); await updateDoc(doc(db, 'users', req.fromId), { voteWeight: 0, delegationStatus: 'approved', delegatedTo: req.toId, delegatedToName: req.toName, delegationConferenceId: req.conferenceId || null }); await updateDoc(doc(db, 'users', req.toId), { voteWeight: increment(1), delegatedFrom: arrayUnion(req.fromName) }); await logAction('approve_delegation', 'delegation', `Делегирование: ${req.fromName} -> ${req.toName}`); fetchData(); };
   const handleRejectDelegation = async (reqId: string, fromId: string) => { if (!confirm('Отклонить?')) return; await deleteDoc(doc(db, 'delegation_requests', reqId)); await updateDoc(doc(db, 'users', fromId), { delegationStatus: null, delegatedToName: null }); await logAction('reject_delegation', 'delegation', `Отклонено делегирование: ${reqId}`); fetchData(); };
   const handleApproveUser = async (u: UserData) => { 
-    if (confirm('Подтвердить?')) { 
+    const cat = pendingCategories[u.id];
+    if (!cat && !confirm('Вы не выбрали категорию. Принять без категории?')) return;
+
+    if (confirm('Подтвердить принятие участника?')) { 
       const updateData: any = { status: 'approved', voteWeight: 1 };
       
+      if (cat) updateData.category = cat;
+
       if (!u.isAlreadyMember && !u.joinDate) {
         const now = new Date();
         const yyyy = now.getFullYear();
@@ -441,6 +448,12 @@ export default function AdminPage() {
 
       await updateDoc(doc(db, 'users', u.id), updateData); 
       await logAction('approve_user', 'user', `Участник принят: ${u.id}`); 
+      
+      // Очищаем локальное состояние категории после успешного принятия
+      const newCats = {...pendingCategories};
+      delete newCats[u.id];
+      setPendingCategories(newCats);
+
       fetchData(); 
     } 
   };
@@ -475,9 +488,10 @@ export default function AdminPage() {
         displayName: editUserForm.name,
         position: editUserForm.pos,
         phoneNumber: editUserForm.phone,
-        email: editUserForm.email
+        email: editUserForm.email,
+        category: editUserForm.category
       });
-      setSelectedUser({...selectedUser, displayName: editUserForm.name, position: editUserForm.pos, phoneNumber: editUserForm.phone, email: editUserForm.email});
+      setSelectedUser({...selectedUser, displayName: editUserForm.name, position: editUserForm.pos, phoneNumber: editUserForm.phone, email: editUserForm.email, category: editUserForm.category});
       setIsEditingUser(false);
       await logAction('edit_user', 'user', `Отредактирован профиль: ${selectedUser.id}`);
       fetchData();
@@ -946,9 +960,22 @@ export default function AdminPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2 w-full md:w-auto">
-                          <button onClick={() => handleApproveUser(u)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
-                          <button onClick={() => handleRejectUser(u.id, u.statementUrl, u.idCardUrl)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
+                        <div className="flex flex-col gap-2 w-full md:w-auto">
+                          <select 
+                            className="bg-white border border-yellow-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 outline-none w-full"
+                            value={pendingCategories[u.id] || ''}
+                            onChange={(e) => setPendingCategories({...pendingCategories, [u.id]: e.target.value})}
+                          >
+                            <option value="">🏷️ Категория...</option>
+                            <option value="Экипаж">Экипаж</option>
+                            <option value="Руководитель">Руководитель</option>
+                            <option value="Офис">Офис</option>
+                            <option value="Перрон">Перрон</option>
+                          </select>
+                          <div className="flex gap-2">
+                            <button onClick={() => handleApproveUser(u)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-2 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
+                            <button onClick={() => handleRejectUser(u.id, u.statementUrl, u.idCardUrl)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-2 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1018,7 +1045,7 @@ export default function AdminPage() {
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white relative">
                     <div className="absolute top-6 right-6 flex gap-2">
                       {!isEditingUser ? (
-                        <button onClick={() => { setIsEditingUser(true); setEditUserForm({ name: selectedUser.displayName, pos: selectedUser.position, phone: selectedUser.phoneNumber || '', email: selectedUser.email }); }} className="bg-white/20 rounded-full p-2 hover:bg-white/30 text-sm font-bold px-4">✏️ Редактировать</button>
+                        <button onClick={() => { setIsEditingUser(true); setEditUserForm({ name: selectedUser.displayName, pos: selectedUser.position, phone: selectedUser.phoneNumber || '', email: selectedUser.email, category: selectedUser.category || '' }); }} className="bg-white/20 rounded-full p-2 hover:bg-white/30 text-sm font-bold px-4">✏️ Редактировать</button>
                       ) : (
                         <button onClick={handleSaveUserEdit} className="bg-green-500 rounded-full p-2 hover:bg-green-600 text-sm font-bold px-4 shadow-lg">✅ Сохранить</button>
                       )}
@@ -1029,12 +1056,24 @@ export default function AdminPage() {
                         {isEditingUser ? (
                           <>
                             <input className="text-3xl font-black bg-black/20 rounded-lg px-3 py-1 outline-none w-full mb-2 placeholder-white/50" value={editUserForm.name} onChange={e => setEditUserForm({...editUserForm, name: e.target.value})} placeholder="ФИО" />
-                            <input className="font-bold text-blue-100 bg-black/20 rounded-lg px-3 py-1 outline-none w-full placeholder-white/50" value={editUserForm.pos} onChange={e => setEditUserForm({...editUserForm, pos: e.target.value})} placeholder="Должность" />
+                            <div className="flex gap-2">
+                              <input className="font-bold text-blue-100 bg-black/20 rounded-lg px-3 py-1 outline-none flex-1 placeholder-white/50" value={editUserForm.pos} onChange={e => setEditUserForm({...editUserForm, pos: e.target.value})} placeholder="Должность" />
+                              <select className="bg-black/20 rounded-lg px-3 py-1 outline-none text-white font-bold w-40" value={editUserForm.category} onChange={e => setEditUserForm({...editUserForm, category: e.target.value})}>
+                                <option value="" className="text-black">Без категории</option>
+                                <option value="Экипаж" className="text-black">Экипаж</option>
+                                <option value="Руководитель" className="text-black">Руководитель</option>
+                                <option value="Офис" className="text-black">Офис</option>
+                                <option value="Перрон" className="text-black">Перрон</option>
+                              </select>
+                            </div>
                           </>
                         ) : (
                           <>
                             <h2 className="text-3xl font-black">{selectedUser.displayName}</h2>
-                            <p className="font-bold text-blue-100 text-lg opacity-90">{selectedUser.position}</p>
+                            <p className="font-bold text-blue-100 text-lg opacity-90">
+                              {selectedUser.position}
+                              {selectedUser.category && <span className="ml-3 bg-white/20 px-2 py-0.5 rounded text-sm text-white border border-white/30 shadow-sm">🏷️ {selectedUser.category}</span>}
+                            </p>
                           </>
                         )}
                       </div>
