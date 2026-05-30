@@ -1174,6 +1174,11 @@ export default function DashboardPage() {
                   <option value="Болезнь или операция">Болезнь или операция</option>
                   <option value="Путевки в детский лагерь">Путевки в детский лагерь</option>
                 </select>
+                {aidCategory === 'В связи со смертью близкого родственника' && (
+                  <p className="mt-3 text-xs font-black text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-200 shadow-sm">
+                    ⚠️ ОБРАТИТЕ ВНИМАНИЕ: Необходимо прикрепить свидетельство о смерти (фото или PDF) в поле ниже.
+                  </p>
+                )}
               </div>
               
               <div>
