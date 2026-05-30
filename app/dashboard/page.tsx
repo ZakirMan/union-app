@@ -30,6 +30,7 @@ interface UserProfile {
   delegationStatus?: 'pending' | 'approved';
   delegationConferenceId?: string; // <--- ADDED
   delegatedFrom?: string[];
+  category?: string;
 }
 
 interface NewsItem { id: string; title: string; body: string; imageUrl?: string; createdAt: string; }
