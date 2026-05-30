@@ -1,9 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 export default function SalaryCalculatorPage() {
+    const router = useRouter();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [authChecking, setAuthChecking] = useState(true);
     const [baseSalary, setBaseSalary] = useState<number>(500000);
     const [positionIndex, setPositionIndex] = useState<number>(0);
     const [daysInMonth, setDaysInMonth] = useState<number>(30);
@@ -14,6 +21,35 @@ export default function SalaryCalculatorPage() {
     const [passengerHours, setPassengerHours] = useState<number>(0);
     const [absenceDays, setAbsenceDays] = useState<number>(0);
     const [isLaborUnionMember, setIsLaborUnionMember] = useState<boolean>(false);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                router.push('/');
+                return;
+            }
+            try {
+                const docRef = doc(db, 'users', user.uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.category === 'Экипаж' || data.role === 'admin') {
+                        setIsAuthorized(true);
+                    } else {
+                        router.push('/dashboard');
+                    }
+                } else {
+                    router.push('/');
+                }
+            } catch (e) {
+                console.error(e);
+                router.push('/');
+            } finally {
+                setAuthChecking(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [router]);
 
     const [result, setResult] = useState<{
         total: number;
@@ -85,6 +121,14 @@ export default function SalaryCalculatorPage() {
             transport: Math.round(transport)
         });
     };
+
+    if (authChecking) {
+        return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-xl font-bold text-gray-400 animate-pulse">Проверка доступа...</p></div>;
+    }
+
+    if (!isAuthorized) {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">

@@ -651,17 +651,19 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* SALARY CALCULATOR BUTTON */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-lg shadow-blue-200 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/salary-calculator')}>
-              <div className="relative z-10">
-                <h2 className="font-black text-2xl mb-2">Калькулятор Зарплаты</h2>
-                <p className="text-blue-100 font-bold text-sm mb-6 opacity-90 max-w-xs">Рассчитайте примерную заработную плату исходя из вашего налета и должности.</p>
-                <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-blue-50 transition transform group-hover:scale-105">
-                  Открыть калькулятор
-                </button>
+            {/* SALARY CALCULATOR BUTTON - ONLY FOR CREW */}
+            {userData?.category === 'Экипаж' && (
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-lg shadow-blue-200 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/salary-calculator')}>
+                <div className="relative z-10">
+                  <h2 className="font-black text-2xl mb-2">Калькулятор Зарплаты</h2>
+                  <p className="text-blue-100 font-bold text-sm mb-6 opacity-90 max-w-xs">Рассчитайте примерную заработную плату исходя из вашего налета и должности.</p>
+                  <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-blue-50 transition transform group-hover:scale-105">
+                    Открыть калькулятор
+                  </button>
+                </div>
+                <div className="absolute -right-6 -bottom-6 text-9xl opacity-20 rotate-12 group-hover:rotate-6 transition-transform duration-500">🧮</div>
               </div>
-              <div className="absolute -right-6 -bottom-6 text-9xl opacity-20 rotate-12 group-hover:rotate-6 transition-transform duration-500">🧮</div>
-            </div>
+            )}
 
             <div>
               <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Шаблоны</h2>
