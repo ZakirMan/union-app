@@ -108,6 +108,13 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // Материальная помощь
+  const [showAidModal, setShowAidModal] = useState(false);
+  const [aidCategory, setAidCategory] = useState('');
+  const [aidComment, setAidComment] = useState('');
+  const [aidFile, setAidFile] = useState<File | null>(null);
+  const [isSubmittingAid, setIsSubmittingAid] = useState(false);
+
   // Тестирование
   const [activeTest, setActiveTest] = useState<Test | null>(null);
   const [testAnswers, setTestAnswers] = useState<{ [key: string]: string }>({});
@@ -296,7 +303,56 @@ export default function DashboardPage() {
     } catch { alert('Ошибка'); } finally { setIsSending(false); }
   };
 
+  const handleSendAidRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aidCategory || !user) {
+      alert('Выберите категорию');
+      return;
+    }
+    setIsSubmittingAid(true);
+    try {
+      let fileUrl = '';
+      if (aidFile) {
+        const storageRef = ref(storage, `requests/${user.uid}_${Date.now()}_${aidFile.name}`);
+        await uploadBytes(storageRef, aidFile);
+        fileUrl = await getDownloadURL(storageRef);
+      }
 
+      const text = `Запрос материальной помощи: ${aidCategory}${aidComment ? '\nКомментарий: ' + aidComment : ''}`;
+      const newReqData = {
+        userId: user.uid,
+        userEmail: user.email || '',
+        text,
+        fileUrl,
+        status: 'new',
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'requests'), newReqData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setMyRequests([{ ...newReqData, id: docRef.id } as any, ...myRequests]);
+      
+      setShowAidModal(false);
+      setAidCategory('');
+      setAidComment('');
+      setAidFile(null);
+      alert('Запрос на материальную помощь отправлен!');
+
+      try {
+        const token = await user.getIdToken();
+        await fetch('/api/send-telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ text: `💰 <b>Запрос материальной помощи!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n🏷️ <b>Категория:</b> ${aidCategory}${aidComment ? '\n📝 <b>Комментарий:</b> ' + aidComment : ''}${fileUrl ? '\n\n📎 <i>К сообщению прикреплен документ</i>' : ''}` })
+        });
+      } catch (err) { console.error(err); }
+
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при отправке.');
+    } finally {
+      setIsSubmittingAid(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user || !userData) return;
@@ -559,13 +615,13 @@ export default function DashboardPage() {
         {/* ЧАТ */}
         {activeTab === 'chat' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-[2rem] p-8 text-white shadow-lg shadow-green-200 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-[2rem] p-8 text-white shadow-lg shadow-green-200 relative overflow-hidden group cursor-pointer" onClick={() => setShowAidModal(true)}>
               <div className="relative z-10">
-                <h2 className="font-black text-2xl mb-2">WhatsApp</h2>
-                <p className="text-green-100 font-bold text-sm mb-6 opacity-90">Свяжитесь с нами напрямую для оперативного решения вопросов.</p>
-                <a href="https://wa.me/777" className="inline-block bg-white text-green-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-green-50 transition transform active:scale-95">Написать</a>
+                <h2 className="font-black text-2xl mb-2">Материальная помощь</h2>
+                <p className="text-green-100 font-bold text-sm mb-6 opacity-90">Запросите материальную помощь по нужной категории.</p>
+                <button className="inline-block bg-white text-green-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-green-50 transition transform group-hover:scale-105">Оформить заявку</button>
               </div>
-              <div className="absolute -right-10 -bottom-10 text-9xl opacity-20 rotate-12">💬</div>
+              <div className="absolute -right-10 -bottom-10 text-9xl opacity-20 rotate-12 group-hover:rotate-6 transition-transform duration-500">🤝</div>
             </div>
 
             <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-50">
@@ -1093,6 +1149,63 @@ export default function DashboardPage() {
           </div>
         )
       }
+
+      {/* МОДАЛЬНОЕ ОКНО ЗАПРОСА МАТЕРИАЛЬНОЙ ПОМОЩИ */}
+      {showAidModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in" onClick={() => setShowAidModal(false)}>
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden p-8" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-2xl text-gray-800">Материальная помощь</h3>
+              <button onClick={() => setShowAidModal(false)} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition font-bold">✕</button>
+            </div>
+            
+            <form onSubmit={handleSendAidRequest} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Категория помощи <span className="text-red-500">*</span></label>
+                <select 
+                  required
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition appearance-none"
+                  value={aidCategory}
+                  onChange={e => setAidCategory(e.target.value)}
+                >
+                  <option value="" disabled>Выберите категорию...</option>
+                  <option value="По рождению ребенка">По рождению ребенка</option>
+                  <option value="В связи со смертью близкого родственника">В связи со смертью близкого родственника</option>
+                  <option value="Болезнь или операция">Болезнь или операция</option>
+                  <option value="Путевки в детский лагерь">Путевки в детский лагерь</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Комментарий (необязательно)</label>
+                <textarea 
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition min-h-[100px]"
+                  placeholder="Дополнительная информация..."
+                  value={aidComment}
+                  onChange={e => setAidComment(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Подтверждающий документ (фото/PDF)</label>
+                <input 
+                  type="file" 
+                  onChange={e => setAidFile(e.target.files ? e.target.files[0] : null)}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition cursor-pointer"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isSubmittingAid}
+                className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition disabled:opacity-50 mt-4"
+              >
+                {isSubmittingAid ? 'Отправка...' : 'Отправить запрос'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Footer Nav */}
       <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto">
