@@ -205,7 +205,15 @@ export default function RegisterPage() {
               accept="image/*,.pdf"
               required
               className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer"
-              onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f && f.size > 5 * 1024 * 1024) {
+                  alert('Размер файла не должен превышать 5 МБ');
+                  e.target.value = '';
+                  return;
+                }
+                setStatementFile(f || null);
+              }}
             />
 
             <label className="block text-sm font-bold text-gray-900 mb-1 mt-6">
@@ -216,7 +224,15 @@ export default function RegisterPage() {
               accept="image/*,.pdf"
               required
               className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 transition cursor-pointer"
-              onChange={(e) => setIdCardFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f && f.size > 5 * 1024 * 1024) {
+                  alert('Размер файла не должен превышать 5 МБ');
+                  e.target.value = '';
+                  return;
+                }
+                setIdCardFile(f || null);
+              }}
             />
           </div>
 

@@ -646,7 +646,15 @@ export default function DashboardPage() {
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2 ml-2">Прикрепить документ/фото</label>
                 <input
                   type="file"
-                  onChange={e => setChatFile(e.target.files?.[0] || null)}
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f && f.size > 5 * 1024 * 1024) {
+                      alert('Размер файла не должен превышать 5 МБ');
+                      e.target.value = '';
+                      return;
+                    }
+                    setChatFile(f || null);
+                  }}
                   className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition"
                 />
               </div>
@@ -860,7 +868,15 @@ export default function DashboardPage() {
                     <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                       <span className="text-2xl">📷</span>
                       <span className="text-[10px] font-bold uppercase mt-1">Изменить</span>
-                      <input type="file" className="hidden" onChange={e => setEditFile(e.target.files?.[0] || null)} />
+                      <input type="file" className="hidden" onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f && f.size > 5 * 1024 * 1024) {
+                          alert('Размер файла не должен превышать 5 МБ');
+                          e.target.value = '';
+                          return;
+                        }
+                        setEditFile(f || null);
+                      }} />
                     </label>
                   )}
                 </div>
@@ -1019,7 +1035,15 @@ export default function DashboardPage() {
 
                 <div>
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-3 mb-1 block">Документ (если есть)</label>
-                  <input type="file" onChange={e => setDelegateFile(e.target.files?.[0] || null)} className="w-full text-xs bg-gray-50 p-3 rounded-xl font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" />
+                  <input type="file" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f && f.size > 5 * 1024 * 1024) {
+                      alert('Размер файла не должен превышать 5 МБ');
+                      e.target.value = '';
+                      return;
+                    }
+                    setDelegateFile(f || null);
+                  }} className="w-full text-xs bg-gray-50 p-3 rounded-xl font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" />
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -1211,7 +1235,15 @@ export default function DashboardPage() {
                 <label className="block text-sm font-bold text-gray-700 mb-2">Подтверждающий документ (фото/PDF)</label>
                 <input 
                   type="file" 
-                  onChange={e => setAidFile(e.target.files ? e.target.files[0] : null)}
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f && f.size > 5 * 1024 * 1024) {
+                      alert('Размер файла не должен превышать 5 МБ');
+                      e.target.value = '';
+                      return;
+                    }
+                    setAidFile(f || null);
+                  }}
                   className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition cursor-pointer"
                 />
               </div>
