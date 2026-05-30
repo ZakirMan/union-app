@@ -428,7 +428,22 @@ export default function AdminPage() {
   // ОСТАЛЬНЫЕ ФУНКЦИИ
   const handleApproveDelegation = async (req: DelegationRequest) => { if (!confirm(`Одобрить?`)) return; await updateDoc(doc(db, 'delegation_requests', req.id), { status: 'approved' }); await updateDoc(doc(db, 'users', req.fromId), { voteWeight: 0, delegationStatus: 'approved', delegatedTo: req.toId, delegatedToName: req.toName, delegationConferenceId: req.conferenceId || null }); await updateDoc(doc(db, 'users', req.toId), { voteWeight: increment(1), delegatedFrom: arrayUnion(req.fromName) }); await logAction('approve_delegation', 'delegation', `Делегирование: ${req.fromName} -> ${req.toName}`); fetchData(); };
   const handleRejectDelegation = async (reqId: string, fromId: string) => { if (!confirm('Отклонить?')) return; await deleteDoc(doc(db, 'delegation_requests', reqId)); await updateDoc(doc(db, 'users', fromId), { delegationStatus: null, delegatedToName: null }); await logAction('reject_delegation', 'delegation', `Отклонено делегирование: ${reqId}`); fetchData(); };
-  const handleApproveUser = async (id: string) => { if (confirm('Подтвердить?')) { await updateDoc(doc(db, 'users', id), { status: 'approved', voteWeight: 1 }); await logAction('approve_user', 'user', `Участник принят: ${id}`); fetchData(); } };
+  const handleApproveUser = async (u: UserData) => { 
+    if (confirm('Подтвердить?')) { 
+      const updateData: any = { status: 'approved', voteWeight: 1 };
+      
+      if (!u.isAlreadyMember && !u.joinDate) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        updateData.joinDate = `${yyyy}-${mm}`;
+      }
+
+      await updateDoc(doc(db, 'users', u.id), updateData); 
+      await logAction('approve_user', 'user', `Участник принят: ${u.id}`); 
+      fetchData(); 
+    } 
+  };
   const handleRejectUser = async (id: string, statementUrl?: string, idCardUrl?: string) => { 
     if (confirm('Удалить?')) { 
       if (statementUrl) {
@@ -932,7 +947,7 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                          <button onClick={() => handleApproveUser(u.id)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
+                          <button onClick={() => handleApproveUser(u)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
                           <button onClick={() => handleRejectUser(u.id, u.statementUrl, u.idCardUrl)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
                         </div>
                       </div>
