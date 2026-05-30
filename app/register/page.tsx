@@ -16,7 +16,9 @@ export default function RegisterPage() {
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState(''); // <-- НОВОЕ ПОЛЕ
   const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [idCardFile, setIdCardFile] = useState<File | null>(null); // <-- УДОСТОВЕРЕНИЕ
   const [isAlreadyMember, setIsAlreadyMember] = useState(false);
+  const [joinDate, setJoinDate] = useState(''); // <-- ДАТА ВСТУПЛЕНИЯ
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,8 +43,8 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
-    if (!statementFile) {
-      setError(isAlreadyMember ? 'Без фото пропуска заявка не может быть принята' : 'Без прикрепленного заявления о вступлении заявка не может быть принята');
+    if (!statementFile || !idCardFile) {
+      setError('Необходимо прикрепить все обязательные документы');
       setLoading(false);
       return;
     }
@@ -58,14 +60,23 @@ export default function RegisterPage() {
         statementUrl = await getDownloadURL(storageRef);
       }
 
+      let idCardUrl = '';
+      if (idCardFile) {
+        const idCardRef = ref(storage, `id_cards/${user.uid}_${idCardFile.name}`);
+        await uploadBytes(idCardRef, idCardFile);
+        idCardUrl = await getDownloadURL(idCardRef);
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
         displayName: name,
         position: position,
-        phoneNumber: phone, // <-- СОХРАНЯЕМ ТЕЛЕФОН
+        phoneNumber: phone,
         statementUrl: statementUrl,
+        idCardUrl: idCardUrl,
         isAlreadyMember: isAlreadyMember,
+        joinDate: isAlreadyMember ? joinDate : '',
         role: 'member',
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -81,7 +92,7 @@ export default function RegisterPage() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? 'Да' : 'Нет'}`
+            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}`
           })
         });
       } catch (tgError) {
@@ -143,17 +154,31 @@ export default function RegisterPage() {
             <input type="password" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
-          <div className="flex items-center gap-2 mt-4">
-            <input 
-              type="checkbox" 
-              id="alreadyMember" 
-              checked={isAlreadyMember} 
-              onChange={(e) => setIsAlreadyMember(e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-            />
-            <label htmlFor="alreadyMember" className="text-sm font-medium text-gray-900 cursor-pointer select-none">
-              Я уже состою в профсоюзе
-            </label>
+          <div className="flex flex-col gap-2 mt-4">
+            <div className="flex items-center gap-2">
+              <input 
+                type="checkbox" 
+                id="alreadyMember" 
+                checked={isAlreadyMember} 
+                onChange={(e) => setIsAlreadyMember(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              />
+              <label htmlFor="alreadyMember" className="text-sm font-medium text-gray-900 cursor-pointer select-none">
+                Я уже состою в профсоюзе
+              </label>
+            </div>
+            
+            {isAlreadyMember && (
+              <div className="mt-2 animate-in fade-in">
+                <label className="block text-sm font-bold text-gray-900 mb-1">Месяц и год вступления</label>
+                <input 
+                  type="month" 
+                  className="w-full px-4 py-2 border rounded-lg text-black bg-white" 
+                  value={joinDate} 
+                  onChange={(e) => setJoinDate(e.target.value)} 
+                />
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-4">
@@ -172,7 +197,7 @@ export default function RegisterPage() {
               </>
             )}
             
-            <label className="block text-sm font-bold text-gray-900 mb-1">
+            <label className="block text-sm font-bold text-gray-900 mb-1 mt-4">
               {isAlreadyMember ? 'Прикрепить фото пропуска *' : 'Прикрепить подписанное заявление *'}
             </label>
             <input
@@ -181,6 +206,17 @@ export default function RegisterPage() {
               required
               className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer"
               onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
+            />
+
+            <label className="block text-sm font-bold text-gray-900 mb-1 mt-6">
+              Прикрепить удостоверение личности (PDF или фото) *
+            </label>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              required
+              className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 transition cursor-pointer"
+              onChange={(e) => setIdCardFile(e.target.files?.[0] || null)}
             />
           </div>
 

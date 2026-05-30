@@ -15,6 +15,8 @@ interface UserData {
   delegationStatus?: string; delegationConferenceId?: string; photoUrl?: string;
   statementUrl?: string;
   isAlreadyMember?: boolean;
+  joinDate?: string;
+  idCardUrl?: string;
 }
 
 // Тесты
@@ -427,7 +429,7 @@ export default function AdminPage() {
   const handleApproveDelegation = async (req: DelegationRequest) => { if (!confirm(`Одобрить?`)) return; await updateDoc(doc(db, 'delegation_requests', req.id), { status: 'approved' }); await updateDoc(doc(db, 'users', req.fromId), { voteWeight: 0, delegationStatus: 'approved', delegatedTo: req.toId, delegatedToName: req.toName, delegationConferenceId: req.conferenceId || null }); await updateDoc(doc(db, 'users', req.toId), { voteWeight: increment(1), delegatedFrom: arrayUnion(req.fromName) }); await logAction('approve_delegation', 'delegation', `Делегирование: ${req.fromName} -> ${req.toName}`); fetchData(); };
   const handleRejectDelegation = async (reqId: string, fromId: string) => { if (!confirm('Отклонить?')) return; await deleteDoc(doc(db, 'delegation_requests', reqId)); await updateDoc(doc(db, 'users', fromId), { delegationStatus: null, delegatedToName: null }); await logAction('reject_delegation', 'delegation', `Отклонено делегирование: ${reqId}`); fetchData(); };
   const handleApproveUser = async (id: string) => { if (confirm('Подтвердить?')) { await updateDoc(doc(db, 'users', id), { status: 'approved', voteWeight: 1 }); await logAction('approve_user', 'user', `Участник принят: ${id}`); fetchData(); } };
-  const handleRejectUser = async (id: string, statementUrl?: string) => { 
+  const handleRejectUser = async (id: string, statementUrl?: string, idCardUrl?: string) => { 
     if (confirm('Удалить?')) { 
       if (statementUrl) {
         try {
@@ -435,6 +437,14 @@ export default function AdminPage() {
           await deleteObject(fileRef);
         } catch (e) {
           console.error("Ошибка при удалении файла", e);
+        }
+      }
+      if (idCardUrl) {
+        try {
+          const fileRef = ref(storage, idCardUrl);
+          await deleteObject(fileRef);
+        } catch (e) {
+          console.error("Ошибка при удалении ID", e);
         }
       }
       await deleteDoc(doc(db, 'users', id)); 
@@ -461,13 +471,13 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteUserStatement = async (id: string, statementUrl: string) => {
+  const handleDeleteUserFile = async (id: string, fileUrl: string, field: 'statementUrl' | 'idCardUrl') => {
     if (confirm('Удалить прикрепленный файл пользователя из облака?')) {
       try {
-        const fileRef = ref(storage, statementUrl);
+        const fileRef = ref(storage, fileUrl);
         await deleteObject(fileRef);
-        await updateDoc(doc(db, 'users', id), { statementUrl: '' });
-        await logAction('delete_user_statement', 'user', `Удален файл у пользователя: ${id}`);
+        await updateDoc(doc(db, 'users', id), { [field]: '' });
+        await logAction('delete_user_file', 'user', `Удален файл у пользователя: ${id}`);
         fetchData();
       } catch (e) {
         console.error("Ошибка при удалении файла", e);
@@ -901,23 +911,29 @@ export default function AdminPage() {
                           <span className="text-xs text-gray-400 block mt-1">{u.email}</span>
                           
                           <div className="mt-3 flex flex-wrap gap-2 items-center">
-                            {u.statementUrl ? (
+                            {u.statementUrl && (
                               <a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-100 transition border border-blue-100">
-                                📎 Скачать {u.isAlreadyMember ? 'фото пропуска' : 'заявление'}
+                                📎 {u.isAlreadyMember ? 'Фото пропуска' : 'Заявление'}
                               </a>
-                            ) : (
-                              <span className="text-xs text-red-500 font-bold">Файл не прикреплен</span>
+                            )}
+                            {u.idCardUrl && (
+                              <a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center bg-orange-50 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-orange-100 transition border border-orange-100">
+                                📎 Уд. Личности
+                              </a>
+                            )}
+                            {(!u.statementUrl && !u.idCardUrl) && (
+                              <span className="text-xs text-red-500 font-bold">Файлы не прикреплены</span>
                             )}
                             {u.isAlreadyMember && (
                               <span className="inline-flex items-center bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-black border border-green-100">
-                                🔰 Уже в профсоюзе
+                                🔰 Член профсоюза {u.joinDate ? `(с ${u.joinDate})` : ''}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
                           <button onClick={() => handleApproveUser(u.id)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
-                          <button onClick={() => handleRejectUser(u.id, u.statementUrl)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
+                          <button onClick={() => handleRejectUser(u.id, u.statementUrl, u.idCardUrl)} className="flex-1 md:flex-none bg-red-50 text-red-500 px-6 py-3 rounded-xl font-black hover:bg-red-100 transition">Отклонить</button>
                         </div>
                       </div>
                     ))}
@@ -931,12 +947,12 @@ export default function AdminPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
-                    <thead className="bg-gray-100 text-gray-400 uppercase text-xs font-black"><tr><th className="p-6">Сотрудник</th><th className="p-6">Контакты</th><th className="p-6 text-center">Файл</th><th className="p-6 text-center">Статус</th><th className="p-6 text-right"></th></tr></thead>
+                    <thead className="bg-gray-100 text-gray-400 uppercase text-xs font-black"><tr><th className="p-6">Сотрудник</th><th className="p-6">Контакты</th><th className="p-6 text-center">Файлы</th><th className="p-6 text-center">Статус</th><th className="p-6 text-right"></th></tr></thead>
                     <tbody className="divide-y divide-gray-100">
                       {users
                         .filter(u => u.status === 'approved')
                         .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600">{u.displayName}</div><div className="text-xs font-bold text-gray-500">{u.position}</div></div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center">{u.statementUrl ? (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs font-bold" onClick={e => e.stopPropagation()}>Смотреть</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserStatement(u.id, u.statementUrl!); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">Удалить</button></div>) : <span className="text-gray-300 text-xs">—</span>}</td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
+                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600">{u.displayName}</div><div className="text-xs font-bold text-gray-500">{u.position}</div>{u.isAlreadyMember && <div className="text-[10px] text-green-600 font-bold mt-0.5">🔰 В профсоюзе {u.joinDate ? `с ${u.joinDate}` : ''}</div>}</div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
                     </tbody>
                   </table>
                 </div>
@@ -1024,6 +1040,15 @@ export default function AdminPage() {
                           <span>✉️ {selectedUser.email}</span>
                         </>
                       )}
+                    </div>
+                    {selectedUser.isAlreadyMember && (
+                      <div className="mt-3 text-xs font-black text-green-300">
+                        🔰 Член профсоюза {selectedUser.joinDate ? `(с ${selectedUser.joinDate})` : ''}
+                      </div>
+                    )}
+                    <div className="mt-4 flex gap-2">
+                      {selectedUser.statementUrl && <a href={selectedUser.statementUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">📄 {selectedUser.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a>}
+                      {selectedUser.idCardUrl && <a href={selectedUser.idCardUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">🪪 Уд. Личности</a>}
                     </div>
                   </div>
                   <div className="p-8 max-h-[60vh] overflow-y-auto bg-gray-50 grid md:grid-cols-2 gap-8">
