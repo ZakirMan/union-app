@@ -1009,6 +1009,9 @@ export default function AdminPage() {
             // 2. Считаем активные делегирования НА ЭТУ КОНФЕРЕНЦИЮ
             const activeDelegationsIn = delegations.filter(d => d.toId === selectedUser!.id && d.status === 'approved' && d.conferenceId === nextConf?.id);
 
+            // 3. Получаем историю обращений этого пользователя
+            const userRequests = requests.filter(r => r.userEmail === selectedUser!.email);
+
             return (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in" onClick={() => setSelectedUser(null)}>
                 <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -1079,6 +1082,31 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div><h3 className="font-black text-gray-400 uppercase text-xs tracking-wider mb-4 border-b pb-2">Он доверил голос</h3><div className="space-y-3">{delegations.filter(d => d.fromId === selectedUser!.id && d.status === 'approved').map(d => (<div key={d.id} className="bg-white p-4 rounded-2xl shadow-sm border border-yellow-100"><p className="text-xs text-gray-400 font-bold mb-1">Передано:</p><p className="font-black text-gray-800 text-lg">{d.toName}</p><p className="text-xs font-bold text-gray-500 mt-1">Соб: {d.conferenceTitle || '—'}</p></div>))}{delegations.filter(d => d.fromId === selectedUser!.id && d.status === 'approved').length === 0 && <p className="text-gray-400 text-sm font-bold italic">Голосует сам</p>}</div></div>
+                    
+                    <div className="md:col-span-2 mt-4 pt-6 border-t border-gray-200">
+                      <h3 className="font-black text-gray-400 uppercase text-xs tracking-wider mb-4">История обращений ({userRequests.length})</h3>
+                      <div className="space-y-4">
+                        {userRequests.map(req => (
+                          <div key={req.id} className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-200">
+                            <p className="text-sm font-bold text-gray-800 whitespace-pre-wrap">{req.text}</p>
+                            {req.fileUrl && (
+                              <a href={req.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 text-xs font-bold mt-2 inline-flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">📎 Прикрепленный файл</a>
+                            )}
+                            <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                              <p className="text-xs font-black text-gray-400 mb-1">ОТВЕТ АДМИНИСТРАТОРА:</p>
+                              {req.response ? (
+                                <p className="text-sm font-bold text-indigo-700 whitespace-pre-wrap">{req.response}</p>
+                              ) : (
+                                <p className="text-sm font-bold text-gray-400 italic">Ожидает ответа...</p>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-2 font-bold">{new Date(req.createdAt).toLocaleString()}</p>
+                          </div>
+                        ))}
+                        {userRequests.length === 0 && <div className="text-gray-400 text-sm font-bold italic bg-white p-4 rounded-xl border border-dashed border-gray-200 text-center">Нет обращений от этого участника</div>}
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               </div>
