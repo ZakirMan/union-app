@@ -1179,6 +1179,21 @@ export default function DashboardPage() {
                     ⚠️ ОБРАТИТЕ ВНИМАНИЕ: Необходимо прикрепить свидетельство о смерти (фото или PDF) в поле ниже.
                   </p>
                 )}
+                {aidCategory === 'По рождению ребенка' && (
+                  <p className="mt-3 text-xs font-black text-indigo-600 bg-indigo-50 px-4 py-3 rounded-xl border border-indigo-200 shadow-sm">
+                    ℹ️ Необходимо прикрепить свидетельство о рождении в поле ниже.
+                  </p>
+                )}
+                {aidCategory === 'Болезнь или операция' && (
+                  <p className="mt-3 text-xs font-black text-indigo-600 bg-indigo-50 px-4 py-3 rounded-xl border border-indigo-200 shadow-sm">
+                    ℹ️ Необходимо прикрепить заключение врача и чеки в поле ниже.
+                  </p>
+                )}
+                {aidCategory === 'Путевки в детский лагерь' && (
+                  <p className="mt-3 text-xs font-black text-indigo-600 bg-indigo-50 px-4 py-3 rounded-xl border border-indigo-200 shadow-sm">
+                    ℹ️ Необходимо прикрепить чек и/или договор в поле ниже.
+                  </p>
+                )}
               </div>
               
               <div>
