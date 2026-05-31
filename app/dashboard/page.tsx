@@ -515,6 +515,7 @@ export default function DashboardPage() {
 
   const handleVote = async (pollId: string, optionId: string) => {
     if (!user) return;
+    if (!confirm('Вы уверены, что хотите выбрать этот вариант ответа? Это действие нельзя отменить.')) return;
     try {
       const poll = polls.find(p => p.id === pollId);
       if (!poll) return;
