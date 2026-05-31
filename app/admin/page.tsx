@@ -548,6 +548,20 @@ export default function AdminPage() {
   };
 
   const handleDeleteMember = async (id: string) => { if (confirm('Del?')) await deleteDoc(doc(db, 'team', id)); await logAction('delete_member', 'team', `Удален член команды: ${id}`); fetchData(); };
+  const handleEditMember = async (m: TeamMember) => {
+    const newName = prompt('Новое ФИО:', m.name);
+    if (newName === null) return;
+    const newRole = prompt('Новая Роль:', m.role);
+    if (newRole === null) return;
+    try {
+      await updateDoc(doc(db, 'team', m.id), {
+        name: newName || m.name,
+        role: newRole || m.role
+      });
+      fetchData();
+      await logAction('edit_member', 'team', `Отредактирован член команды: ${m.id}`);
+    } catch (e) { alert('Ошибка при обновлении'); }
+  };
   const handleAddLink = async (e: React.FormEvent) => { e.preventDefault(); await addDoc(collection(db, 'links'), { title: linkTitle, url: linkUrl }); await logAction('add_link', 'resource', `Добавлена ссылка: ${linkTitle}`); setLinkTitle(''); setLinkUrl(''); fetchData(); };
   const handleDeleteLink = async (id: string) => { if (confirm('Del?')) await deleteDoc(doc(db, 'links', id)); await logAction('delete_link', 'resource', `Удалена ссылка: ${id}`); fetchData(); };
   const handleAddTemplate = async (e: React.FormEvent) => { e.preventDefault(); setIsUploading(true); if (!tplFile) return; const fileUrl = await uploadImage(tplFile, 'templates'); await addDoc(collection(db, 'templates'), { title: tplTitle, description: tplDesc, fileUrl }); await logAction('add_template', 'resource', `Добавлен шаблон: ${tplTitle}`); setTplTitle(''); setTplDesc(''); setTplFile(null); fetchData(); setIsUploading(false); };
@@ -1400,7 +1414,7 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          {activeTab === 'team' && <div className="bg-white p-8 rounded-[2rem] shadow-xl"><h2 className="font-black text-2xl mb-6">Совет</h2><form onSubmit={handleAddMember} className="bg-gray-50 p-6 rounded-2xl mb-8 flex gap-4"><input className="p-3 rounded-xl w-full font-bold border-0" placeholder="ФИО" value={memberName} onChange={e => setMemberName(e.target.value)} /><input className="p-3 rounded-xl w-full border-0" placeholder="Роль" value={memberRole} onChange={e => setMemberRole(e.target.value)} /><input type="file" onChange={e => setMemberFile(e.target.files?.[0] || null)} className="text-xs" /><button disabled={isUploading} className="bg-black text-white px-6 rounded-xl font-black">{isUploading ? '...' : 'Add'}</button></form><div className="grid md:grid-cols-3 gap-4">{team.map((m, i) => <div key={m.id} className="border p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4 bg-white relative group"><div className="w-12 h-12 rounded-full overflow-hidden relative"><Image src={m.photoUrl || '/default-avatar.png'} alt={m.name} fill className="object-cover" /></div><div className="flex-grow"><p className="font-black text-sm">{m.name}</p><p className="text-xs text-gray-400">{m.role}</p></div><div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleMoveMember(m.id, 'up')} disabled={i === 0} className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-[10px] hover:bg-gray-200 disabled:opacity-30">▲</button><button onClick={() => handleMoveMember(m.id, 'down')} disabled={i === team.length - 1} className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-[10px] hover:bg-gray-200 disabled:opacity-30">▼</button></div><button onClick={() => handleDeleteMember(m.id)} className="text-red-400 font-black ml-2">✕</button></div>)}</div></div>}
+          {activeTab === 'team' && <div className="bg-white p-8 rounded-[2rem] shadow-xl"><h2 className="font-black text-2xl mb-6">Совет</h2><form onSubmit={handleAddMember} className="bg-gray-50 p-6 rounded-2xl mb-8 flex gap-4"><input className="p-3 rounded-xl w-full font-bold border-0" placeholder="ФИО" value={memberName} onChange={e => setMemberName(e.target.value)} /><input className="p-3 rounded-xl w-full border-0" placeholder="Роль" value={memberRole} onChange={e => setMemberRole(e.target.value)} /><input type="file" onChange={e => setMemberFile(e.target.files?.[0] || null)} className="text-xs" /><button disabled={isUploading} className="bg-black text-white px-6 rounded-xl font-black">{isUploading ? '...' : 'Add'}</button></form><div className="grid md:grid-cols-3 gap-4">{team.map((m, i) => <div key={m.id} className="border p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4 bg-white relative group"><div className="w-12 h-12 rounded-full overflow-hidden relative"><Image src={m.photoUrl || '/default-avatar.png'} alt={m.name} fill className="object-cover" /></div><div className="flex-grow"><p className="font-black text-sm">{m.name}</p><p className="text-xs text-gray-400">{m.role}</p></div><div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleMoveMember(m.id, 'up')} disabled={i === 0} className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-[10px] hover:bg-gray-200 disabled:opacity-30">▲</button><button onClick={() => handleMoveMember(m.id, 'down')} disabled={i === team.length - 1} className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-[10px] hover:bg-gray-200 disabled:opacity-30">▼</button></div><div className="flex gap-2 ml-2"><button onClick={() => handleEditMember(m)} className="text-blue-400 font-black hover:text-blue-600 transition">✎</button><button onClick={() => handleDeleteMember(m.id)} className="text-red-400 font-black hover:text-red-600 transition">✕</button></div></div>)}</div></div>}
 
           {/* LOGS TAB */}
           {activeTab === 'logs' && (
