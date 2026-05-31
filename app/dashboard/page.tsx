@@ -1187,6 +1187,12 @@ export default function DashboardPage() {
               <button onClick={() => setShowAidModal(false)} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition font-bold">✕</button>
             </div>
             
+            <div className="mb-6 bg-amber-50 border border-amber-200 p-4 rounded-2xl shadow-sm">
+              <p className="text-amber-800 text-xs font-bold leading-relaxed">
+                ⚠️ <b>Внимание:</b> По решению конференции профсоюза от 27 мая 2026 г., прием заявок на материальную помощь по категориям: «Рождение ребенка», «Болезнь или операция» и «Путевки в детский лагерь» <b>приостановлен на период с 1 июня 2026 по 1 июня 2027 года</b>.
+              </p>
+            </div>
+
             <form onSubmit={handleSendAidRequest} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Категория помощи <span className="text-red-500">*</span></label>
@@ -1197,10 +1203,10 @@ export default function DashboardPage() {
                   onChange={e => setAidCategory(e.target.value)}
                 >
                   <option value="" disabled>Выберите категорию...</option>
-                  <option value="По рождению ребенка">По рождению ребенка</option>
+                  <option value="По рождению ребенка" disabled>По рождению ребенка (Приостановлено)</option>
                   <option value="В связи со смертью близкого родственника">В связи со смертью близкого родственника</option>
-                  <option value="Болезнь или операция">Болезнь или операция</option>
-                  <option value="Путевки в детский лагерь">Путевки в детский лагерь</option>
+                  <option value="Болезнь или операция" disabled>Болезнь или операция (Приостановлено)</option>
+                  <option value="Путевки в детский лагерь" disabled>Путевки в детский лагерь (Приостановлено)</option>
                 </select>
                 {aidCategory === 'В связи со смертью близкого родственника' && (
                   <p className="mt-3 text-xs font-black text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-200 shadow-sm">
