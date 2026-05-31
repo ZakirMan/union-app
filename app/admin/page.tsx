@@ -734,10 +734,14 @@ export default function AdminPage() {
                       onChange={e => setPollTargetCategory(e.target.value)}
                     >
                       <option value="Все">Для всех (Все категории)</option>
-                      <option value="Экипаж">Экипаж</option>
+                      <option value="Бортпроводник">Бортпроводник</option>
+                      <option value="Пилот">Пилот</option>
+                      <option value="Наземка">Наземка</option>
+                      <option value="Перрон">Перрон</option>
+                      <option value="Инженеры">Инженеры</option>
                       <option value="Руководитель">Руководитель</option>
                       <option value="Офис">Офис</option>
-                      <option value="Перрон">Перрон</option>
+                      <option value="Авиационная безопасность">Авиационная безопасность</option>
                     </select>
 
                     <div className="pl-4 border-l-2 border-green-200 space-y-2">
@@ -981,10 +985,14 @@ export default function AdminPage() {
                             onChange={(e) => setPendingCategories({...pendingCategories, [u.id]: e.target.value})}
                           >
                             <option value="">🏷️ Категория...</option>
-                            <option value="Экипаж">Экипаж</option>
+                            <option value="Бортпроводник">Бортпроводник</option>
+                            <option value="Пилот">Пилот</option>
+                            <option value="Наземка">Наземка</option>
+                            <option value="Перрон">Перрон</option>
+                            <option value="Инженеры">Инженеры</option>
                             <option value="Руководитель">Руководитель</option>
                             <option value="Офис">Офис</option>
-                            <option value="Перрон">Перрон</option>
+                            <option value="Авиационная безопасность">Авиационная безопасность</option>
                           </select>
                           <div className="flex gap-2">
                             <button onClick={() => handleApproveUser(u)} className="flex-1 md:flex-none bg-green-500 text-white px-6 py-2 rounded-xl font-black shadow-lg shadow-green-200/50 hover:bg-green-600 transition hover:scale-105">Принять</button>
