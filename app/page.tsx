@@ -131,8 +131,8 @@ export default function HomePage() {
             <div className="text-blue-200 text-sm font-bold uppercase">Участников</div>
           </div>
           <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
-            <div className="text-4xl font-black text-white mb-1">24/7</div>
-            <div className="text-blue-200 text-sm font-bold uppercase">Поддержка</div>
+            <div className="text-3xl font-black text-white mb-1">Независимый</div>
+            <div className="text-blue-200 text-sm font-bold uppercase">Председатель</div>
           </div>
           <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
             <div className="text-4xl font-black text-white mb-1">100%</div>
@@ -237,7 +237,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-gray-800 text-center text-xs font-bold text-gray-600">
-          © 2026 Профсоюз Работников Авиации Казахстана. Все права защищены.
+          © 2026 Профсоюз Работников Авиации Казахстана. Все права принадлежат Закиру Мансурову.
         </div>
       </footer>
     </div>
