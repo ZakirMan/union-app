@@ -591,6 +591,7 @@ export default function AdminPage() {
     }
   };
   const handleReplyRequest = async (id: string) => { if (replyText[id]) { await updateDoc(doc(db, 'requests', id), { response: replyText[id], responseAt: new Date().toISOString() }); fetchData(); } };
+  const handleDeleteRequest = async (id: string) => { if (confirm('Удалить обращение?')) { await deleteDoc(doc(db, 'requests', id)); await logAction('delete_request', 'requests', `Удалено обращение: ${id}`); fetchData(); } };
 
   if (loading) return <div className="min-h-screen bg-[#F2F6FF] flex items-center justify-center font-black text-blue-900 animate-pulse">Загрузка данных...</div>;
 
@@ -1289,7 +1290,7 @@ export default function AdminPage() {
               )}
             </div>
           )}
-          {activeTab === 'requests' && <div className="grid gap-4">{requests.map(req => (<div key={req.id} className="bg-white p-4 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm"><div className="flex justify-between items-start mb-3"><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black">{req.userEmail}</span><span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span></div><p className="font-bold text-gray-800 text-lg mb-4">&quot;{req.text}&quot;</p>
+          {activeTab === 'requests' && <div className="grid gap-4">{requests.map(req => (<div key={req.id} className="bg-white p-4 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm relative"><div className="flex justify-between items-start mb-3"><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black">{req.userEmail}</span><div className="flex items-center gap-3"><span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span><button onClick={() => handleDeleteRequest(req.id)} className="text-red-400 hover:text-red-600 font-black transition text-lg leading-none">✕</button></div></div><p className="font-bold text-gray-800 text-lg mb-4">&quot;{req.text}&quot;</p>
             {/* FILE DISPLAY */}
             {req.fileUrl && (
               <div className="mb-4">
