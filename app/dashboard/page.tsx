@@ -62,6 +62,7 @@ interface Test {
 interface Poll {
   id: string;
   question: string;
+  targetCategory?: string;
   options: { id: string; text: string; votes: string[] }[];
   createdAt: string;
   expiresAt?: string;
@@ -131,10 +132,12 @@ export default function DashboardPage() {
       setUser(currentUser);
 
       try {
+        let userCategory = 'Все';
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data() as UserProfile;
           setUserData({ ...data, id: userDoc.id });
+          userCategory = data.category || 'Все';
           setEditName(data.displayName || '');
           setEditPhone(data.phoneNumber || '');
         }
@@ -155,7 +158,7 @@ export default function DashboardPage() {
         setTests(testsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
         setUnionDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() } as UnionDocument))); // <--- SET STATE
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setPolls(pollsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive));
+        setPolls(pollsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive && (!p.targetCategory || p.targetCategory === 'Все' || p.targetCategory === userCategory)));
 
         const newsList = nSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
         newsList.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));

@@ -118,6 +118,7 @@ export default function AdminPage() {
   const [isCreatingPoll, setIsCreatingPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollTargetCategory, setPollTargetCategory] = useState('Все');
   const [pollExpiry, setPollExpiry] = useState('');
   const [selectedPollStats, setSelectedPollStats] = useState<Poll | null>(null); // <--- NEW STATE
 
@@ -379,6 +380,7 @@ export default function AdminPage() {
     try {
       await addDoc(collection(db, 'polls'), {
         question: pollQuestion,
+        targetCategory: pollTargetCategory,
         options: pollOptions.map(o => ({ id: `opt_${Date.now()}_${Math.random()}`, text: o, votes: [] })),
         isActive: true,
         createdBy: auth.currentUser?.uid,
@@ -386,7 +388,7 @@ export default function AdminPage() {
       });
       // Push notification could go here
 
-      setPollQuestion(''); setPollOptions(['', '']); setIsCreatingPoll(false);
+      setPollQuestion(''); setPollOptions(['', '']); setPollTargetCategory('Все'); setIsCreatingPoll(false);
       await logAction('create_poll', 'poll', `Создан опрос: ${pollQuestion}`);
       fetchData();
       alert('Опрос запущен');
@@ -725,6 +727,18 @@ export default function AdminPage() {
                   <h2 className="font-black text-2xl mb-4">Новый опрос</h2>
                   <div className="space-y-4">
                     <input className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none" placeholder="Вопрос..." value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} />
+
+                    <select 
+                      className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border-r-[16px] border-transparent"
+                      value={pollTargetCategory}
+                      onChange={e => setPollTargetCategory(e.target.value)}
+                    >
+                      <option value="Все">Для всех (Все категории)</option>
+                      <option value="Экипаж">Экипаж</option>
+                      <option value="Руководитель">Руководитель</option>
+                      <option value="Офис">Офис</option>
+                      <option value="Перрон">Перрон</option>
+                    </select>
 
                     <div className="pl-4 border-l-2 border-green-200 space-y-2">
                       {pollOptions.map((opt, i) => (
