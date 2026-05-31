@@ -555,7 +555,7 @@ export default function DashboardPage() {
           <div className="max-w-2xl mx-auto flex justify-between items-end">
             <div>
               <p className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">Профсоюз</p>
-              <h1 className="text-3xl font-black">{activeTab === 'news' ? 'Новости' : activeTab === 'chat' ? 'Связь' : activeTab === 'training' ? 'Обучение' : 'Ресурсы'}</h1>
+              <h1 className="text-3xl font-black">{ { news: 'Новости', chat: 'Связь', training: 'Обучение', polls: 'Опросы', resources: 'Ресурсы', profile: 'Профиль' }[activeTab] }</h1>
             </div>
             <div className="flex gap-3 items-center">
               {userData?.role === 'admin' && (
