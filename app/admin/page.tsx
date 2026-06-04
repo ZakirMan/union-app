@@ -107,6 +107,7 @@ export default function AdminPage() {
   const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '', category: '' });
   const [pendingCategories, setPendingCategories] = useState<{[key: string]: string}>({});
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSortMode, setUserSortMode] = useState<'alpha' | 'date'>('alpha');
 
   // Конструктор теста
   const [isCreatingTest, setIsCreatingTest] = useState(false);
@@ -600,14 +601,24 @@ export default function AdminPage() {
   const activeRequests = requests.filter(r => !r.response).length;
   const pendingDelegations = delegations.filter(d => d.status === 'pending');
 
-  const filteredApprovedUsers = users.filter(u => 
-    u.status === 'approved' && 
-    (!userSearchQuery || 
-     u.displayName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-     u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-     u.phoneNumber?.includes(userSearchQuery) ||
-     u.position?.toLowerCase().includes(userSearchQuery.toLowerCase()))
-  );
+  const filteredApprovedUsers = users
+    .filter(u => 
+      u.status === 'approved' && 
+      (!userSearchQuery || 
+       u.displayName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+       u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+       u.phoneNumber?.includes(userSearchQuery) ||
+       u.position?.toLowerCase().includes(userSearchQuery.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (userSortMode === 'alpha') {
+        return (a.displayName || '').localeCompare(b.displayName || '');
+      } else {
+        const dateA = a.joinDate || '';
+        const dateB = b.joinDate || '';
+        return dateB.localeCompare(dateA);
+      }
+    });
 
   return (
     <div className="min-h-screen bg-[#F2F6FF] flex flex-col font-sans text-[#1A1A1A]">
@@ -1033,6 +1044,17 @@ export default function AdminPage() {
                 <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
                   <div className="flex items-center gap-4 w-full md:w-auto">
+                    <select
+                      className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-blue-500 text-sm font-bold bg-white"
+                      value={userSortMode}
+                      onChange={(e) => {
+                        setUserSortMode(e.target.value as 'alpha' | 'date');
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="alpha">А-Я</option>
+                      <option value="date">По дате вступления</option>
+                    </select>
                     <input 
                       type="text" 
                       placeholder="Поиск по имени, email, должности..." 
