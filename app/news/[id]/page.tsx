@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
-interface NewsItem { title: string; body: string; imageUrl?: string; createdAt: string; }
+interface NewsItem { title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; }
 
 export default function NewsDetailPage() {
   const { id } = useParams(); // Получаем ID из URL
@@ -62,6 +62,21 @@ export default function NewsDetailPage() {
           <div className="prose prose-lg text-gray-700 whitespace-pre-wrap leading-relaxed">
             {newsItem.body}
           </div>
+
+          {(newsItem.fileUrl || newsItem.linkUrl) && (
+            <div className="mt-10 pt-6 border-t border-gray-100 flex flex-wrap gap-4">
+              {newsItem.fileUrl && (
+                <a href={newsItem.fileUrl} target="_blank" className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm">
+                  <span className="text-xl">📄</span> Скачать документ
+                </a>
+              )}
+              {newsItem.linkUrl && (
+                <a href={newsItem.linkUrl} target="_blank" className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-100 transition shadow-sm">
+                  <span className="text-xl">🔗</span> Открыть ссылку
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
