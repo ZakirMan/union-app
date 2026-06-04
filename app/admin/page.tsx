@@ -108,6 +108,7 @@ export default function AdminPage() {
   const [pendingCategories, setPendingCategories] = useState<{[key: string]: string}>({});
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortMode, setUserSortMode] = useState<'alpha' | 'date'>('alpha');
+  const [userCategoryFilter, setUserCategoryFilter] = useState('');
 
   // Конструктор теста
   const [isCreatingTest, setIsCreatingTest] = useState(false);
@@ -604,6 +605,7 @@ export default function AdminPage() {
   const filteredApprovedUsers = users
     .filter(u => 
       u.status === 'approved' && 
+      (!userCategoryFilter || u.category === userCategoryFilter) &&
       (!userSearchQuery || 
        u.displayName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
        u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
@@ -1043,7 +1045,25 @@ export default function AdminPage() {
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
                 <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
-                  <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    <select
+                      className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-blue-500 text-sm font-bold bg-white"
+                      value={userCategoryFilter}
+                      onChange={(e) => {
+                        setUserCategoryFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="">Все категории</option>
+                      <option value="Бортпроводник">Бортпроводник</option>
+                      <option value="Пилот">Пилот</option>
+                      <option value="Наземка">Наземка</option>
+                      <option value="Перрон">Перрон</option>
+                      <option value="Инженеры">Инженеры</option>
+                      <option value="Руководитель">Руководитель</option>
+                      <option value="Офис">Офис</option>
+                      <option value="Авиационная безопасность">Авиационная безопасность</option>
+                    </select>
                     <select
                       className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-blue-500 text-sm font-bold bg-white"
                       value={userSortMode}
