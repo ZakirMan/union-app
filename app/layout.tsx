@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next"; // Добавьте Viewport в 
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react"; // <--- 1. ДОБАВИЛИ ИМПОРТ
-
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 const inter = Inter({ subsets: ["latin"] });
 
 // 1. Настройка метаданных и PWA
@@ -33,6 +33,7 @@ export default function RootLayout({
     <html lang="ru">
       <body className={inter.className}>
         {children}
+        <PWAInstallPrompt />
         <Analytics /> {/* <--- 2. ДОБАВИЛИ СЧЕТЧИК СЮДА */}
       </body>
     </html>
