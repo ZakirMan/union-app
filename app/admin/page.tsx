@@ -106,6 +106,7 @@ export default function AdminPage() {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '', category: '' });
   const [pendingCategories, setPendingCategories] = useState<{[key: string]: string}>({});
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   // Конструктор теста
   const [isCreatingTest, setIsCreatingTest] = useState(false);
@@ -599,6 +600,15 @@ export default function AdminPage() {
   const activeRequests = requests.filter(r => !r.response).length;
   const pendingDelegations = delegations.filter(d => d.status === 'pending');
 
+  const filteredApprovedUsers = users.filter(u => 
+    u.status === 'approved' && 
+    (!userSearchQuery || 
+     u.displayName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+     u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+     u.phoneNumber?.includes(userSearchQuery) ||
+     u.position?.toLowerCase().includes(userSearchQuery.toLowerCase()))
+  );
+
   return (
     <div className="min-h-screen bg-[#F2F6FF] flex flex-col font-sans text-[#1A1A1A]">
 
@@ -1020,27 +1030,38 @@ export default function AdminPage() {
                 </div>
               )}
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
-                <div className="p-8 bg-gray-50/50 flex justify-between items-center">
+                <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
-                  <div className="text-xs font-bold text-gray-400">Всего: {users.filter(u => u.status === 'approved').length}</div>
+                  <div className="flex items-center gap-4 w-full md:w-auto">
+                    <input 
+                      type="text" 
+                      placeholder="Поиск по имени, email, должности..." 
+                      className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-blue-500 flex-1 md:w-64 text-sm font-bold"
+                      value={userSearchQuery}
+                      onChange={(e) => {
+                        setUserSearchQuery(e.target.value);
+                        setCurrentPage(1); // reset pagination on search
+                      }}
+                    />
+                    <div className="text-xs font-bold text-gray-400 whitespace-nowrap">Всего: {filteredApprovedUsers.length}</div>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-gray-100 text-gray-400 uppercase text-xs font-black"><tr><th className="p-6">Сотрудник</th><th className="p-6">Контакты</th><th className="p-6 text-center">Файлы</th><th className="p-6 text-center">Статус</th><th className="p-6 text-right"></th></tr></thead>
                     <tbody className="divide-y divide-gray-100">
-                      {users
-                        .filter(u => u.status === 'approved')
+                      {filteredApprovedUsers
                         .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                         .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600">{u.displayName}</div><div className="text-xs font-bold text-gray-500">{u.position}</div>{u.joinDate && <div className="text-[10px] text-green-600 font-bold mt-0.5">🔰 В профсоюзе с {u.joinDate}</div>}</div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
                     </tbody>
                   </table>
                 </div>
                 {/* PAGINATION USERS */}
-                {users.filter(u => u.status === 'approved').length > itemsPerPage && (
+                {filteredApprovedUsers.length > itemsPerPage && (
                   <div className="p-6 flex justify-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 rounded-xl bg-gray-100 font-bold text-gray-600 disabled:opacity-50">←</button>
                     <span className="px-4 py-2 font-black text-gray-400">Стр. {currentPage}</span>
-                    <button onClick={() => setCurrentPage(p => (p * itemsPerPage < users.filter(u => u.status === 'approved').length ? p + 1 : p))} disabled={currentPage * itemsPerPage >= users.filter(u => u.status === 'approved').length} className="px-4 py-2 rounded-xl bg-gray-100 font-bold text-gray-600 disabled:opacity-50">→</button>
+                    <button onClick={() => setCurrentPage(p => (p * itemsPerPage < filteredApprovedUsers.length ? p + 1 : p))} disabled={currentPage * itemsPerPage >= filteredApprovedUsers.length} className="px-4 py-2 rounded-xl bg-gray-100 font-bold text-gray-600 disabled:opacity-50">→</button>
                   </div>
                 )}
               </div>
