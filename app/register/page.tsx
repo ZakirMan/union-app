@@ -92,7 +92,7 @@ export default function RegisterPage() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}`
+            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}${statementUrl ? `\n\n📎 <a href="${statementUrl}">${isAlreadyMember ? 'Пропуск' : 'Заявление'}</a>` : ''}${idCardUrl ? `\n📎 <a href="${idCardUrl}">Уд. личности</a>` : ''}`
           })
         });
       } catch (tgError) {

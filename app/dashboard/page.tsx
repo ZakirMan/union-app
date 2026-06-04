@@ -296,7 +296,7 @@ export default function DashboardPage() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            text: `💬 <b>Новое обращение!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n📝 <b>Текст:</b>\n${message}${fileUrl ? '\n\n📎 <i>К сообщению прикреплен файл</i>' : ''}`
+            text: `💬 <b>Новое обращение!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n📝 <b>Текст:</b>\n${message}${fileUrl ? `\n\n📎 <a href="${fileUrl}">Прикрепленный файл</a>` : ''}`
           })
         });
       } catch (tgError) {
@@ -346,7 +346,7 @@ export default function DashboardPage() {
         await fetch('/api/send-telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ text: `💰 <b>Запрос материальной помощи!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n🏷️ <b>Категория:</b> ${aidCategory}${aidComment ? '\n📝 <b>Комментарий:</b> ' + aidComment : ''}${fileUrl ? '\n\n📎 <i>К сообщению прикреплен документ</i>' : ''}` })
+          body: JSON.stringify({ text: `💰 <b>Запрос материальной помощи!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n🏷️ <b>Категория:</b> ${aidCategory}${aidComment ? '\n📝 <b>Комментарий:</b> ' + aidComment : ''}${fileUrl ? `\n\n📎 <a href="${fileUrl}">Прикрепленный документ</a>` : ''}` })
         });
       } catch (err) { console.error(err); }
 
