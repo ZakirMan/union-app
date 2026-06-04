@@ -34,7 +34,7 @@ interface DelegationRequest {
 }
 
 interface Conference { id: string; title: string; date: string; createdAt: string; }
-interface NewsItem { id: string; title: string; body: string; imageUrl?: string; createdAt: string; }
+interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; }
 interface TeamMember {
   id: string;
   name: string;
@@ -128,6 +128,7 @@ export default function AdminPage() {
   // Формы
   const [confTitle, setConfTitle] = useState(''); const [confDate, setConfDate] = useState('');
   const [newsTitle, setNewsTitle] = useState(''); const [newsBody, setNewsBody] = useState(''); const [newsFile, setNewsFile] = useState<File | null>(null);
+  const [newsFileDoc, setNewsFileDoc] = useState<File | null>(null); const [newsLink, setNewsLink] = useState('');
   const [memberName, setMemberName] = useState(''); const [memberRole, setMemberRole] = useState(''); const [memberFile, setMemberFile] = useState<File | null>(null);
   const [linkTitle, setLinkTitle] = useState(''); const [linkUrl, setLinkUrl] = useState('');
   const [tplTitle, setTplTitle] = useState(''); const [tplDesc, setTplDesc] = useState(''); const [tplFile, setTplFile] = useState<File | null>(null);
@@ -365,13 +366,14 @@ export default function AdminPage() {
     e.preventDefault(); setIsUploading(true);
     try {
       let imageUrl = ''; if (newsFile) imageUrl = await uploadImage(newsFile, 'news');
-      await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, createdAt: new Date().toISOString() });
+      let fileUrl = ''; if (newsFileDoc) fileUrl = await uploadImage(newsFileDoc, 'news_docs');
+      await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, fileUrl, linkUrl: newsLink, createdAt: new Date().toISOString() });
 
       // Отправляем пуш
       await sendPushNotification('⚡️ Свежая новость', newsTitle);
       await logAction('publish_news', 'news', `Опубликована новость: ${newsTitle}`);
 
-      setNewsTitle(''); setNewsBody(''); setNewsFile(null); fetchData();
+      setNewsTitle(''); setNewsBody(''); setNewsFile(null); setNewsFileDoc(null); setNewsLink(''); fetchData();
     } catch { alert('Ошибка'); } finally { setIsUploading(false); }
   };
 
@@ -1363,7 +1365,7 @@ export default function AdminPage() {
               </div>
             )}
             {req.response ? <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-sm font-bold text-green-900">{req.response}</div> : <div className="flex gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-200"><input className="bg-transparent p-2 w-full font-medium outline-none text-sm" placeholder="Ответ..." onChange={(e) => setReplyText({ ...replyText, [req.id]: e.target.value })} /><button onClick={() => handleReplyRequest(req.id)} className="bg-blue-600 text-white px-5 rounded-xl font-black text-sm">Send</button></div>}</div>))}</div>}
-          {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><div className="flex justify-between"><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" /><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button></div>))}</div>
+          {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} /><div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button></div>))}</div>
             {/* PAGINATION NEWS */}
             {news.length > itemsPerPage && (
               <div className="flex justify-center gap-2">

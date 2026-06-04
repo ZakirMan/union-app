@@ -33,7 +33,7 @@ interface UserProfile {
   category?: string;
 }
 
-interface NewsItem { id: string; title: string; body: string; imageUrl?: string; createdAt: string; }
+interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; }
 interface LinkItem { id: string; title: string; url: string; }
 interface TemplateItem { id: string; title: string; description?: string; fileUrl: string; }
 interface RequestItem { id: string; text: string; response?: string; createdAt: string; userId: string; userEmail: string; status: string; }
@@ -611,6 +611,20 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3>
                   <p className="text-gray-500 text-sm font-medium leading-relaxed">{i.body}</p>
+                  {(i.fileUrl || i.linkUrl) && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                      {i.fileUrl && (
+                        <a href={i.fileUrl} target="_blank" className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-indigo-100 transition">
+                          <span>📄</span> Скачать документ
+                        </a>
+                      )}
+                      {i.linkUrl && (
+                        <a href={i.linkUrl} target="_blank" className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-100 transition">
+                          <span>🔗</span> Открыть ссылку
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
