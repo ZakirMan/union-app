@@ -49,6 +49,8 @@ interface RequestData {
   fileUrl?: string;
   createdAt: string;
   response?: string;
+  aidStatus?: 'approved' | 'rejected';
+  aidAmount?: number;
 }
 interface LinkItem { id: string; title: string; url: string; }
 interface DocTemplate { id: string; title: string; description?: string; fileUrl: string; isRegistrationTemplate?: boolean; }
@@ -140,6 +142,8 @@ export default function AdminPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
 
   const [replyText, setReplyText] = useState<{ [key: string]: string }>({});
+  const [replyAidAmount, setReplyAidAmount] = useState<{ [key: string]: string }>({});
+  const [replyAidStatus, setReplyAidStatus] = useState<{ [key: string]: 'approved' | 'rejected' }>({});
   const [isUploading, setIsUploading] = useState(false);
 
   // Пагинация
@@ -595,7 +599,18 @@ export default function AdminPage() {
       alert('Ошибка обновления');
     }
   };
-  const handleReplyRequest = async (id: string) => { if (replyText[id]) { await updateDoc(doc(db, 'requests', id), { response: replyText[id], responseAt: new Date().toISOString() }); fetchData(); } };
+  const handleReplyRequest = async (id: string, isAid: boolean = false) => {
+    if (replyText[id]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData: any = { response: replyText[id], responseAt: new Date().toISOString() };
+      if (isAid) {
+        updateData.aidStatus = replyAidStatus[id] || 'approved';
+        updateData.aidAmount = parseInt(replyAidAmount[id] || '0', 10);
+      }
+      await updateDoc(doc(db, 'requests', id), updateData);
+      fetchData();
+    }
+  };
   const handleDeleteRequest = async (id: string) => { if (confirm('Удалить обращение?')) { await deleteDoc(doc(db, 'requests', id)); await logAction('delete_request', 'requests', `Удалено обращение: ${id}`); fetchData(); } };
 
   if (loading) return <div className="min-h-screen bg-[#F2F6FF] flex items-center justify-center font-black text-blue-900 animate-pulse">Загрузка данных...</div>;
@@ -629,6 +644,19 @@ export default function AdminPage() {
     users.forEach(u => {
       if (u.status === 'approved' && u.isAlreadyMember === false && u.joinDate) {
         stats[u.joinDate] = (stats[u.joinDate] || 0) + 1;
+      }
+    });
+    return Object.entries(stats).sort((a, b) => b[0].localeCompare(a[0]));
+  })();
+
+  const aidStats = (() => {
+    const stats: Record<string, { count: number; amount: number }> = {};
+    requests.forEach(r => {
+      if (r.text.startsWith('Запрос материальной помощи') && r.aidStatus === 'approved' && r.createdAt) {
+        const month = r.createdAt.substring(0, 7);
+        if (!stats[month]) stats[month] = { count: 0, amount: 0 };
+        stats[month].count += 1;
+        stats[month].amount += (r.aidAmount || 0);
       }
     });
     return Object.entries(stats).sort((a, b) => b[0].localeCompare(a[0]));
@@ -730,6 +758,51 @@ export default function AdminPage() {
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
+                {/* NEW MEMBERS STATS */}
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  <div className="relative z-10">
+                    <h3 className="font-black text-xl mb-2 flex items-center gap-2">
+                      <span className="text-2xl">📈</span> Статистика вступлений
+                    </h3>
+                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза по месяцам (через приложение).</p>
+                    <div className="flex flex-wrap gap-3">
+                      {newMembersStats.length > 0 ? newMembersStats.map(([month, count]) => (
+                        <div key={month} className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl flex flex-col items-center min-w-[100px] border border-white/20 shadow-lg hover:bg-white/20 transition cursor-default">
+                          <span className="text-3xl font-black">{count}</span>
+                          <span className="text-xs font-black text-blue-200 mt-1 tracking-wider">{month}</span>
+                        </div>
+                      )) : (
+                        <div className="text-blue-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AID STATS */}
+                <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  <div className="relative z-10">
+                    <h3 className="font-black text-xl mb-2 flex items-center gap-2">
+                      <span className="text-2xl">💰</span> Одобренная мат. помощь
+                    </h3>
+                    <p className="text-green-100 font-bold text-xs mb-6">Сумма и количество одобренных заявок по месяцам.</p>
+                    <div className="flex flex-wrap gap-3">
+                      {aidStats.length > 0 ? aidStats.map(([month, stat]) => (
+                        <div key={month} className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl flex flex-col border border-white/20 shadow-lg hover:bg-white/20 transition cursor-default flex-1 min-w-[140px]">
+                          <div className="flex justify-between items-end mb-1">
+                            <span className="text-2xl font-black">{stat.amount.toLocaleString('ru-RU')} ₸</span>
+                            <span className="text-sm font-black opacity-80 mb-1">{stat.count} шт</span>
+                          </div>
+                          <span className="text-xs font-black text-green-200 tracking-wider uppercase">{month}</span>
+                        </div>
+                      )) : (
+                        <div className="text-green-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* RECENT ACTIVITY / CHART PLACEHOLDER */}
                 <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-lg border border-gray-100">
                   <h3 className="font-black text-xl mb-4 text-gray-800">Активность тестов</h3>
@@ -1055,29 +1128,6 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* NEW MEMBERS STATS */}
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2.5rem] shadow-xl overflow-hidden text-white p-8 mb-6 relative group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
-                <div className="relative z-10">
-                  <h3 className="font-black text-2xl mb-2 flex items-center gap-3">
-                    <span className="text-3xl">📈</span> Статистика вступлений
-                  </h3>
-                  <p className="text-blue-100 font-bold text-sm mb-8 max-w-2xl">
-                    Здесь отображается количество новых членов профсоюза по месяцам (только те, кто вступил через приложение, а не просто зарегистрировался).
-                  </p>
-                  <div className="flex flex-wrap gap-4">
-                    {newMembersStats.length > 0 ? newMembersStats.map(([month, count]) => (
-                      <div key={month} className="bg-white/10 backdrop-blur-md px-8 py-5 rounded-3xl flex flex-col items-center min-w-[140px] border border-white/20 shadow-lg hover:bg-white/20 transition hover:scale-105 cursor-default">
-                        <span className="text-4xl font-black">{count}</span>
-                        <span className="text-sm font-black text-blue-200 mt-2 tracking-wider">{month}</span>
-                      </div>
-                    )) : (
-                      <div className="text-blue-200 font-bold bg-black/20 px-6 py-3 rounded-2xl">Нет данных о новых участниках.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
                 <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
@@ -1398,7 +1448,36 @@ export default function AdminPage() {
                 </a>
               </div>
             )}
-            {req.response ? <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-sm font-bold text-green-900">{req.response}</div> : <div className="flex gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-200"><input className="bg-transparent p-2 w-full font-medium outline-none text-sm" placeholder="Ответ..." onChange={(e) => setReplyText({ ...replyText, [req.id]: e.target.value })} /><button onClick={() => handleReplyRequest(req.id)} className="bg-blue-600 text-white px-5 rounded-xl font-black text-sm">Send</button></div>}</div>))}</div>}
+            {req.response ? (
+              <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-sm font-bold text-green-900">
+                <p className="whitespace-pre-wrap">{req.response}</p>
+                {req.text.startsWith('Запрос материальной помощи') && req.aidStatus && (
+                  <div className="mt-3 pt-3 border-t border-green-200/50 text-xs opacity-90 flex gap-4">
+                    <span><b>Статус:</b> {req.aidStatus === 'approved' ? 'Одобрено' : 'Отклонено'}</span>
+                    {req.aidStatus === 'approved' && <span><b>Сумма:</b> {req.aidAmount?.toLocaleString('ru-RU')} ₸</span>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                {req.text.startsWith('Запрос материальной помощи') && (
+                  <div className="flex flex-wrap gap-2 items-center bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                    <span className="text-xs font-bold text-gray-500 uppercase mr-2">Решение:</span>
+                    <select className="p-2 border border-gray-200 rounded-lg text-sm bg-gray-50 font-bold outline-none" onChange={(e) => setReplyAidStatus({ ...replyAidStatus, [req.id]: e.target.value as 'approved' | 'rejected'})} value={replyAidStatus[req.id] || 'approved'}>
+                      <option value="approved">Одобрить</option>
+                      <option value="rejected">Отказать</option>
+                    </select>
+                    {(replyAidStatus[req.id] || 'approved') === 'approved' && (
+                      <input type="number" className="p-2 border border-gray-200 rounded-lg text-sm w-32 bg-white font-bold outline-none" placeholder="Сумма (₸)" value={replyAidAmount[req.id] || ''} onChange={(e) => setReplyAidAmount({ ...replyAidAmount, [req.id]: e.target.value })} />
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input className="bg-white border border-gray-200 p-3 w-full font-medium rounded-xl outline-none text-sm shadow-sm" placeholder="Ответ..." onChange={(e) => setReplyText({ ...replyText, [req.id]: e.target.value })} />
+                  <button onClick={() => handleReplyRequest(req.id, req.text.startsWith('Запрос материальной помощи'))} className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl font-black text-sm shadow-md transition">Отправить</button>
+                </div>
+              </div>
+            )}</div>))}</div>}
           {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} /><div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button></div>))}</div>
             {/* PAGINATION NEWS */}
             {news.length > itemsPerPage && (
