@@ -91,6 +91,7 @@ export default function DashboardPage() {
   const [message, setMessage] = useState('');
   const [chatFile, setChatFile] = useState<File | null>(null); // <--- NEW STATE
   const [isSending, setIsSending] = useState(false);
+  const [totalMembers, setTotalMembers] = useState(0);
 
   // Редактирование профиля
   const [isEditing, setIsEditing] = useState(false);
@@ -157,6 +158,7 @@ export default function DashboardPage() {
         setTemplates(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TemplateItem)));
         setTests(testsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
         setUnionDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() } as UnionDocument))); // <--- SET STATE
+        setTotalMembers(uSnap.size);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setPolls(pollsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive && (!p.targetCategory || p.targetCategory === 'Все' || p.targetCategory === userCategory)));
 
@@ -555,7 +557,14 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white pt-8 pb-8 px-6 rounded-b-[2.5rem] shadow-xl sticky top-0 z-30 mb-8">
           <div className="max-w-2xl mx-auto flex justify-between items-end">
             <div>
-              <p className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">Профсоюз</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs font-bold text-blue-200 uppercase tracking-wider">Профсоюз</p>
+                {totalMembers > 0 && (
+                  <span className="bg-white/10 text-[10px] font-bold px-2 py-0.5 rounded-md text-blue-100 border border-white/5">
+                    {totalMembers} участников
+                  </span>
+                )}
+              </div>
               <h1 className="text-3xl font-black">{ { news: 'Новости', chat: 'Связь', training: 'Обучение', polls: 'Опросы', resources: 'Ресурсы', profile: 'Профиль' }[activeTab] }</h1>
             </div>
             <div className="flex gap-3 items-center">
