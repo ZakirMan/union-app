@@ -66,6 +66,7 @@ interface Poll {
   expiresAt?: string;
   createdBy: string;
   isActive: boolean;
+  targetCategory?: string;
 }
 
 // Аудит
@@ -662,6 +663,17 @@ export default function AdminPage() {
     return Object.entries(stats).sort((a, b) => b[0].localeCompare(a[0]));
   })();
 
+  const pollStats = (() => {
+    const stats: Record<string, { active: number; total: number }> = {};
+    polls.forEach(p => {
+      const cat = p.targetCategory || 'Все';
+      if (!stats[cat]) stats[cat] = { active: 0, total: 0 };
+      stats[cat].total += 1;
+      if (p.isActive) stats[cat].active += 1;
+    });
+    return Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
+  })();
+
   return (
     <div className="min-h-screen bg-[#F2F6FF] flex flex-col font-sans text-[#1A1A1A]">
 
@@ -798,6 +810,30 @@ export default function AdminPage() {
                         </div>
                       )) : (
                         <div className="text-green-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* POLL STATS */}
+                <div className="md:col-span-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  <div className="relative z-10">
+                    <h3 className="font-black text-xl mb-2 flex items-center gap-2">
+                      <span className="text-2xl">📊</span> Статистика опросов
+                    </h3>
+                    <p className="text-orange-100 font-bold text-xs mb-6">Количество созданных опросов по категориям работников.</p>
+                    <div className="flex flex-wrap gap-3">
+                      {pollStats.length > 0 ? pollStats.map(([category, stat]) => (
+                        <div key={category} className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl flex flex-col border border-white/20 shadow-lg hover:bg-white/20 transition cursor-default flex-1 min-w-[140px]">
+                          <div className="flex justify-between items-end mb-1">
+                            <span className="text-3xl font-black">{stat.total}</span>
+                            {stat.active > 0 && <span className="text-xs font-black bg-green-500 text-white px-2 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-lg shadow-green-500/50"><span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span> {stat.active} акт.</span>}
+                          </div>
+                          <span className="text-xs font-black text-orange-100 tracking-wider uppercase mt-1">{category}</span>
+                        </div>
+                      )) : (
+                        <div className="text-orange-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
                       )}
                     </div>
                   </div>
