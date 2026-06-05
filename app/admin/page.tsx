@@ -624,6 +624,16 @@ export default function AdminPage() {
       }
     });
 
+  const newMembersStats = (() => {
+    const stats: Record<string, number> = {};
+    users.forEach(u => {
+      if (u.status === 'approved' && u.isAlreadyMember === false && u.joinDate) {
+        stats[u.joinDate] = (stats[u.joinDate] || 0) + 1;
+      }
+    });
+    return Object.entries(stats).sort((a, b) => b[0].localeCompare(a[0]));
+  })();
+
   return (
     <div className="min-h-screen bg-[#F2F6FF] flex flex-col font-sans text-[#1A1A1A]">
 
@@ -1044,6 +1054,30 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+
+              {/* NEW MEMBERS STATS */}
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2.5rem] shadow-xl overflow-hidden text-white p-8 mb-6 relative group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                <div className="relative z-10">
+                  <h3 className="font-black text-2xl mb-2 flex items-center gap-3">
+                    <span className="text-3xl">📈</span> Статистика вступлений
+                  </h3>
+                  <p className="text-blue-100 font-bold text-sm mb-8 max-w-2xl">
+                    Здесь отображается количество новых членов профсоюза по месяцам (только те, кто вступил через приложение, а не просто зарегистрировался).
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    {newMembersStats.length > 0 ? newMembersStats.map(([month, count]) => (
+                      <div key={month} className="bg-white/10 backdrop-blur-md px-8 py-5 rounded-3xl flex flex-col items-center min-w-[140px] border border-white/20 shadow-lg hover:bg-white/20 transition hover:scale-105 cursor-default">
+                        <span className="text-4xl font-black">{count}</span>
+                        <span className="text-sm font-black text-blue-200 mt-2 tracking-wider">{month}</span>
+                      </div>
+                    )) : (
+                      <div className="text-blue-200 font-bold bg-black/20 px-6 py-3 rounded-2xl">Нет данных о новых участниках.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
                 <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
