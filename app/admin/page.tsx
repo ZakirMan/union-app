@@ -467,6 +467,27 @@ export default function AdminPage() {
       delete newCats[u.id];
       setPendingCategories(newCats);
 
+      // Отправляем push-уведомление пользователю
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) {
+          await fetch('/api/send-notification', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              title: 'Ваша заявка одобрена! 🎉',
+              body: 'Вы успешно приняты в Профсоюз. Добро пожаловать!',
+              userIds: [u.id]
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Ошибка отправки push-уведомления:', err);
+      }
+
       fetchData(); 
     } 
   };

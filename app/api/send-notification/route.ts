@@ -22,18 +22,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: Admins only' }, { status: 403 });
     }
 
-    const { title, body } = await request.json();
+    const { title, body, userIds } = await request.json();
 
-    // 1. Получаем все токены пользователей из базы
-    const usersSnap = await adminDb.collection('users').get();
     let tokens: string[] = [];
 
-    usersSnap.forEach(doc => {
-      const data = doc.data();
-      if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
-        tokens.push(...data.fcmTokens);
+    if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      // 1а. Получаем токены только для указанных пользователей
+      for (const uid of userIds) {
+        const uDoc = await adminDb.collection('users').doc(uid).get();
+        if (uDoc.exists) {
+          const data = uDoc.data();
+          if (data?.fcmTokens && Array.isArray(data.fcmTokens)) {
+            tokens.push(...data.fcmTokens);
+          }
+        }
       }
-    });
+    } else {
+      // 1б. Получаем все токены пользователей из базы (массовая рассылка)
+      const usersSnap = await adminDb.collection('users').get();
+      usersSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
+          tokens.push(...data.fcmTokens);
+        }
+      });
+    }
 
     // Убираем дубликаты и пустые значения
     tokens = [...new Set(tokens)].filter(t => t);
