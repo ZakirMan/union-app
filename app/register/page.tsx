@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState(''); // <-- НОВОЕ ПОЛЕ
   const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [deductionFile, setDeductionFile] = useState<File | null>(null); // Заявление на удержание
   const [idCardFile, setIdCardFile] = useState<File | null>(null); // <-- УДОСТОВЕРЕНИЕ
   const [isAlreadyMember, setIsAlreadyMember] = useState(false);
   const [joinDate, setJoinDate] = useState(''); // <-- ДАТА ВСТУПЛЕНИЯ
@@ -43,7 +44,7 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
-    if (!statementFile || !idCardFile) {
+    if (!statementFile || (!isAlreadyMember && !deductionFile) || !idCardFile) {
       setError('Необходимо прикрепить все обязательные документы');
       setLoading(false);
       return;
@@ -60,6 +61,13 @@ export default function RegisterPage() {
         statementUrl = await getDownloadURL(storageRef);
       }
 
+      let deductionUrl = '';
+      if (deductionFile && !isAlreadyMember) {
+        const deductionRef = ref(storage, `deductions/${user.uid}_${deductionFile.name}`);
+        await uploadBytes(deductionRef, deductionFile);
+        deductionUrl = await getDownloadURL(deductionRef);
+      }
+
       let idCardUrl = '';
       if (idCardFile) {
         const idCardRef = ref(storage, `id_cards/${user.uid}_${idCardFile.name}`);
@@ -74,6 +82,7 @@ export default function RegisterPage() {
         position: position,
         phoneNumber: phone,
         statementUrl: statementUrl,
+        deductionUrl: deductionUrl,
         idCardUrl: idCardUrl,
         isAlreadyMember: isAlreadyMember,
         joinDate: isAlreadyMember ? joinDate : '',
@@ -92,7 +101,7 @@ export default function RegisterPage() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}${statementUrl ? `\n\n📎 <a href="${statementUrl}">${isAlreadyMember ? 'Пропуск' : 'Заявление'}</a>` : ''}${idCardUrl ? `\n📎 <a href="${idCardUrl}">Уд. личности</a>` : ''}`
+            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}${statementUrl ? `\n\n📎 <a href="${statementUrl}">${isAlreadyMember ? 'Пропуск' : 'Заявление на вступление'}</a>` : ''}${deductionUrl ? `\n📎 <a href="${deductionUrl}">Заявление на удержание</a>` : ''}${idCardUrl ? `\n📎 <a href="${idCardUrl}">Уд. личности</a>` : ''}`
           })
         });
       } catch (tgError) {
@@ -215,6 +224,29 @@ export default function RegisterPage() {
                 setStatementFile(f || null);
               }}
             />
+
+            {!isAlreadyMember && (
+              <>
+                <label className="block text-sm font-bold text-gray-900 mb-1 mt-4">
+                  Прикрепить заявление на удержание *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  required
+                  className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition cursor-pointer"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f && f.size > 5 * 1024 * 1024) {
+                      alert('Размер файла не должен превышать 5 МБ');
+                      e.target.value = '';
+                      return;
+                    }
+                    setDeductionFile(f || null);
+                  }}
+                />
+              </>
+            )}
 
             <label className="block text-sm font-bold text-gray-900 mb-1 mt-6">
               Прикрепить удостоверение личности (PDF или фото) *
