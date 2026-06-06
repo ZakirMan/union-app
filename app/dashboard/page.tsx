@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { auth, db, storage, messaging } from '@/lib/firebase';
 import { getToken } from 'firebase/messaging';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, deleteUser } from 'firebase/auth';
 import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arrayUnion, deleteDoc, deleteField } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
@@ -547,6 +547,38 @@ export default function DashboardPage() {
   );
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-500">Загрузка...</div>;
+  
+  if (!userData) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F2F6FF] p-6 text-center font-sans">
+        <h2 className="text-2xl font-black text-gray-800 mb-2">Профиль не найден</h2>
+        <p className="text-sm font-bold text-gray-500 mb-6 max-w-sm">
+          Возможно, ваша заявка была отклонена. Вы можете удалить этот аккаунт, чтобы подать заявку заново с правильными данными.
+        </p>
+        <button 
+          onClick={async () => {
+            if (confirm('Вы уверены, что хотите удалить этот аккаунт и начать регистрацию заново?')) {
+              try {
+                if (auth.currentUser) await deleteUser(auth.currentUser);
+                router.push('/register');
+              } catch (e) {
+                alert('В целях безопасности перед удалением необходимо заново войти в аккаунт. Сейчас вы будете перенаправлены на страницу входа.');
+                await signOut(auth);
+                router.push('/login');
+              }
+            }
+          }}
+          className="bg-red-50 text-red-500 border border-red-200 font-black px-6 py-3 rounded-xl shadow-sm hover:bg-red-100 transition"
+        >
+          Удалить аккаунт и начать заново
+        </button>
+        <button onClick={() => signOut(auth)} className="mt-6 text-sm font-bold text-gray-400 hover:text-gray-600 transition underline">
+          Выйти из аккаунта
+        </button>
+      </div>
+    );
+  }
+
   if (userData?.status === 'pending') return <div className="p-10 text-center">Ожидание подтверждения</div>;
 
   return (
