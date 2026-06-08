@@ -484,6 +484,34 @@ export default function AdminPage() {
       await updateDoc(doc(db, 'users', u.id), updateData); 
       await logAction('approve_user', 'user', `Участник принят: ${u.id}`); 
       
+      // Сохраняем документы на Google Drive
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) {
+          const filesToUpload = [];
+          if (u.statementUrl) filesToUpload.push({ url: u.statementUrl, type: 'statement' });
+          if (u.idCardUrl) filesToUpload.push({ url: u.idCardUrl, type: 'idCard' });
+          if (u.deductionUrl) filesToUpload.push({ url: u.deductionUrl, type: 'deduction' });
+
+          if (filesToUpload.length > 0) {
+            // Мы не ждем ответа (await), чтобы админка не зависала, пока гугл диск загружает файлы
+            fetch('/api/upload-to-drive', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                userName: u.displayName || u.email,
+                files: filesToUpload
+              })
+            }).catch(e => console.error('Ошибка вызова Drive API', e));
+          }
+        }
+      } catch (err) {
+        console.error('Ошибка сохранения на Google Drive:', err);
+      }
+      
       // Очищаем локальное состояние категории после успешного принятия
       const newCats = {...pendingCategories};
       delete newCats[u.id];
