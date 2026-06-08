@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { db, auth, storage } from '@/lib/firebase';
-import { collection, getDocs, updateDoc, doc, addDoc, deleteDoc, getDoc, increment, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, addDoc, deleteDoc, getDoc, increment, arrayUnion, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -127,7 +127,11 @@ export default function AdminPage() {
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [pollTargetCategory, setPollTargetCategory] = useState('Все');
   const [pollExpiry, setPollExpiry] = useState('');
-  const [selectedPollStats, setSelectedPollStats] = useState<Poll | null>(null); // <--- NEW STATE
+  const [selectedPollStats, setSelectedPollStats] = useState<Poll | null>(null);
+
+  // Настройки
+  const [accountingEmail, setAccountingEmail] = useState('');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
 
   // Формы
   const [confTitle, setConfTitle] = useState(''); const [confDate, setConfDate] = useState('');
@@ -196,6 +200,12 @@ export default function AdminPage() {
       const logsSnap = await getDocs(collection(db, 'admin_logs'));
       setLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AdminLog)).sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? 1 : -1));
 
+      // Настройки
+      const settingsSnap = await getDoc(doc(db, 'settings', 'general'));
+      if (settingsSnap.exists()) {
+        setAccountingEmail(settingsSnap.data().accountingEmail || '');
+      }
+
       setLoading(false);
     } catch (e) {
       console.error(e);
@@ -243,6 +253,18 @@ export default function AdminPage() {
   };
 
   // --- ACTIONS ---
+
+  const handleSaveAccountingEmail = async () => {
+    setIsSavingEmail(true);
+    try {
+      await setDoc(doc(db, 'settings', 'general'), { accountingEmail }, { merge: true });
+      alert('Email бухгалтерии успешно сохранен!');
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при сохранении');
+    }
+    setIsSavingEmail(false);
+  };
 
   // 1. UNION DOCUMENTS
   const handleCreateDocument = async () => {
@@ -506,6 +528,32 @@ export default function AdminPage() {
         }
       } catch (err) {
         console.error('Ошибка отправки Email-уведомления:', err);
+      }
+
+      // Отправляем заявление на удержание в бухгалтерию (если есть)
+      if (u.deductionUrl) {
+        try {
+          const token = await auth.currentUser?.getIdToken();
+          if (token) {
+            await fetch('/api/send-accounting-email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                userEmail: u.email,
+                userName: u.displayName,
+                phone: u.phoneNumber,
+                position: u.position,
+                category: u.category,
+                deductionUrl: u.deductionUrl
+              })
+            });
+          }
+        } catch (err) {
+          console.error('Ошибка отправки в бухгалтерию:', err);
+        }
       }
 
       fetchData(); 
@@ -886,6 +934,28 @@ export default function AdminPage() {
                         <div className="text-orange-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* SETTINGS (ACCOUNTING EMAIL) */}
+                <div className="md:col-span-1 bg-white p-6 md:p-8 rounded-[2rem] shadow-lg border border-gray-100 flex flex-col justify-center">
+                  <h3 className="font-black text-xl mb-2 text-gray-800">Настройки уведомлений</h3>
+                  <p className="text-gray-500 font-bold text-xs mb-4">Настройте автоматическую отправку заявлений на удержание взносов в бухгалтерию.</p>
+                  <div className="space-y-3">
+                    <input 
+                      type="email" 
+                      placeholder="Email бухгалтерии" 
+                      className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      value={accountingEmail}
+                      onChange={e => setAccountingEmail(e.target.value)}
+                    />
+                    <button 
+                      onClick={handleSaveAccountingEmail}
+                      disabled={isSavingEmail}
+                      className="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition hover:scale-105 disabled:opacity-50"
+                    >
+                      {isSavingEmail ? 'Сохранение...' : 'Сохранить Email'}
+                    </button>
                   </div>
                 </div>
 
