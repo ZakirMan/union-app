@@ -488,6 +488,26 @@ export default function AdminPage() {
         console.error('Ошибка отправки push-уведомления:', err);
       }
 
+      // Отправляем Email-уведомление пользователю
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token && u.email) {
+          await fetch('/api/send-welcome-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              userEmail: u.email,
+              userName: u.displayName
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Ошибка отправки Email-уведомления:', err);
+      }
+
       fetchData(); 
     } 
   };
