@@ -41,6 +41,30 @@ function bufferToStream(buffer: Buffer) {
   return stream;
 }
 
+// Функция для поиска или создания подпапки
+async function getOrCreateSubfolder(drive: any, parentId: string, folderName: string): Promise<string> {
+  const response = await drive.files.list({
+    q: `'${parentId}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id, name)',
+  });
+  
+  if (response.data.files && response.data.files.length > 0) {
+    return response.data.files[0].id;
+  }
+  
+  const fileMetadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [parentId],
+  };
+  const folder = await drive.files.create({
+    requestBody: fileMetadata,
+    fields: 'id',
+  });
+  
+  return folder.data.id!;
+}
+
 export async function POST(request: Request) {
   try {
     // 1. Проверка авторизации
@@ -73,14 +97,18 @@ export async function POST(request: Request) {
         const { url, type } = file; // type: 'statement' | 'idCard' | 'deduction'
         
         let prefix = 'Документ';
-        if (type === 'statement') prefix = 'Заявление_на_вступление';
-        if (type === 'idCard') prefix = 'Удостоверение_личности';
-        if (type === 'deduction') prefix = 'Заявление_на_удержание';
+        let targetFolderName = '';
+        if (type === 'statement') { prefix = 'Заявление'; targetFolderName = 'Заявки на вступление'; }
+        if (type === 'idCard') { prefix = 'Удостоверение'; targetFolderName = 'Удостоверения личности'; }
+        if (type === 'deduction') { prefix = 'Заявление_на_удержание'; targetFolderName = 'Заявки в бухгалтерию'; }
 
-        // Скачиваем файл из Firebase Storage (или откуда угодно)
+        // Получаем ID нужной подпапки
+        const targetFolderId = targetFolderName ? await getOrCreateSubfolder(drive, folderId, targetFolderName) : folderId;
+
+        // Скачиваем файл из Firebase Storage
         const { buffer, mimeType } = await downloadFile(url);
         
-        // Определяем расширение (pdf, jpg, png)
+        // Определяем расширение
         let ext = '.pdf';
         if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = '.jpg';
         if (mimeType.includes('png')) ext = '.png';
@@ -91,7 +119,7 @@ export async function POST(request: Request) {
         // Загружаем на Google Drive
         const fileMetadata = {
           name: fileName,
-          parents: [folderId],
+          parents: [targetFolderId],
         };
         const media = {
           mimeType: mimeType,
