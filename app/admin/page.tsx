@@ -1462,10 +1462,14 @@ export default function AdminPage() {
                               <input className="font-bold text-blue-100 bg-black/20 rounded-lg px-3 py-1 outline-none flex-1 placeholder-white/50" value={editUserForm.pos} onChange={e => setEditUserForm({...editUserForm, pos: e.target.value})} placeholder="Должность" />
                               <select className="bg-black/20 rounded-lg px-3 py-1 outline-none text-white font-bold w-40" value={editUserForm.category} onChange={e => setEditUserForm({...editUserForm, category: e.target.value})}>
                                 <option value="" className="text-black">Без категории</option>
-                                <option value="Экипаж" className="text-black">Экипаж</option>
+                                <option value="Бортпроводник" className="text-black">Бортпроводник</option>
+                                <option value="Пилот" className="text-black">Пилот</option>
+                                <option value="Наземка" className="text-black">Наземка</option>
+                                <option value="Перрон" className="text-black">Перрон</option>
+                                <option value="Инженеры" className="text-black">Инженеры</option>
                                 <option value="Руководитель" className="text-black">Руководитель</option>
                                 <option value="Офис" className="text-black">Офис</option>
-                                <option value="Перрон" className="text-black">Перрон</option>
+                                <option value="Авиационная безопасность" className="text-black">Авиационная безопасность</option>
                               </select>
                             </div>
                           </>
