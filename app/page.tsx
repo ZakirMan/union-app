@@ -225,19 +225,28 @@ export default function HomePage() {
 
       {/* FOOTER */}
       <footer className="bg-gray-900 text-white py-16 px-6 border-t border-gray-800">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
-          <div>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12 text-center md:text-left">
+          <div className="max-w-md mx-auto md:mx-0">
             <h2 className="text-2xl font-black uppercase tracking-widest mb-2">Профсоюз</h2>
-            <p className="text-gray-500 text-sm max-w-sm">Мы работаем для вас. Вместе мы делаем труд безопаснее, а жизнь — достойнее.</p>
+            <p className="text-gray-500 text-sm">Мы работаем для вас. Вместе мы делаем труд безопаснее, а жизнь — достойнее.</p>
           </div>
-          <div className="flex gap-6 text-sm font-bold text-gray-400">
-            <a href="#" className="hover:text-white transition">Устав</a>
-            <a href="#" className="hover:text-white transition">Контакты</a>
-            <a href="#" className="hover:text-white transition">Помощь</a>
+          
+          <div className="flex flex-col gap-4 text-sm text-gray-400 items-center md:items-start w-full md:w-auto">
+            <p className="font-bold text-white uppercase tracking-widest text-xs mb-2">Контакты</p>
+            <div className="text-center md:text-left">
+              <p className="font-bold text-gray-300">Председатель</p>
+              <p className="text-gray-500 mb-1">Петр Фелькер</p>
+              <a href="mailto:petr.prof.aviation@gmail.com" className="text-blue-400 hover:text-blue-300 transition font-medium">petr.prof.aviation@gmail.com</a>
+            </div>
+            <div className="text-center md:text-left">
+              <p className="font-bold text-gray-300">Заместитель председателя</p>
+              <p className="text-gray-500 mb-1">Закир Мансуров</p>
+              <a href="mailto:zakir.prof.aviation@gmail.com" className="text-blue-400 hover:text-blue-300 transition font-medium">zakir.prof.aviation@gmail.com</a>
+            </div>
           </div>
         </div>
         <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-gray-800 text-center text-xs font-bold text-gray-600">
-          © 2026 Профсоюз Работников Авиации Казахстана. Все права принадлежат Закиру Мансурову.
+          © 2026 Профсоюз Работников Авиации Казахстана. Все права защищены.
         </div>
       </footer>
     </div>
