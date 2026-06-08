@@ -45,9 +45,13 @@ export async function POST(request: Request) {
         
         let prefix = 'Документ';
         let targetFolderName = '';
+        let subFolderName = ''; // Имя пользователя для вложенной папки
+        
         if (type === 'statement') { prefix = 'Заявление'; targetFolderName = 'Заявки на вступление'; }
         if (type === 'idCard') { prefix = 'Удостоверение'; targetFolderName = 'Удостоверения личности'; }
         if (type === 'deduction') { prefix = 'Заявление_на_удержание'; targetFolderName = 'Заявки в бухгалтерию'; }
+        if (type === 'aid') { prefix = 'Заявление_на_матпомощь'; targetFolderName = 'Материальная помощь'; subFolderName = userName; }
+        if (type === 'appeal') { prefix = 'Документ_обращения'; targetFolderName = 'Обращения'; subFolderName = userName; }
 
         // Скачиваем файл из Firebase Storage и кодируем в Base64
         const { base64, mimeType } = await downloadFileAsBase64(url);
@@ -69,6 +73,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             parentFolderId: folderId,
             targetFolderName: targetFolderName,
+            subFolderName: subFolderName, // Новое поле
             filename: fileName,
             mimeType: mimeType,
             fileData: base64

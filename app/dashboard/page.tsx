@@ -289,6 +289,21 @@ export default function DashboardPage() {
       setMessage('');
       setChatFile(null); // Reset file
 
+      // Загрузка файла на Google Drive
+      if (fileUrl) {
+        try {
+          const token = await user.getIdToken();
+          await fetch('/api/upload-to-drive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              userName: userData?.displayName || user.email,
+              files: [{ url: fileUrl, type: 'appeal' }]
+            })
+          });
+        } catch (err) { console.error('Drive upload failed:', err); }
+      }
+
       // Отправляем уведомление в Telegram группу совета
       try {
         const token = await user.getIdToken();
@@ -343,6 +358,21 @@ export default function DashboardPage() {
       setAidComment('');
       setAidFile(null);
       alert('Запрос на материальную помощь отправлен!');
+
+      // Загрузка файла на Google Drive
+      if (fileUrl) {
+        try {
+          const token = await user.getIdToken();
+          await fetch('/api/upload-to-drive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              userName: userData?.displayName || user.email,
+              files: [{ url: fileUrl, type: 'aid' }]
+            })
+          });
+        } catch (err) { console.error('Drive upload failed:', err); }
+      }
 
       try {
         const token = await user.getIdToken();

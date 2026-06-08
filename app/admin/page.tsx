@@ -489,9 +489,9 @@ export default function AdminPage() {
         const token = await auth.currentUser?.getIdToken();
         if (token) {
           const filesToUpload = [];
-          if (u.statementUrl) filesToUpload.push({ url: u.statementUrl, type: 'statement' });
+          if (u.statementUrl && !u.isAlreadyMember) filesToUpload.push({ url: u.statementUrl, type: 'statement' });
           if (u.idCardUrl) filesToUpload.push({ url: u.idCardUrl, type: 'idCard' });
-          if (u.deductionUrl) filesToUpload.push({ url: u.deductionUrl, type: 'deduction' });
+          if (u.deductionUrl && !u.isAlreadyMember) filesToUpload.push({ url: u.deductionUrl, type: 'deduction' });
 
           if (filesToUpload.length > 0) {
             try {
