@@ -940,11 +940,11 @@ export default function AdminPage() {
                 {/* SETTINGS (ACCOUNTING EMAIL) */}
                 <div className="md:col-span-1 bg-white p-6 md:p-8 rounded-[2rem] shadow-lg border border-gray-100 flex flex-col justify-center">
                   <h3 className="font-black text-xl mb-2 text-gray-800">Настройки уведомлений</h3>
-                  <p className="text-gray-500 font-bold text-xs mb-4">Настройте автоматическую отправку заявлений на удержание взносов в бухгалтерию.</p>
+                  <p className="text-gray-500 font-bold text-xs mb-4">Настройте автоматическую отправку заявлений на удержание взносов. Можно указать несколько Email через запятую.</p>
                   <div className="space-y-3">
                     <input 
-                      type="email" 
-                      placeholder="Email бухгалтерии" 
+                      type="text" 
+                      placeholder="acc1@mail.ru, acc2@mail.ru" 
                       className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-500 transition"
                       value={accountingEmail}
                       onChange={e => setAccountingEmail(e.target.value)}

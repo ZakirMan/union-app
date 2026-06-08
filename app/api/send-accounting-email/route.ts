@@ -60,9 +60,12 @@ export async function POST(request: Request) {
       },
     });
 
+    // Clean up multiple emails (e.g. "acc1@mail.ru, acc2@mail.ru")
+    const toEmails = accountingEmail.split(',').map((e: string) => e.trim()).filter(Boolean).join(', ');
+
     const mailOptions = {
       from: `"Профсоюз" <${process.env.EMAIL_USER}>`,
-      to: accountingEmail,
+      to: toEmails,
       subject: `Заявление на проф. взносы: ${userName}`,
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -70,12 +73,11 @@ export async function POST(request: Request) {
           <p>В профсоюз вступил новый участник. Во вложении находится его заявление на удержание профсоюзных взносов.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
           <p><strong>ФИО:</strong> ${userName}</p>
-          <p><strong>Email:</strong> ${userEmail}</p>
           <p><strong>Телефон:</strong> ${phone || 'Не указан'}</p>
           <p><strong>Должность:</strong> ${position || 'Не указана'}</p>
-          <p><strong>Категория:</strong> ${category || 'Не указана'}</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #999;">Письмо сгенерировано автоматически порталом Профсоюза.</p>
+          <p style="font-size: 14px; font-weight: bold; color: #d97706;">Пожалуйста, подтвердите получение этого заявления, ответив на данное письмо.</p>
+          <p style="font-size: 12px; color: #999; margin-top: 20px;">Письмо сгенерировано автоматически порталом Профсоюза.</p>
         </div>
       `,
       attachments: [
