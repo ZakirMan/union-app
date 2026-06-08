@@ -1,68 +1,14 @@
 import { NextResponse } from 'next/server';
-import { google } from 'googleapis';
 import { adminAuth } from '@/lib/firebase-admin';
 
-// Инициализируем клиента Google Drive
-const getDriveClient = () => {
-  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!clientEmail || !privateKey) {
-    throw new Error('Google Drive credentials are not set in environment variables');
-  }
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey,
-    },
-    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
-  });
-
-  return google.drive({ version: 'v3', auth });
-};
-
-// Функция для скачивания файла по URL
-async function downloadFile(url: string): Promise<{ buffer: Buffer, mimeType: string }> {
+// Функция для скачивания файла по URL и конвертации в Base64
+async function downloadFileAsBase64(url: string): Promise<{ base64: string, mimeType: string }> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
   const arrayBuffer = await response.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   const mimeType = response.headers.get('content-type') || 'application/octet-stream';
-  return { buffer, mimeType };
-}
-
-// Функция для преобразования буфера в поток
-function bufferToStream(buffer: Buffer) {
-  const { Readable } = require('stream');
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
-  return stream;
-}
-
-// Функция для поиска или создания подпапки
-async function getOrCreateSubfolder(drive: any, parentId: string, folderName: string): Promise<string> {
-  const response = await drive.files.list({
-    q: `'${parentId}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id, name)',
-  });
-  
-  if (response.data.files && response.data.files.length > 0) {
-    return response.data.files[0].id;
-  }
-  
-  const fileMetadata = {
-    name: folderName,
-    mimeType: 'application/vnd.google-apps.folder',
-    parents: [parentId],
-  };
-  const folder = await drive.files.create({
-    requestBody: fileMetadata,
-    fields: 'id',
-  });
-  
-  return folder.data.id!;
+  return { base64: buffer.toString('base64'), mimeType };
 }
 
 export async function POST(request: Request) {
@@ -79,23 +25,23 @@ export async function POST(request: Request) {
     // 2. Получение данных
     const { userName, files } = await request.json();
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL; // URL веб-хука Google Apps Script
 
-    if (!folderId) {
-      return NextResponse.json({ error: 'Google Drive Folder ID is not set' }, { status: 500 });
+    if (!folderId || !scriptUrl) {
+      return NextResponse.json({ error: 'Google Drive Folder ID or Script URL is not set' }, { status: 500 });
     }
 
     if (!files || files.length === 0) {
       return NextResponse.json({ success: true, message: 'No files to upload' });
     }
 
-    const drive = getDriveClient();
     const uploadedFiles = [];
     const errors = [];
 
-    // 3. Загрузка каждого файла
+    // 3. Загрузка каждого файла через Apps Script Webhook
     for (const file of files) {
       try {
-        const { url, type } = file; // type: 'statement' | 'idCard' | 'deduction'
+        const { url, type } = file;
         
         let prefix = 'Документ';
         let targetFolderName = '';
@@ -103,11 +49,8 @@ export async function POST(request: Request) {
         if (type === 'idCard') { prefix = 'Удостоверение'; targetFolderName = 'Удостоверения личности'; }
         if (type === 'deduction') { prefix = 'Заявление_на_удержание'; targetFolderName = 'Заявки в бухгалтерию'; }
 
-        // Получаем ID нужной подпапки
-        const targetFolderId = targetFolderName ? await getOrCreateSubfolder(drive, folderId, targetFolderName) : folderId;
-
-        // Скачиваем файл из Firebase Storage
-        const { buffer, mimeType } = await downloadFile(url);
+        // Скачиваем файл из Firebase Storage и кодируем в Base64
+        const { base64, mimeType } = await downloadFileAsBase64(url);
         
         // Определяем расширение
         let ext = '.pdf';
@@ -117,23 +60,28 @@ export async function POST(request: Request) {
 
         const fileName = `${prefix}_${userName.replace(/ /g, '_')}${ext}`;
 
-        // Загружаем на Google Drive
-        const fileMetadata = {
-          name: fileName,
-          parents: [targetFolderId],
-        };
-        const media = {
-          mimeType: mimeType,
-          body: bufferToStream(buffer),
-        };
-
-        const driveResponse = await drive.files.create({
-          requestBody: fileMetadata,
-          media: media,
-          fields: 'id, name, webViewLink',
+        // Отправляем POST запрос на Google Apps Script
+        const response = await fetch(scriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            parentFolderId: folderId,
+            targetFolderName: targetFolderName,
+            filename: fileName,
+            mimeType: mimeType,
+            fileData: base64
+          })
         });
 
-        uploadedFiles.push(driveResponse.data);
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown Apps Script error');
+        }
+
+        uploadedFiles.push(result);
       } catch (err: any) {
         console.error(`Ошибка загрузки файла ${file.type}:`, err);
         errors.push({ type: file.type, error: err.message });
