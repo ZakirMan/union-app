@@ -8,6 +8,7 @@ import { onAuthStateChanged, User, signOut, deleteUser } from 'firebase/auth';
 import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arrayUnion, deleteDoc, deleteField } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
+import imageCompression from 'browser-image-compression';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -366,9 +367,22 @@ export default function DashboardPage() {
     try {
       let photoUrl = userData.photoUrl;
       if (editFile) {
-        const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`);
-        await uploadBytes(storageRef, editFile);
-        photoUrl = await getDownloadURL(storageRef);
+        try {
+          const options = {
+            maxSizeMB: 0.2, // ~200KB
+            maxWidthOrHeight: 500,
+            useWebWorker: true
+          };
+          const compressedFile = await imageCompression(editFile, options);
+          const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`);
+          await uploadBytes(storageRef, compressedFile);
+          photoUrl = await getDownloadURL(storageRef);
+        } catch (error) {
+          console.error("Compression error:", error);
+          alert('Ошибка сжатия изображения. Попробуйте другое фото.');
+          setIsSavingProfile(false);
+          return;
+        }
       }
       await updateDoc(doc(db, 'users', user.uid), { displayName: editName, phoneNumber: editPhone, photoUrl });
       setUserData({ ...userData, displayName: editName, phoneNumber: editPhone, photoUrl });
@@ -716,6 +730,7 @@ export default function DashboardPage() {
                   }}
                   className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition"
                 />
+                <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер: 5 МБ (PDF, JPG, PNG)</p>
               </div>
             </div>
 
@@ -927,10 +942,10 @@ export default function DashboardPage() {
                     <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                       <span className="text-2xl">📷</span>
                       <span className="text-[10px] font-bold uppercase mt-1">Изменить</span>
-                      <input type="file" className="hidden" onChange={e => {
+                      <input type="file" accept="image/*" className="hidden" onChange={e => {
                         const f = e.target.files?.[0];
-                        if (f && f.size > 5 * 1024 * 1024) {
-                          alert('Размер файла не должен превышать 5 МБ');
+                        if (f && f.size > 10 * 1024 * 1024) {
+                          alert('Размер файла не должен превышать 10 МБ');
                           e.target.value = '';
                           return;
                         }
@@ -939,6 +954,7 @@ export default function DashboardPage() {
                     </label>
                   )}
                 </div>
+                {isEditing && <p className="text-[10px] text-gray-400 mt-[-15px] mb-4 text-center">Макс. размер: 10 МБ. Изображение будет сжато.</p>}
 
                 {!isEditing ? (
                   <>
@@ -1103,6 +1119,7 @@ export default function DashboardPage() {
                     }
                     setDelegateFile(f || null);
                   }} className="w-full text-xs bg-gray-50 p-3 rounded-xl font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" />
+                  <p className="text-[10px] text-gray-400 mt-1 font-medium">Максимальный размер: 5 МБ</p>
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -1311,6 +1328,7 @@ export default function DashboardPage() {
                   }}
                   className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition cursor-pointer"
                 />
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">Максимальный размер: 5 МБ (PDF, JPG, PNG)</p>
               </div>
 
               <button 

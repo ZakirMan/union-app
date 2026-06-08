@@ -224,6 +224,7 @@ export default function RegisterPage() {
                 setStatementFile(f || null);
               }}
             />
+            <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер файла: 5 МБ (PDF, JPG, PNG)</p>
 
             {!isAlreadyMember && (
               <>
@@ -245,6 +246,7 @@ export default function RegisterPage() {
                     setDeductionFile(f || null);
                   }}
                 />
+                <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер файла: 5 МБ (PDF, JPG, PNG)</p>
               </>
             )}
 
@@ -266,6 +268,7 @@ export default function RegisterPage() {
                 setIdCardFile(f || null);
               }}
             />
+            <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер файла: 5 МБ (PDF, JPG, PNG)</p>
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-bold mt-4">
