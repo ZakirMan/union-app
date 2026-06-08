@@ -585,6 +585,24 @@ export default function AdminPage() {
           console.error("Ошибка при удалении ID", e);
         }
       }
+
+      // Удаляем из Firebase Authentication
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) {
+          await fetch('/api/delete-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ targetUserId: id })
+          });
+        }
+      } catch (err) {
+        console.error('Ошибка удаления из Auth:', err);
+      }
+
       await deleteDoc(doc(db, 'users', id)); 
       await logAction('reject_user', 'user', `Участник удален/отклонен: ${id}`); 
       fetchData(); 
