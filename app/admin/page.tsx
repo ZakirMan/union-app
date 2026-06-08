@@ -494,18 +494,27 @@ export default function AdminPage() {
           if (u.deductionUrl) filesToUpload.push({ url: u.deductionUrl, type: 'deduction' });
 
           if (filesToUpload.length > 0) {
-            // Мы не ждем ответа (await), чтобы админка не зависала, пока гугл диск загружает файлы
-            fetch('/api/upload-to-drive', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                userName: u.displayName || u.email,
-                files: filesToUpload
-              })
-            }).catch(e => console.error('Ошибка вызова Drive API', e));
+            try {
+              // Ждем ответа, чтобы показать ошибку если что-то не так
+              const driveRes = await fetch('/api/upload-to-drive', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  userName: u.displayName || u.email,
+                  files: filesToUpload
+                })
+              });
+              
+              const driveData = await driveRes.json();
+              if (!driveRes.ok || !driveData.success) {
+                alert('Ошибка загрузки на Google Диск: ' + JSON.stringify(driveData));
+              }
+            } catch (e) {
+               alert('Ошибка сети при загрузке на Google Диск: ' + e);
+            }
           }
         }
       } catch (err) {

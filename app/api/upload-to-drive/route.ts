@@ -90,6 +90,7 @@ export async function POST(request: Request) {
 
     const drive = getDriveClient();
     const uploadedFiles = [];
+    const errors = [];
 
     // 3. Загрузка каждого файла
     for (const file of files) {
@@ -133,10 +134,14 @@ export async function POST(request: Request) {
         });
 
         uploadedFiles.push(driveResponse.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Ошибка загрузки файла ${file.type}:`, err);
-        // Не прерываем остальные загрузки
+        errors.push({ type: file.type, error: err.message });
       }
+    }
+
+    if (errors.length > 0) {
+      return NextResponse.json({ success: false, error: 'Some files failed', details: errors });
     }
 
     return NextResponse.json({ success: true, uploadedFiles });
