@@ -159,6 +159,7 @@ export default function AdminPage() {
 
   // States for manual aid request form
   const [showManualAidModal, setShowManualAidModal] = useState(false);
+  const [editingManualAidId, setEditingManualAidId] = useState<string | null>(null);
   const [manualAidName, setManualAidName] = useState('');
   const [manualAidCategory, setManualAidCategory] = useState('');
   const [manualAidCustomCategory, setManualAidCustomCategory] = useState('');
@@ -781,27 +782,46 @@ export default function AdminPage() {
         const storageRef = ref(storage, `requests/manual_${Date.now()}_${manualAidFile.name}`);
         await uploadBytes(storageRef, manualAidFile);
         fileUrl = await getDownloadURL(storageRef);
+      } else if (editingManualAidId) {
+        const existingReq = requests.find(r => r.id === editingManualAidId);
+        if (existingReq?.fileUrl) fileUrl = existingReq.fileUrl;
       }
 
       const selectedDate = manualAidDate ? new Date(manualAidDate) : new Date();
 
-      const newReqData = {
-        userEmail: `offline_user_${Date.now()}@union.local`,
-        text: `Запрос материальной помощи: ${finalCategory}\nКомментарий: Оффлайн заявка (вручную)`,
-        fileUrl,
-        aidStatus: 'pending',
-        aidAmount: Number(manualAidAmount),
-        isOffline: true,
-        createdAt: selectedDate.toISOString(),
-        userName: manualAidName
-      };
-      
-      const docRef = await addDoc(collection(db, 'requests'), newReqData);
+      if (editingManualAidId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updateData: any = {
+          text: `Запрос материальной помощи: ${finalCategory}\nКомментарий: Оффлайн заявка (вручную)`,
+          aidAmount: Number(manualAidAmount),
+          createdAt: selectedDate.toISOString(),
+          userName: manualAidName
+        };
+        if (fileUrl) updateData.fileUrl = fileUrl;
+        
+        await updateDoc(doc(db, 'requests', editingManualAidId), updateData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setRequests(requests.map(r => r.id === editingManualAidId ? { ...r, ...updateData } as any : r));
+      } else {
+        const newReqData = {
+          userEmail: `offline_user_${Date.now()}@union.local`,
+          text: `Запрос материальной помощи: ${finalCategory}\nКомментарий: Оффлайн заявка (вручную)`,
+          fileUrl,
+          aidStatus: 'pending',
+          aidAmount: Number(manualAidAmount),
+          isOffline: true,
+          createdAt: selectedDate.toISOString(),
+          userName: manualAidName
+        };
+        
+        const docRef = await addDoc(collection(db, 'requests'), newReqData);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setRequests([{ ...newReqData, id: docRef.id } as any, ...requests]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setRequests([{ ...newReqData, id: docRef.id } as any, ...requests]);
+      }
       
       setShowManualAidModal(false);
+      setEditingManualAidId(null);
       setManualAidName('');
       setManualAidCategory('');
       setManualAidCustomCategory('');
@@ -810,11 +830,39 @@ export default function AdminPage() {
       setManualAidFile(null);
     } catch (e) {
       console.error(e);
-      alert('Ошибка при добавлении заявки');
+      alert('Ошибка при сохранении заявки');
     } finally {
       setIsSubmittingManualAid(false);
     }
   };
+
+  const handleEditManualAid = (req: RequestData) => {
+    setEditingManualAidId(req.id);
+    setManualAidName(req.userName || '');
+    setManualAidAmount(req.aidAmount ? req.aidAmount.toString() : '');
+    const dateObj = new Date(req.createdAt);
+    setManualAidDate(dateObj.toISOString().split('T')[0]);
+    
+    let category = '';
+    const match = req.text.match(/Запрос материальной помощи:\s*(.+?)\n/);
+    if (match && match[1]) {
+      category = match[1].trim();
+    } else {
+      category = req.text.replace('Запрос материальной помощи: ', '').replace('\nКомментарий: Оффлайн заявка (вручную)', '').trim();
+    }
+    
+    const defaultCategories = ['Смерть близкого родственника', 'Смерть сотрудника', 'Юбилей', 'Рождение ребенка'];
+    if (defaultCategories.includes(category)) {
+      setManualAidCategory(category);
+      setManualAidCustomCategory('');
+    } else {
+      setManualAidCategory('Другое');
+      setManualAidCustomCategory(category);
+    }
+    
+    setShowManualAidModal(true);
+  };
+
 
   const handlePayManualAid = async (id: string) => {
     try {
@@ -1867,8 +1915,8 @@ export default function AdminPage() {
               {showManualAidModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                   <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-lg shadow-2xl relative">
-                    <button onClick={() => setShowManualAidModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl font-black">✕</button>
-                    <h3 className="text-2xl font-black mb-6 text-gray-800">Оффлайн-заявка</h3>
+                    <button onClick={() => { setShowManualAidModal(false); setEditingManualAidId(null); setManualAidName(''); setManualAidCategory(''); setManualAidCustomCategory(''); setManualAidAmount(''); setManualAidDate(''); setManualAidFile(null); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl font-black">✕</button>
+                    <h3 className="text-2xl font-black mb-6 text-gray-800">{editingManualAidId ? 'Редактирование оффлайн-заявки' : 'Оффлайн-заявка'}</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">ФИО заявителя</label>
@@ -1903,7 +1951,7 @@ export default function AdminPage() {
                         <input type="file" className="w-full text-sm font-bold file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" onChange={(e) => setManualAidFile(e.target.files?.[0] || null)} />
                       </div>
                       <button onClick={handleManualAidSubmit} disabled={isSubmittingManualAid} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl shadow-lg transition mt-4 disabled:opacity-50">
-                        {isSubmittingManualAid ? 'Сохранение...' : 'Добавить заявку'}
+                        {isSubmittingManualAid ? 'Сохранение...' : editingManualAidId ? 'Сохранить изменения' : 'Добавить заявку'}
                       </button>
                     </div>
                   </div>
@@ -1922,7 +1970,10 @@ export default function AdminPage() {
                       </span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span>
-                        <button onClick={() => handleDeleteRequest(req.id)} className="text-red-400 hover:text-red-600 font-black transition text-lg leading-none">✕</button>
+                        {req.isOffline && (
+                          <button onClick={() => handleEditManualAid(req)} className="text-blue-400 hover:text-blue-600 font-black transition text-lg leading-none" title="Редактировать">✏️</button>
+                        )}
+                        <button onClick={() => handleDeleteRequest(req.id)} className="text-red-400 hover:text-red-600 font-black transition text-lg leading-none" title="Удалить">✕</button>
                       </div>
                     </div>
                     <p className="font-bold text-gray-800 text-lg mb-4">&quot;{req.text}&quot;</p>
