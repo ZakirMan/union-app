@@ -227,9 +227,6 @@ export default function HomePage() {
               return (
               <div key={member.id} className={`flex flex-col items-center group ${isChairman ? 'w-full mb-8' : ''}`}>
                 <div className={`${isChairman ? 'w-48 h-48 md:w-56 md:h-56' : 'w-32 h-32 md:w-40 md:h-40'} rounded-full mb-6 p-1 ${isChairman ? 'bg-gradient-to-br from-yellow-400 to-amber-600' : isDeputy ? 'bg-gradient-to-br from-blue-400 to-indigo-600' : 'bg-gradient-to-br from-blue-100 to-indigo-100'} relative`}>
-                  {isChairman && (
-                    <div className="absolute top-2 right-2 md:top-4 md:right-4 text-4xl z-10 animate-bounce drop-shadow-md">👑</div>
-                  )}
                   <div className="w-full h-full rounded-full overflow-hidden relative bg-white border-4 border-white shadow-xl group-hover:scale-105 transition-transform duration-300">
                     <Image src={member.photoUrl || '/default-avatar.png'} alt={member.name} fill className="object-cover" />
                   </div>
