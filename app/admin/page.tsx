@@ -1160,8 +1160,8 @@ export default function AdminPage() {
                                 <div className="font-black mb-2 text-green-400 border-b border-gray-700 pb-1">Выплаты за {m.name}</div>
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
                                   {stat.details.map((d, i) => (
-                                    <div key={i} className={`flex flex-col ${d.isPending ? 'opacity-50' : ''}`}>
-                                      <span className="font-bold">{d.name} {d.isPending && '(ожидает)'}</span>
+                                    <div key={i} className={`flex flex-col py-1 ${d.isPending ? 'bg-orange-500/10 px-2 rounded-lg border border-orange-500/30 mb-1' : ''}`}>
+                                      <span className="font-bold">{d.name} {d.isPending && <span className="text-orange-400 text-[9px] uppercase tracking-wider ml-1">В очереди</span>}</span>
                                       <span className="text-gray-400 text-[10px]">{d.reason}</span>
                                       <span className={`${d.isPending ? 'text-orange-300' : 'text-green-300'} font-black`}>{d.amount.toLocaleString('ru-RU')} ₸</span>
                                     </div>
