@@ -802,7 +802,7 @@ export default function AdminPage() {
         stats[u.joinDate] = (stats[u.joinDate] || 0) + 1;
       }
     });
-    return Object.entries(stats).sort((a, b) => b[0].localeCompare(a[0]));
+    return stats;
   })();
 
   const aidStats = (() => {
@@ -932,16 +932,31 @@ export default function AdminPage() {
                     <h3 className="font-black text-xl mb-2 flex items-center gap-2">
                       <span className="text-2xl">📈</span> Статистика вступлений
                     </h3>
-                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза по месяцам (через приложение).</p>
-                    <div className="flex flex-wrap gap-3">
-                      {newMembersStats.length > 0 ? newMembersStats.map(([month, count]) => (
-                        <div key={month} className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl flex flex-col items-center min-w-[100px] border border-white/20 shadow-lg hover:bg-white/20 transition cursor-default">
-                          <span className="text-3xl font-black">{count}</span>
-                          <span className="text-xs font-black text-blue-200 mt-1 tracking-wider">{month}</span>
-                        </div>
-                      )) : (
-                        <div className="text-blue-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
-                      )}
+                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза за текущий год ({new Date().getFullYear()}).</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {[
+                        { num: '01', name: 'Янв' },
+                        { num: '02', name: 'Фев' },
+                        { num: '03', name: 'Мар' },
+                        { num: '04', name: 'Апр' },
+                        { num: '05', name: 'Май' },
+                        { num: '06', name: 'Июн' },
+                        { num: '07', name: 'Июл' },
+                        { num: '08', name: 'Авг' },
+                        { num: '09', name: 'Сен' },
+                        { num: '10', name: 'Окт' },
+                        { num: '11', name: 'Ноя' },
+                        { num: '12', name: 'Дек' }
+                      ].map(m => {
+                        const key = `${new Date().getFullYear()}-${m.num}`;
+                        const count = newMembersStats[key] || 0;
+                        return (
+                          <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default">
+                            <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
+                            <span className={`text-xl md:text-2xl font-black ${count > 0 ? 'text-white' : 'text-white/30'}`}>{count}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
