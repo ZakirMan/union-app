@@ -806,16 +806,25 @@ export default function AdminPage() {
   })();
 
   const aidStats = (() => {
-    const stats: Record<string, { count: number; amount: number }> = {};
+    const stats: Record<string, { count: number; amount: number; details: Array<{name: string, amount: number, reason: string}> }> = {};
     requests.forEach(r => {
       if (r.text.startsWith('Запрос материальной помощи') && r.aidStatus === 'approved' && r.createdAt) {
         const month = r.createdAt.substring(0, 7);
-        if (!stats[month]) stats[month] = { count: 0, amount: 0 };
+        if (!stats[month]) stats[month] = { count: 0, amount: 0, details: [] };
         stats[month].count += 1;
         stats[month].amount += (r.aidAmount || 0);
+        
+        const reason = r.text.split('\n')[0].replace('Запрос материальной помощи: ', '').trim();
+        const requestUser = users.find(u => u.email === r.userEmail);
+        const name = requestUser?.displayName || r.userEmail || 'Неизвестно';
+        stats[month].details.push({
+            name: name,
+            amount: r.aidAmount || 0,
+            reason: reason
+        });
       }
     });
-    return Object.entries(stats).sort((a, b) => b[0].localeCompare(a[0]));
+    return stats;
   })();
 
   const pollStats = (() => {
@@ -968,19 +977,50 @@ export default function AdminPage() {
                     <h3 className="font-black text-xl mb-2 flex items-center gap-2">
                       <span className="text-2xl">💰</span> Одобренная мат. помощь
                     </h3>
-                    <p className="text-green-100 font-bold text-xs mb-6">Сумма и количество одобренных заявок по месяцам.</p>
-                    <div className="flex flex-wrap gap-3">
-                      {aidStats.length > 0 ? aidStats.map(([month, stat]) => (
-                        <div key={month} className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl flex flex-col border border-white/20 shadow-lg hover:bg-white/20 transition cursor-default flex-1 min-w-[140px]">
-                          <div className="flex justify-between items-end mb-1">
-                            <span className="text-2xl font-black">{stat.amount.toLocaleString('ru-RU')} ₸</span>
-                            <span className="text-sm font-black opacity-80 mb-1">{stat.count} шт</span>
+                    <p className="text-green-100 font-bold text-xs mb-6">Сумма и количество одобренных заявок за текущий год ({new Date().getFullYear()}). Наведите на месяц для деталей.</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {[
+                        { num: '01', name: 'Янв' },
+                        { num: '02', name: 'Фев' },
+                        { num: '03', name: 'Мар' },
+                        { num: '04', name: 'Апр' },
+                        { num: '05', name: 'Май' },
+                        { num: '06', name: 'Июн' },
+                        { num: '07', name: 'Июл' },
+                        { num: '08', name: 'Авг' },
+                        { num: '09', name: 'Сен' },
+                        { num: '10', name: 'Окт' },
+                        { num: '11', name: 'Ноя' },
+                        { num: '12', name: 'Дек' }
+                      ].map(m => {
+                        const key = `${new Date().getFullYear()}-${m.num}`;
+                        const stat = aidStats[key] || { count: 0, amount: 0, details: [] };
+                        return (
+                          <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default relative group/month">
+                            <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
+                            <span className={`text-sm md:text-[15px] font-black leading-tight ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>
+                              {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
+                            </span>
+                            {stat.count > 0 && <span className="text-[9px] text-green-100 font-bold mt-0.5">{stat.count} шт</span>}
+                            
+                            {stat.details && stat.details.length > 0 && (
+                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible transition-all shadow-xl pointer-events-none">
+                                <div className="font-black mb-2 text-green-400 border-b border-gray-700 pb-1">Выплаты за {m.name}</div>
+                                <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
+                                  {stat.details.map((d, i) => (
+                                    <div key={i} className="flex flex-col">
+                                      <span className="font-bold">{d.name}</span>
+                                      <span className="text-gray-400 text-[10px]">{d.reason}</span>
+                                      <span className="text-green-300 font-black">{d.amount.toLocaleString('ru-RU')} ₸</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                              </div>
+                            )}
                           </div>
-                          <span className="text-xs font-black text-green-200 tracking-wider uppercase">{month}</span>
-                        </div>
-                      )) : (
-                        <div className="text-green-200 text-xs font-bold bg-black/20 px-4 py-2 rounded-xl">Нет данных</div>
-                      )}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
