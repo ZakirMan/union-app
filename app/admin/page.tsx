@@ -1960,9 +1960,9 @@ export default function AdminPage() {
 
               <div className="grid gap-4">
                 {requests.map(req => (
-                  <div key={req.id} className={`bg-white p-4 md:p-6 rounded-[2rem] border shadow-sm relative transition-all ${req.aidStatus === 'pending' ? 'border-orange-200 bg-orange-50/50 opacity-70 hover:opacity-100' : 'border-gray-100'}`}>
+                  <div key={req.id} className={`bg-white p-4 md:p-6 rounded-[2rem] border shadow-sm relative transition-all ${req.aidStatus === 'pending' ? 'border-orange-300 border-2 bg-orange-50/50' : 'border-gray-100'}`}>
                     {req.aidStatus === 'pending' && (
-                      <div className="absolute -top-3 left-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md animate-pulse">Ожидает оплаты</div>
+                      <div className="absolute -top-3 left-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md animate-pulse">⌛ В очереди на оплату</div>
                     )}
                     <div className="flex justify-between items-start mb-3 mt-2">
                       <span className={`px-3 py-1 rounded-lg text-xs font-black ${req.isOffline ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-700'}`}>
