@@ -776,7 +776,9 @@ export default function AdminPage() {
   const filteredApprovedUsers = users
     .filter(u => 
       u.status === 'approved' && 
-      (!userCategoryFilter || u.category === userCategoryFilter) &&
+      (userCategoryFilter === '' || 
+       (userCategoryFilter === 'none' && !u.category) || 
+       u.category === userCategoryFilter) &&
       (!userSearchQuery || 
        u.displayName?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
        u.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
@@ -1354,15 +1356,25 @@ export default function AdminPage() {
                       acc[cat] = (acc[cat] || 0) + 1;
                       return acc;
                     }, {} as Record<string, number>)
-                  ).sort((a, b) => b[1] - a[1]).map(([category, count]) => (
-                    <div key={category} className="bg-blue-50/50 border border-blue-100 rounded-2xl px-6 py-4 flex flex-col items-center min-w-[140px] flex-1 md:flex-none hover:shadow-md transition">
-                      <span className="text-3xl font-black text-blue-600 mb-1">{count}</span>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">{category}</span>
+                  ).sort((a, b) => b[1] - a[1]).map(([category, count]) => {
+                    const filterValue = category === 'Без категории' ? 'none' : category;
+                    const isActive = userCategoryFilter === filterValue;
+                    return (
+                    <div 
+                      key={category} 
+                      onClick={() => { setUserCategoryFilter(filterValue); setCurrentPage(1); }}
+                      className={`border rounded-2xl px-6 py-4 flex flex-col items-center min-w-[140px] flex-1 md:flex-none cursor-pointer transition-all duration-300 ${isActive ? 'bg-blue-600 border-blue-700 shadow-lg scale-105 ring-4 ring-blue-600/20' : 'bg-blue-50/50 border-blue-100 hover:shadow-md hover:bg-blue-100/50'}`}
+                    >
+                      <span className={`text-3xl font-black mb-1 ${isActive ? 'text-white' : 'text-blue-600'}`}>{count}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${isActive ? 'text-blue-100' : 'text-gray-500'}`}>{category}</span>
                     </div>
-                  ))}
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-6 py-4 flex flex-col items-center min-w-[140px] flex-1 md:flex-none shadow-sm">
-                    <span className="text-3xl font-black text-indigo-600 mb-1">{users.filter(u => u.status === 'approved').length}</span>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">Всего участников</span>
+                  )})}
+                  <div 
+                    onClick={() => { setUserCategoryFilter(''); setCurrentPage(1); }}
+                    className={`border rounded-2xl px-6 py-4 flex flex-col items-center min-w-[140px] flex-1 md:flex-none cursor-pointer transition-all duration-300 ${userCategoryFilter === '' ? 'bg-indigo-600 border-indigo-700 shadow-lg scale-105 ring-4 ring-indigo-600/20' : 'bg-indigo-50 border-indigo-100 hover:shadow-md hover:bg-indigo-100/50'}`}
+                  >
+                    <span className={`text-3xl font-black mb-1 ${userCategoryFilter === '' ? 'text-white' : 'text-indigo-600'}`}>{users.filter(u => u.status === 'approved').length}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${userCategoryFilter === '' ? 'text-indigo-100' : 'text-gray-500'}`}>Всего участников</span>
                   </div>
                 </div>
               </div>
@@ -1380,6 +1392,7 @@ export default function AdminPage() {
                       }}
                     >
                       <option value="">Все категории</option>
+                      <option value="none">Без категории</option>
                       <option value="Бортпроводник">Бортпроводник</option>
                       <option value="Пилот">Пилот</option>
                       <option value="Наземка">Наземка</option>
