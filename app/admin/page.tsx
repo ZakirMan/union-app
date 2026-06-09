@@ -1096,12 +1096,12 @@ export default function AdminPage() {
                         const key = `${new Date().getFullYear()}-${m.num}`;
                         const stat = newMembersStats[key] || { count: 0, details: [] };
                         return (
-                          <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default relative group/month">
+                          <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
                             <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
                             <span className={`text-xl md:text-2xl font-black ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>{stat.count}</span>
                             
                             {stat.details && stat.details.length > 0 && (
-                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible transition-all shadow-xl pointer-events-none">
+                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all shadow-xl pointer-events-none">
                                 <div className="font-black mb-2 text-blue-400 border-b border-gray-700 pb-1">Новые участники ({m.name})</div>
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
                                   {stat.details.map((d, i) => (
@@ -1147,7 +1147,7 @@ export default function AdminPage() {
                         const key = `${new Date().getFullYear()}-${m.num}`;
                         const stat = aidStats[key] || { count: 0, amount: 0, pendingCount: 0, details: [] };
                         return (
-                          <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default relative group/month">
+                          <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
                             <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
                             <span className={`text-sm md:text-[15px] font-black leading-tight ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>
                               {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
@@ -1156,7 +1156,7 @@ export default function AdminPage() {
                             {stat.pendingCount > 0 && <span className="text-[9px] text-orange-200 font-bold mt-0.5 opacity-80">+ {stat.pendingCount} ожид.</span>}
                             
                             {stat.details && stat.details.length > 0 && (
-                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible transition-all shadow-xl pointer-events-none">
+                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all shadow-xl pointer-events-none">
                                 <div className="font-black mb-2 text-green-400 border-b border-gray-700 pb-1">Выплаты за {m.name}</div>
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
                                   {stat.details.map((d, i) => (
