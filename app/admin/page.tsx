@@ -1344,6 +1344,29 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* СТАТИСТИКА ПО КАТЕГОРИЯМ */}
+              <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
+                <h2 className="font-black text-2xl mb-6 text-gray-900">Статистика по категориям</h2>
+                <div className="flex flex-wrap gap-4">
+                  {Object.entries(
+                    users.filter(u => u.status === 'approved').reduce((acc, user) => {
+                      const cat = user.category || 'Без категории';
+                      acc[cat] = (acc[cat] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  ).sort((a, b) => b[1] - a[1]).map(([category, count]) => (
+                    <div key={category} className="bg-blue-50/50 border border-blue-100 rounded-2xl px-6 py-4 flex flex-col items-center min-w-[140px] flex-1 md:flex-none hover:shadow-md transition">
+                      <span className="text-3xl font-black text-blue-600 mb-1">{count}</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">{category}</span>
+                    </div>
+                  ))}
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-6 py-4 flex flex-col items-center min-w-[140px] flex-1 md:flex-none shadow-sm">
+                    <span className="text-3xl font-black text-indigo-600 mb-1">{users.filter(u => u.status === 'approved').length}</span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">Всего участников</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
                 <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
