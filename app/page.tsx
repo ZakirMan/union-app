@@ -40,7 +40,23 @@ export default function HomePage() {
         setNews(nList);
 
         const tSnap = await getDocs(collection(db, 'team'));
-        setTeam(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeamMember)));
+        const teamData = tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeamMember));
+        
+        // Сортируем: Председатель первый, Заместитель второй, остальные по алфавиту
+        teamData.sort((a, b) => {
+          const aRole = (a.role || '').toLowerCase();
+          const bRole = (b.role || '').toLowerCase();
+          
+          if (aRole.includes('председатель профсоюза')) return -1;
+          if (bRole.includes('председатель профсоюза')) return 1;
+          
+          if (aRole.includes('заместитель')) return -1;
+          if (bRole.includes('заместитель')) return 1;
+          
+          return a.name.localeCompare(b.name);
+        });
+
+        setTeam(teamData);
       } catch (e) { console.error(e); }
       finally { setLoadingNews(false); }
     };
@@ -204,17 +220,24 @@ export default function HomePage() {
           <h2 className="text-4xl font-black text-gray-900 mb-16">Совет Профсоюза</h2>
 
           <div className="flex flex-wrap justify-center gap-12 md:gap-16">
-            {team.map(member => (
-              <div key={member.id} className="flex flex-col items-center group">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full mb-6 p-1 bg-gradient-to-br from-blue-100 to-indigo-100 relative">
+            {team.map((member) => {
+              const isChairman = (member.role || '').toLowerCase().includes('председатель профсоюза');
+              const isDeputy = (member.role || '').toLowerCase().includes('заместитель');
+
+              return (
+              <div key={member.id} className={`flex flex-col items-center group ${isChairman ? 'w-full mb-8' : ''}`}>
+                <div className={`${isChairman ? 'w-48 h-48 md:w-56 md:h-56' : 'w-32 h-32 md:w-40 md:h-40'} rounded-full mb-6 p-1 ${isChairman ? 'bg-gradient-to-br from-yellow-400 to-amber-600' : isDeputy ? 'bg-gradient-to-br from-blue-400 to-indigo-600' : 'bg-gradient-to-br from-blue-100 to-indigo-100'} relative`}>
+                  {isChairman && (
+                    <div className="absolute top-2 right-2 md:top-4 md:right-4 text-4xl z-10 animate-bounce drop-shadow-md">👑</div>
+                  )}
                   <div className="w-full h-full rounded-full overflow-hidden relative bg-white border-4 border-white shadow-xl group-hover:scale-105 transition-transform duration-300">
                     <Image src={member.photoUrl || '/default-avatar.png'} alt={member.name} fill className="object-cover" />
                   </div>
                 </div>
-                <h3 className="text-xl font-black text-gray-900 leading-tight mb-1">{member.name}</h3>
-                <p className="text-indigo-500 font-bold text-sm bg-indigo-50 px-3 py-1 rounded-lg">{member.role}</p>
+                <h3 className={`${isChairman ? 'text-3xl' : 'text-xl'} font-black text-gray-900 leading-tight mb-2 text-center`}>{member.name}</h3>
+                <p className={`${isChairman ? 'text-amber-700 bg-amber-50 px-5 py-2 text-base' : isDeputy ? 'text-indigo-600 bg-indigo-50 px-4 py-1.5 text-sm' : 'text-gray-500 bg-gray-50 px-3 py-1 text-sm'} font-bold rounded-xl text-center`}>{member.role}</p>
               </div>
-            ))}
+            )})}
           </div>
 
           {team.length === 0 && (
