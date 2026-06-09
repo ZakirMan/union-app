@@ -796,10 +796,15 @@ export default function AdminPage() {
     });
 
   const newMembersStats = (() => {
-    const stats: Record<string, number> = {};
+    const stats: Record<string, { count: number; details: Array<{name: string, position: string}> }> = {};
     users.forEach(u => {
       if (u.status === 'approved' && u.isAlreadyMember === false && u.joinDate) {
-        stats[u.joinDate] = (stats[u.joinDate] || 0) + 1;
+        if (!stats[u.joinDate]) stats[u.joinDate] = { count: 0, details: [] };
+        stats[u.joinDate].count += 1;
+        stats[u.joinDate].details.push({
+          name: u.displayName || u.email || 'Неизвестно',
+          position: u.position || 'Без должности'
+        });
       }
     });
     return stats;
@@ -941,7 +946,7 @@ export default function AdminPage() {
                     <h3 className="font-black text-xl mb-2 flex items-center gap-2">
                       <span className="text-2xl">📈</span> Статистика вступлений
                     </h3>
-                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза за текущий год ({new Date().getFullYear()}).</p>
+                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза за текущий год ({new Date().getFullYear()}). Наведите на месяц для деталей.</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {[
                         { num: '01', name: 'Янв' },
@@ -958,11 +963,26 @@ export default function AdminPage() {
                         { num: '12', name: 'Дек' }
                       ].map(m => {
                         const key = `${new Date().getFullYear()}-${m.num}`;
-                        const count = newMembersStats[key] || 0;
+                        const stat = newMembersStats[key] || { count: 0, details: [] };
                         return (
-                          <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default">
+                          <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default relative group/month">
                             <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
-                            <span className={`text-xl md:text-2xl font-black ${count > 0 ? 'text-white' : 'text-white/30'}`}>{count}</span>
+                            <span className={`text-xl md:text-2xl font-black ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>{stat.count}</span>
+                            
+                            {stat.details && stat.details.length > 0 && (
+                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible transition-all shadow-xl pointer-events-none">
+                                <div className="font-black mb-2 text-blue-400 border-b border-gray-700 pb-1">Новые участники ({m.name})</div>
+                                <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
+                                  {stat.details.map((d, i) => (
+                                    <div key={i} className="flex flex-col">
+                                      <span className="font-bold">{d.name}</span>
+                                      <span className="text-blue-300 font-black text-[10px]">{d.position}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
