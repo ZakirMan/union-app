@@ -50,8 +50,10 @@ interface RequestData {
   fileUrl?: string;
   createdAt: string;
   response?: string;
-  aidStatus?: 'approved' | 'rejected';
+  aidStatus?: 'pending' | 'approved' | 'rejected';
   aidAmount?: number;
+  isOffline?: boolean;
+  userName?: string;
 }
 interface LinkItem { id: string; title: string; url: string; }
 interface DocTemplate { id: string; title: string; description?: string; fileUrl: string; isRegistrationTemplate?: boolean; }
@@ -153,6 +155,18 @@ export default function AdminPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   // Пагинация
+  const [currentNewsPage, setCurrentNewsPage] = useState(1);
+
+  // States for manual aid request form
+  const [showManualAidModal, setShowManualAidModal] = useState(false);
+  const [manualAidName, setManualAidName] = useState('');
+  const [manualAidCategory, setManualAidCategory] = useState('');
+  const [manualAidCustomCategory, setManualAidCustomCategory] = useState('');
+  const [manualAidAmount, setManualAidAmount] = useState('');
+  const [manualAidDate, setManualAidDate] = useState('');
+  const [manualAidFile, setManualAidFile] = useState<File | null>(null);
+  const [isSubmittingManualAid, setIsSubmittingManualAid] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -753,6 +767,66 @@ export default function AdminPage() {
       alert('Ошибка обновления');
     }
   };
+  const handleManualAidSubmit = async () => {
+    if (!manualAidName || !manualAidAmount || (!manualAidCategory && !manualAidCustomCategory)) {
+      alert('Заполните ФИО, категорию и сумму.');
+      return;
+    }
+    const finalCategory = manualAidCategory === 'Другое' ? manualAidCustomCategory : manualAidCategory;
+    
+    setIsSubmittingManualAid(true);
+    try {
+      let fileUrl = '';
+      if (manualAidFile) {
+        const storageRef = ref(storage, `requests/manual_${Date.now()}_${manualAidFile.name}`);
+        await uploadBytes(storageRef, manualAidFile);
+        fileUrl = await getDownloadURL(storageRef);
+      }
+
+      const selectedDate = manualAidDate ? new Date(manualAidDate) : new Date();
+
+      const newReqData = {
+        userEmail: `offline_user_${Date.now()}@union.local`,
+        text: `Запрос материальной помощи: ${finalCategory}\nКомментарий: Оффлайн заявка (вручную)`,
+        fileUrl,
+        aidStatus: 'pending',
+        aidAmount: Number(manualAidAmount),
+        isOffline: true,
+        createdAt: selectedDate.toISOString(),
+        userName: manualAidName
+      };
+      
+      const docRef = await addDoc(collection(db, 'requests'), newReqData);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setRequests([{ ...newReqData, id: docRef.id } as any, ...requests]);
+      
+      setShowManualAidModal(false);
+      setManualAidName('');
+      setManualAidCategory('');
+      setManualAidCustomCategory('');
+      setManualAidAmount('');
+      setManualAidDate('');
+      setManualAidFile(null);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при добавлении заявки');
+    } finally {
+      setIsSubmittingManualAid(false);
+    }
+  };
+
+  const handlePayManualAid = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'requests', id), { aidStatus: 'approved' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setRequests(requests.map(r => r.id === id ? { ...r, aidStatus: 'approved' } as any : r));
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при обновлении статуса');
+    }
+  };
+
   const handleReplyRequest = async (id: string, isAid: boolean = false) => {
     if (replyText[id]) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -811,21 +885,30 @@ export default function AdminPage() {
   })();
 
   const aidStats = (() => {
-    const stats: Record<string, { count: number; amount: number; details: Array<{name: string, amount: number, reason: string}> }> = {};
+    const stats: Record<string, { count: number; amount: number; pendingCount: number; details: Array<{name: string, amount: number, reason: string, isPending: boolean}> }> = {};
     requests.forEach(r => {
-      if (r.text.startsWith('Запрос материальной помощи') && r.aidStatus === 'approved' && r.createdAt) {
+      if (r.text.startsWith('Запрос материальной помощи') && (r.aidStatus === 'approved' || r.aidStatus === 'pending') && r.createdAt) {
         const month = r.createdAt.substring(0, 7);
-        if (!stats[month]) stats[month] = { count: 0, amount: 0, details: [] };
-        stats[month].count += 1;
-        stats[month].amount += (r.aidAmount || 0);
+        if (!stats[month]) stats[month] = { count: 0, amount: 0, pendingCount: 0, details: [] };
+        
+        const isPending = r.aidStatus === 'pending';
+        
+        if (!isPending) {
+          stats[month].count += 1;
+          stats[month].amount += (r.aidAmount || 0);
+        } else {
+          stats[month].pendingCount += 1;
+        }
         
         const reason = r.text.split('\n')[0].replace('Запрос материальной помощи: ', '').trim();
         const requestUser = users.find(u => u.email === r.userEmail);
-        const name = requestUser?.displayName || r.userEmail || 'Неизвестно';
+        const name = r.userName || requestUser?.displayName || r.userEmail || 'Неизвестно';
+        
         stats[month].details.push({
             name: name,
             amount: r.aidAmount || 0,
-            reason: reason
+            reason: reason,
+            isPending: isPending
         });
       }
     });
@@ -1014,7 +1097,7 @@ export default function AdminPage() {
                         { num: '12', name: 'Дек' }
                       ].map(m => {
                         const key = `${new Date().getFullYear()}-${m.num}`;
-                        const stat = aidStats[key] || { count: 0, amount: 0, details: [] };
+                        const stat = aidStats[key] || { count: 0, amount: 0, pendingCount: 0, details: [] };
                         return (
                           <div key={m.num} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-default relative group/month">
                             <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
@@ -1022,16 +1105,17 @@ export default function AdminPage() {
                               {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
                             </span>
                             {stat.count > 0 && <span className="text-[9px] text-green-100 font-bold mt-0.5">{stat.count} шт</span>}
+                            {stat.pendingCount > 0 && <span className="text-[9px] text-orange-200 font-bold mt-0.5 opacity-80">+ {stat.pendingCount} ожид.</span>}
                             
                             {stat.details && stat.details.length > 0 && (
                               <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible transition-all shadow-xl pointer-events-none">
                                 <div className="font-black mb-2 text-green-400 border-b border-gray-700 pb-1">Выплаты за {m.name}</div>
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
                                   {stat.details.map((d, i) => (
-                                    <div key={i} className="flex flex-col">
-                                      <span className="font-bold">{d.name}</span>
+                                    <div key={i} className={`flex flex-col ${d.isPending ? 'opacity-50' : ''}`}>
+                                      <span className="font-bold">{d.name} {d.isPending && '(ожидает)'}</span>
                                       <span className="text-gray-400 text-[10px]">{d.reason}</span>
-                                      <span className="text-green-300 font-black">{d.amount.toLocaleString('ru-RU')} ₸</span>
+                                      <span className={`${d.isPending ? 'text-orange-300' : 'text-green-300'} font-black`}>{d.amount.toLocaleString('ru-RU')} ₸</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1771,7 +1855,77 @@ export default function AdminPage() {
               )}
             </div>
           )}
-          {activeTab === 'requests' && <div className="grid gap-4">{requests.map(req => (<div key={req.id} className="bg-white p-4 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm relative"><div className="flex justify-between items-start mb-3"><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black">{req.userEmail}</span><div className="flex items-center gap-3"><span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span><button onClick={() => handleDeleteRequest(req.id)} className="text-red-400 hover:text-red-600 font-black transition text-lg leading-none">✕</button></div></div><p className="font-bold text-gray-800 text-lg mb-4">&quot;{req.text}&quot;</p>
+          {activeTab === 'requests' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black text-gray-800">Обращения</h2>
+                <button onClick={() => setShowManualAidModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-md transition flex items-center gap-2">
+                  <span>➕</span> Добавить оффлайн-заявку
+                </button>
+              </div>
+
+              {showManualAidModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-lg shadow-2xl relative">
+                    <button onClick={() => setShowManualAidModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl font-black">✕</button>
+                    <h3 className="text-2xl font-black mb-6 text-gray-800">Оффлайн-заявка</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">ФИО заявителя</label>
+                        <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidName} onChange={(e) => setManualAidName(e.target.value)} placeholder="Например: Иванов Иван" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Категория / Причина</label>
+                        <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidCategory} onChange={(e) => setManualAidCategory(e.target.value)}>
+                          <option value="">Выберите категорию...</option>
+                          <option value="Смерть близкого родственника">Смерть близкого родственника</option>
+                          <option value="Смерть сотрудника">Смерть сотрудника</option>
+                          <option value="Юбилей">Юбилей</option>
+                          <option value="Рождение ребенка">Рождение ребенка</option>
+                          <option value="Другое">Другое (указать)</option>
+                        </select>
+                        {manualAidCategory === 'Другое' && (
+                          <input type="text" className="w-full mt-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidCustomCategory} onChange={(e) => setManualAidCustomCategory(e.target.value)} placeholder="Своя категория" />
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Сумма (₸)</label>
+                          <input type="number" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidAmount} onChange={(e) => setManualAidAmount(e.target.value)} placeholder="Например: 50000" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Дата (по умолчанию сегодня)</label>
+                          <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidDate} onChange={(e) => setManualAidDate(e.target.value)} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Документ (Свидетельство, чек и т.д.)</label>
+                        <input type="file" className="w-full text-sm font-bold file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" onChange={(e) => setManualAidFile(e.target.files?.[0] || null)} />
+                      </div>
+                      <button onClick={handleManualAidSubmit} disabled={isSubmittingManualAid} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl shadow-lg transition mt-4 disabled:opacity-50">
+                        {isSubmittingManualAid ? 'Сохранение...' : 'Добавить заявку'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-4">
+                {requests.map(req => (
+                  <div key={req.id} className={`bg-white p-4 md:p-6 rounded-[2rem] border shadow-sm relative transition-all ${req.aidStatus === 'pending' ? 'border-orange-200 bg-orange-50/50 opacity-70 hover:opacity-100' : 'border-gray-100'}`}>
+                    {req.aidStatus === 'pending' && (
+                      <div className="absolute -top-3 left-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md animate-pulse">Ожидает оплаты</div>
+                    )}
+                    <div className="flex justify-between items-start mb-3 mt-2">
+                      <span className={`px-3 py-1 rounded-lg text-xs font-black ${req.isOffline ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-700'}`}>
+                        {req.userName || req.userEmail} {req.isOffline && '(Оффлайн)'}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-gray-400">{new Date(req.createdAt).toLocaleString()}</span>
+                        <button onClick={() => handleDeleteRequest(req.id)} className="text-red-400 hover:text-red-600 font-black transition text-lg leading-none">✕</button>
+                      </div>
+                    </div>
+                    <p className="font-bold text-gray-800 text-lg mb-4">&quot;{req.text}&quot;</p>
             {/* FILE DISPLAY */}
             {req.fileUrl && (
               <div className="mb-4">
@@ -1780,15 +1934,25 @@ export default function AdminPage() {
                 </a>
               </div>
             )}
-            {req.response ? (
+            {req.response || (req.aidStatus === 'approved' && req.isOffline) ? (
               <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-sm font-bold text-green-900">
-                <p className="whitespace-pre-wrap">{req.response}</p>
+                {req.response && <p className="whitespace-pre-wrap">{req.response}</p>}
                 {req.text.startsWith('Запрос материальной помощи') && req.aidStatus && (
-                  <div className="mt-3 pt-3 border-t border-green-200/50 text-xs opacity-90 flex gap-4">
-                    <span><b>Статус:</b> {req.aidStatus === 'approved' ? 'Одобрено' : 'Отклонено'}</span>
+                  <div className={`mt-3 pt-3 border-t border-green-200/50 text-xs opacity-90 flex gap-4 ${!req.response ? 'border-t-0 mt-0 pt-0' : ''}`}>
+                    <span><b>Статус:</b> {req.aidStatus === 'approved' ? 'Одобрено (Оплачено)' : 'Отклонено'}</span>
                     {req.aidStatus === 'approved' && <span><b>Сумма:</b> {req.aidAmount?.toLocaleString('ru-RU')} ₸</span>}
                   </div>
                 )}
+              </div>
+            ) : req.aidStatus === 'pending' ? (
+              <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-sm font-bold text-orange-900">
+                  <p>Заявка ожидает подтверждения выплаты.</p>
+                  {req.aidAmount && <p className="text-xs opacity-80 mt-1">К выплате: {req.aidAmount.toLocaleString('ru-RU')} ₸</p>}
+                </div>
+                <button onClick={() => handlePayManualAid(req.id)} className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-black text-sm shadow-md transition w-full sm:w-auto">
+                  Оплатить / Подтвердить
+                </button>
               </div>
             ) : (
               <div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
@@ -1809,7 +1973,12 @@ export default function AdminPage() {
                   <button onClick={() => handleReplyRequest(req.id, req.text.startsWith('Запрос материальной помощи'))} className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl font-black text-sm shadow-md transition">Отправить</button>
                 </div>
               </div>
-            )}</div>))}</div>}
+            )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} /><div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button></div>))}</div>
             {/* PAGINATION NEWS */}
             {news.length > itemsPerPage && (
@@ -1974,7 +2143,7 @@ export default function AdminPage() {
           )}
 
         </div>
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }
