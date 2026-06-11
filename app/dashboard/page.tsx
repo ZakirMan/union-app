@@ -695,7 +695,7 @@ export default function DashboardPage() {
                     <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">{new Date(i.createdAt).toLocaleDateString()}</span>
                   </div>
                   <h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3>
-                  <p className="text-gray-500 text-sm font-medium leading-relaxed">{i.body}</p>
+                  <p className="text-gray-500 text-sm font-medium leading-relaxed whitespace-pre-wrap">{i.body}</p>
                   {(i.fileUrl || i.linkUrl) && (
                     <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                       {i.fileUrl && (
