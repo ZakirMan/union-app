@@ -198,7 +198,7 @@ export default function HomePage() {
                   </div>
                   <div className="p-8 flex flex-col flex-grow relative">
                     <h3 className="text-2xl font-black text-gray-900 mb-3 leading-tight group-hover:text-blue-600 transition-colors">{item.title}</h3>
-                    <p className="text-gray-500 font-medium leading-relaxed line-clamp-3 mb-6">{item.body}</p>
+                    <p className="text-gray-500 font-medium leading-relaxed line-clamp-3 mb-6 whitespace-pre-wrap">{item.body}</p>
                     <div className="mt-auto flex items-center gap-2 text-blue-600 font-bold text-sm group-hover:gap-4 transition-all">
                       Читать полностью <span>→</span>
                     </div>

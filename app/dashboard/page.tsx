@@ -75,9 +75,11 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls' | 'reports'>('news');
 
   // Данные
+  const [unionStats, setUnionStats] = useState<any>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -128,6 +130,20 @@ export default function DashboardPage() {
   const router = useRouter();
 
   // --- ЗАГРУЗКА ДАННЫХ ---
+  useEffect(() => {
+    if (activeTab === 'reports' && !unionStats && !isStatsLoading && user) {
+      setIsStatsLoading(true);
+      user.getIdToken().then(token => {
+        return fetch('/api/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          setUnionStats(data);
+        }
+      }).catch(err => console.error('Stats error:', err))
+        .finally(() => setIsStatsLoading(false));
+    }
+  }, [activeTab, user, unionStats, isStatsLoading]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) { router.push('/login'); return; }
@@ -641,7 +657,7 @@ export default function DashboardPage() {
                   </span>
                 )}
               </div>
-              <h1 className="text-3xl font-black">{ { news: 'Новости', chat: 'Связь', training: 'Обучение', polls: 'Опросы', resources: 'Ресурсы', profile: 'Профиль' }[activeTab] }</h1>
+              <h1 className="text-3xl font-black">{ { news: 'Новости', chat: 'Связь', training: 'Обучение', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
             </div>
             <div className="flex gap-3 items-center">
               {userData?.role === 'admin' && (
@@ -957,6 +973,94 @@ export default function DashboardPage() {
         )}
 
         {/* ПРОФИЛЬ */}
+        {activeTab === 'reports' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            {isStatsLoading ? (
+              <div className="text-center py-20">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-400 font-bold">Загрузка статистики...</p>
+              </div>
+            ) : unionStats ? (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* NEW MEMBERS STATS */}
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  <div className="relative z-10">
+                    <h3 className="font-black text-xl mb-2 flex items-center gap-2">
+                      <span className="text-2xl">📈</span> Статистика вступлений
+                    </h3>
+                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза за текущий год ({new Date().getFullYear()}).</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {[
+                        { num: '01', name: 'Янв' }, { num: '02', name: 'Фев' }, { num: '03', name: 'Мар' },
+                        { num: '04', name: 'Апр' }, { num: '05', name: 'Май' }, { num: '06', name: 'Июн' },
+                        { num: '07', name: 'Июл' }, { num: '08', name: 'Авг' }, { num: '09', name: 'Сен' },
+                        { num: '10', name: 'Окт' }, { num: '11', name: 'Ноя' }, { num: '12', name: 'Дек' }
+                      ].map(m => {
+                        const key = `${new Date().getFullYear()}-${m.num}`;
+                        const stat = unionStats.newMembersStats[key] || { count: 0 };
+                        return (
+                          <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
+                            <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
+                            <span className={`text-xl md:text-2xl font-black ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>{stat.count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AID STATS */}
+                <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  <div className="relative z-10">
+                    <h3 className="font-black text-xl mb-2 flex items-center gap-2">
+                      <span className="text-2xl">💰</span> Одобренная мат. помощь
+                    </h3>
+                    <p className="text-green-100 font-bold text-xs mb-6">Сумма и количество одобренных заявок за текущий год ({new Date().getFullYear()}). Наведите на месяц для деталей.</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {[
+                        { num: '01', name: 'Янв' }, { num: '02', name: 'Фев' }, { num: '03', name: 'Мар' },
+                        { num: '04', name: 'Апр' }, { num: '05', name: 'Май' }, { num: '06', name: 'Июн' },
+                        { num: '07', name: 'Июл' }, { num: '08', name: 'Авг' }, { num: '09', name: 'Сен' },
+                        { num: '10', name: 'Окт' }, { num: '11', name: 'Ноя' }, { num: '12', name: 'Дек' }
+                      ].map(m => {
+                        const key = `${new Date().getFullYear()}-${m.num}`;
+                        const stat = unionStats.aidStats[key] || { count: 0, amount: 0, pendingCount: 0, details: [] };
+                        return (
+                          <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
+                            <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
+                            <span className={`text-sm md:text-[15px] font-black leading-tight ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>
+                              {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
+                            </span>
+                            {stat.count > 0 && <span className="text-[9px] text-green-100 font-bold mt-0.5">{stat.count} шт</span>}
+                            {stat.pendingCount > 0 && <span className="text-[9px] text-orange-200 font-bold mt-0.5 opacity-80">+ {stat.pendingCount} ожид.</span>}
+                            
+                            {stat.details && stat.details.length > 0 && (
+                              <div className="absolute z-50 bottom-full mb-2 w-48 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all shadow-xl pointer-events-none md:left-1/2 md:-translate-x-1/2 right-0 z-[100]">
+                                <div className="font-black mb-2 text-green-400 border-b border-gray-700 pb-1">Выплаты за {m.name}</div>
+                                <div className="max-h-32 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
+                                  {stat.details.map((d: any, i: number) => (
+                                    <div key={i} className={`flex flex-col py-1 ${d.isPending ? 'bg-orange-500/10 px-2 rounded-lg border border-orange-500/30 mb-1' : ''}`}>
+                                      <span className="font-bold">{d.name} {d.isPending && <span className="text-orange-400 text-[9px] uppercase tracking-wider ml-1">В очереди</span>}</span>
+                                      <span className="text-gray-400 text-[10px]">{d.reason}</span>
+                                      <span className={`${d.isPending ? 'text-orange-300' : 'text-green-300'} font-black`}>{d.amount.toLocaleString('ru-RU')} ₸</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         {activeTab === 'profile' && userData && (
           <div className="animate-in fade-in slide-in-from-bottom-8 pt-6">
 
@@ -1374,15 +1478,15 @@ export default function DashboardPage() {
       )}
 
       {/* Footer Nav */}
-      <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto">
-        {['news', 'chat', 'training', 'polls', 'resources', 'profile'].map((tab) => {
+      <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto overflow-x-auto no-scrollbar gap-1">
+        {['news', 'chat', 'training', 'polls', 'reports', 'resources', 'profile'].map((tab) => {
           const isActive = activeTab === tab;
-          const icons: { [key: string]: string } = { news: '📰', chat: '💬', training: '🎓', polls: '📊', resources: '📂', profile: '👤' };
-          const labels: { [key: string]: string } = { news: 'Главная', chat: 'Чат', training: 'Учеба', polls: 'Опросы', resources: 'Инфо', profile: 'Я' };
+          const icons: { [key: string]: string } = { news: '📰', chat: '💬', training: '🎓', polls: '📋', reports: '📈', resources: '📂', profile: '👤' };
+          const labels: { [key: string]: string } = { news: 'Главная', chat: 'Чат', training: 'Учеба', polls: 'Опросы', reports: 'Отчеты', resources: 'Инфо', profile: 'Я' };
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as 'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls')}
+              onClick={() => setActiveTab(tab as 'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls' | 'reports')}
               className={`flex-1 flex flex-col items-center py-3 rounded-[1.5rem] transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 transform -translate-y-2' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="text-xl mb-0.5">{icons[tab]}</span>

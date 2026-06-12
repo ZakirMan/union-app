@@ -1,9 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
     // Функция проверки администратора
     function isAdmin() {
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Проверка, что пользователь не пытается изменить защищенные поля
+    function isModifyingRestrictedUserFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'status', 'voteWeight', 'uid', 'email', 'createdAt']);
     }
 
     // По умолчанию запрещаем всё, кроме админов
@@ -11,39 +18,59 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Пользователи (Чтение для всех авторизованных, запись только своих данных)
+    // Коллекция users
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Создание: только для себя, и роль должна быть member, а статус pending (или пустые, чтобы нельзя было создать админа)
+      allow create: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.data.role != 'admin'
+                    && request.resource.data.status == 'pending';
+                    
+      // Обновление: только свой профиль и без изменения критичных полей
+      allow update: if request.auth != null 
+                    && request.auth.uid == userId 
+                    && !isModifyingRestrictedUserFields();
     }
 
     // Публичные коллекции
     match /news/{docId} { allow read: if request.auth != null; }
     match /team/{docId} { allow read: if request.auth != null; }
     match /links/{docId} { allow read: if request.auth != null; }
-    match /templates/{docId} { allow read: if true; } // Публичное чтение для окна регистрации
+    match /templates/{docId} { allow read: if true; } // Окно регистрации (нужен доступ без авторизации)
     match /union_documents/{docId} { allow read: if request.auth != null; }
     match /conferences/{docId} { allow read: if request.auth != null; }
 
-    // Опросы и Тесты (Чтение и обновление для голосования/прохождения)
+    // Опросы и Тесты (Чтение и обновление)
     match /polls/{docId} { 
       allow read: if request.auth != null;
-      allow update: if request.auth != null; 
+      // Можно обновлять, но нельзя менять сам вопрос и варианты ответов
+      allow update: if request.auth != null
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'options', 'createdAt', 'endDate', 'status']);
     }
     match /tests/{docId} { 
       allow read: if request.auth != null;
-      allow update: if request.auth != null; 
+      allow update: if request.auth != null
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'questions', 'createdAt', 'endDate', 'status']);
     }
 
     // Обращения к админу (Только свои)
     match /requests/{docId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null 
+                    && resource.data.userId == request.auth.uid
+                    // Нельзя менять статус после создания (статус меняет только админ)
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['aidStatus']);
     }
 
     // Заявки на делегирование
     match /delegation_requests/{docId} {
-      allow read, write: if request.auth != null; 
+      allow read: if request.auth != null; // Нужно для подсчета голосов на фронте
+      allow create: if request.auth != null && request.resource.data.fromId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.fromId == request.auth.uid; // Отзыв своего голоса
+      allow update: if request.auth != null && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
     }
   }
 }
