@@ -17,13 +17,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Check admin role
-    const adminDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
-    if (!adminDoc.exists || adminDoc.data()?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admins only' }, { status: 403 });
-    }
-
     const { userEmail, userName, phone, position, category, deductionUrl } = await request.json();
+
+    // Check authorization: must be admin OR the user themselves
+    const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
+    const isAdmin = userDoc.exists && userDoc.data()?.role === 'admin';
+    const isOwner = decodedToken.email === userEmail;
+
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     if (!deductionUrl) {
       return NextResponse.json({ message: 'Нет заявления на удержание, отправка не требуется' });
