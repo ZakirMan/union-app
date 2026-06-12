@@ -1930,7 +1930,14 @@ export default function AdminPage() {
                       </div>
                       <div>
                         <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Категория / Причина</label>
-                        <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidCategory} onChange={(e) => setManualAidCategory(e.target.value)}>
+                        <select className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold outline-none" value={manualAidCategory} onChange={(e) => {
+                          const val = e.target.value;
+                          setManualAidCategory(val);
+                          if (val === 'Смерть близкого родственника' || val === 'Смерть сотрудника' || val === 'Рождение ребенка') {
+                            const currentMrp = 4325; // МРП на 2026 год
+                            setManualAidAmount((20 * currentMrp).toString());
+                          }
+                        }}>
                           <option value="">Выберите категорию...</option>
                           <option value="Смерть близкого родственника">Смерть близкого родственника</option>
                           <option value="Смерть сотрудника">Смерть сотрудника</option>
