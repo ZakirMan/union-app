@@ -983,8 +983,10 @@ export default function DashboardPage() {
             ) : unionStats ? (
               <div className="grid md:grid-cols-2 gap-6">
                 {/* NEW MEMBERS STATS */}
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
+                  <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  </div>
                   <div className="relative z-10">
                     <h3 className="font-black text-xl mb-2 flex items-center gap-2">
                       <span className="text-2xl">📈</span> Статистика вступлений
@@ -1011,8 +1013,10 @@ export default function DashboardPage() {
                 </div>
 
                 {/* AID STATS */}
-                <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl overflow-hidden text-white p-6 md:p-8 relative group">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
+                  <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                  </div>
                   <div className="relative z-10">
                     <h3 className="font-black text-xl mb-2 flex items-center gap-2">
                       <span className="text-2xl">💰</span> Одобренная мат. помощь
