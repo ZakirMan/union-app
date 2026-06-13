@@ -71,18 +71,18 @@ export default function RegisterPage() {
         // Генерация Заявления на вступление
         const membershipEl = document.getElementById('membership-template');
         if (membershipEl) {
-          const canvas = await html2canvas(membershipEl, { scale: 2 });
+          const canvas = await html2canvas(membershipEl, { scale: 1.5 });
           const pdf = new jsPDF('p', 'mm', 'a4');
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
           generatedStatementBlob = pdf.output('blob');
         }
 
         // Генерация Заявления на удержание
         const deductionEl = document.getElementById('deduction-template');
         if (deductionEl) {
-          const canvas = await html2canvas(deductionEl, { scale: 2 });
+          const canvas = await html2canvas(deductionEl, { scale: 1.5 });
           const pdf = new jsPDF('p', 'mm', 'a4');
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
           generatedDeductionBlob = pdf.output('blob');
         }
       }
