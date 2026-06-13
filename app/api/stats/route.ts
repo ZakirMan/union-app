@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     // Считаем статистику вступлений (newMembersStats)
     const newMembersStats: Record<string, { count: number }> = {};
     users.forEach((u: any) => {
-      if (u.createdAt) {
+      if (!u.isAlreadyMember && u.createdAt) {
         let dateStr = '';
         if (typeof u.createdAt === 'string') {
           dateStr = u.createdAt;
