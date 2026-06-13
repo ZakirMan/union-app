@@ -172,9 +172,11 @@ export default function RegisterPage() {
       router.push('/');
     } catch (err: unknown) {
       console.error(err);
-      const errorObj = err as { code?: string };
-      if (errorObj.code === 'auth/email-already-in-use') setError('Email уже занят.');
-      else setError('Произошла ошибка при регистрации.');
+      const errorObj = err as { code?: string, message?: string };
+      if (errorObj.code === 'auth/email-already-in-use') setError('Данный Email уже зарегистрирован.');
+      else if (errorObj.code === 'auth/weak-password') setError('Пароль должен содержать минимум 6 символов.');
+      else if (errorObj.code === 'auth/invalid-email') setError('Некорректный формат Email.');
+      else setError(`Произошла ошибка при регистрации: ${errorObj.message || 'неизвестная ошибка'}`);
     } finally {
       setLoading(false);
     }
@@ -312,7 +314,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-1">Пароль</label>
-            <input type="password" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input type="password" minLength={6} required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Минимум 6 символов" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
 
           <div className="flex flex-col gap-2 mt-4">
