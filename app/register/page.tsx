@@ -219,7 +219,7 @@ export default function RegisterPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <span>Подпись</span>
               <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative' }}>
-                {signatureDataUrl && <img src={signatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '100px', maxWidth: '200px' }} />}
+                {signatureDataUrl && <img src={signatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '50px', maxWidth: '150px' }} />}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -263,7 +263,7 @@ export default function RegisterPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <span>Подпись</span>
               <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative' }}>
-                {signatureDataUrl && <img src={signatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '100px', maxWidth: '200px' }} />}
+                {signatureDataUrl && <img src={signatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '50px', maxWidth: '150px' }} />}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -371,6 +371,8 @@ export default function RegisterPage() {
                     <SignatureCanvas 
                       ref={sigCanvas} 
                       penColor="black"
+                      minWidth={0.5}
+                      maxWidth={1.5}
                       canvasProps={{ className: 'w-full h-40 cursor-crosshair' }} 
                     />
                   </div>
