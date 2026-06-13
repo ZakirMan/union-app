@@ -370,7 +370,7 @@ export default function RegisterPage() {
                   <div className="border-2 border-dashed border-gray-300 rounded-xl bg-white overflow-hidden">
                     <SignatureCanvas 
                       ref={sigCanvas} 
-                      penColor="black"
+                      penColor="mediumblue"
                       minWidth={0.5}
                       maxWidth={1.5}
                       canvasProps={{ className: 'w-full h-40 cursor-crosshair' }} 
@@ -427,6 +427,16 @@ export default function RegisterPage() {
           Уже есть аккаунт? <Link href="/login" className="text-blue-600 font-bold hover:underline">Войти</Link>
         </p>
       </div>
+
+      {loading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <h3 className="text-xl font-black text-blue-900 mb-2">Генерация заявлений...</h3>
+          <p className="text-gray-600 font-medium text-center max-w-sm">
+            Пожалуйста, подождите. Мы формируем PDF-документы с вашей электронной подписью и отправляем данные.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -153,8 +153,8 @@ export default function AdminPage() {
   const [replyAidAmount, setReplyAidAmount] = useState<{ [key: string]: string }>({});
   const [replyAidStatus, setReplyAidStatus] = useState<{ [key: string]: 'approved' | 'rejected' }>({});
   const [isUploading, setIsUploading] = useState(false);
-
-  // Пагинация
+  const [isApproving, setIsApproving] = useState(false); 
+  const [currentPage, setCurrentPage] = useState(1);
   const [currentNewsPage, setCurrentNewsPage] = useState(1);
 
   // States for manual aid request form
@@ -168,7 +168,6 @@ export default function AdminPage() {
   const [manualAidFile, setManualAidFile] = useState<File | null>(null);
   const [isSubmittingManualAid, setIsSubmittingManualAid] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, eventSubTab, delegationSubTab]);
@@ -485,7 +484,9 @@ export default function AdminPage() {
     if (!cat && !confirm('Вы не выбрали категорию. Принять без категории?')) return;
 
     if (confirm('Подтвердить принятие участника?')) { 
-      const updateData: any = { status: 'approved', voteWeight: 1 };
+      setIsApproving(true);
+      try {
+        const updateData: any = { status: 'approved', voteWeight: 1 };
       
       if (cat) updateData.category = cat;
 
@@ -609,6 +610,9 @@ export default function AdminPage() {
       }
 
       fetchData(); 
+      } finally {
+        setIsApproving(false);
+      }
     } 
   };
   const handleRejectUser = async (id: string, statementUrl?: string, idCardUrl?: string, deductionUrl?: string) => { 
@@ -976,6 +980,15 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#F2F6FF] flex flex-col font-sans text-[#1A1A1A]">
+      {isApproving && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <h3 className="text-xl font-black text-blue-900 mb-2">Обработка заявки...</h3>
+          <p className="text-gray-600 font-medium text-center max-w-sm">
+            Сохраняем документы на Google Диск и рассылаем уведомления. Пожалуйста, не закрывайте страницу.
+          </p>
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white shadow-xl z-20 sticky top-0 rounded-b-[1.5rem] mb-4">
