@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth, db, storage, messaging } from '@/lib/firebase';
 import { getToken } from 'firebase/messaging';
 import { useRouter } from 'next/navigation';
@@ -9,6 +9,9 @@ import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, arra
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import imageCompression from 'browser-image-compression';
+import SignatureCanvas from 'react-signature-canvas';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -128,6 +131,14 @@ export default function DashboardPage() {
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveComment, setLeaveComment] = useState('');
   const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
+
+  // Выход из профсоюза
+  const [showExitSurveyModal, setShowExitSurveyModal] = useState(false);
+  const [showExitSignatureModal, setShowExitSignatureModal] = useState(false);
+  const [exitReason, setExitReason] = useState('');
+  const [exitSignatureDataUrl, setExitSignatureDataUrl] = useState('');
+  const [isSubmittingExit, setIsSubmittingExit] = useState(false);
+  const exitSignaturePad = useRef<any>(null);
 
   // Тестирование
   const [activeTest, setActiveTest] = useState<Test | null>(null);
@@ -472,6 +483,115 @@ export default function DashboardPage() {
         console.error('Telegram notification failed:', tgError);
       }
     } catch { alert('Ошибка'); } finally { setIsSubmittingLeave(false); }
+  };
+
+  const handleClearExitSignature = () => {
+    if (exitSignaturePad.current) {
+      exitSignaturePad.current.clear();
+      setExitSignatureDataUrl('');
+    }
+  };
+
+  const handleSaveExitSignature = () => {
+    if (exitSignaturePad.current && !exitSignaturePad.current.isEmpty()) {
+      setExitSignatureDataUrl(exitSignaturePad.current.getTrimmedCanvas().toDataURL('image/png'));
+    }
+  };
+
+  const handleSendExitRequest = async () => {
+    if (!user || !userData) return;
+    if (!exitReason) {
+      alert('Пожалуйста, укажите причину выхода.');
+      return;
+    }
+    if (!exitSignatureDataUrl) {
+      alert('Пожалуйста, поставьте подпись.');
+      return;
+    }
+
+    setIsSubmittingExit(true);
+    try {
+      // Генерация Заявления на выход
+      const exitEl = document.getElementById('exit-membership-template');
+      let exitStatementUrl = '';
+      if (exitEl) {
+        exitEl.style.left = '0';
+        const canvas = await html2canvas(exitEl, { scale: 1, useCORS: true, logging: false });
+        exitEl.style.left = '-9999px';
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        
+        const blob = pdf.output('blob');
+        const fileRef = ref(storage, `exit_statements/${user.uid}_exit.pdf`);
+        await uploadBytes(fileRef, blob);
+        exitStatementUrl = await getDownloadURL(fileRef);
+      }
+
+      // Генерация Заявления на прекращение удержания
+      const exitDedEl = document.getElementById('exit-deduction-template');
+      let exitDeductionUrl = '';
+      if (exitDedEl) {
+        exitDedEl.style.left = '0';
+        const canvas = await html2canvas(exitDedEl, { scale: 1, useCORS: true, logging: false });
+        exitDedEl.style.left = '-9999px';
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        
+        const blob = pdf.output('blob');
+        const fileRef = ref(storage, `exit_statements/${user.uid}_stop_deduction.pdf`);
+        await uploadBytes(fileRef, blob);
+        exitDeductionUrl = await getDownloadURL(fileRef);
+      }
+
+      const text = `Заявление на выход из профсоюза.\nПричина: ${exitReason}`;
+      const newReqData = {
+        userId: user.uid,
+        userEmail: user.email || '',
+        text,
+        fileUrl: exitStatementUrl,
+        additionalFileUrl: exitDeductionUrl,
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        isExitRequest: true
+      };
+      
+      const docRef = await addDoc(collection(db, 'requests'), newReqData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setMyRequests([{ ...newReqData, id: docRef.id } as any, ...myRequests]);
+
+      setShowExitSurveyModal(false);
+      setShowExitSignatureModal(false);
+      setExitReason('');
+      handleClearExitSignature();
+
+      alert('Ваше заявление на выход отправлено администратору.');
+
+      // Отправляем уведомление в Telegram
+      try {
+        const token = await user.getIdToken();
+        await fetch('/api/send-telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            text: `⚠️ <b>Заявление на выход из профсоюза!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n📝 <b>Причина:</b>\n${exitReason}\n\n📎 <a href="${exitStatementUrl}">Заявление на выход</a>\n📎 <a href="${exitDeductionUrl}">Остановка удержаний</a>`
+          })
+        });
+      } catch (tgError) {
+        console.error('Telegram notification failed:', tgError);
+      }
+
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при формировании заявления');
+    } finally {
+      setIsSubmittingExit(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -1165,9 +1285,12 @@ export default function DashboardPage() {
                   <>
                     <h2 className="font-black text-3xl text-gray-900 mb-1">{userData.displayName}</h2>
                     <p className="text-blue-500 font-bold text-lg mb-6">{userData.position}</p>
-                    <div className="flex gap-2 justify-center">
+                    <div className="flex gap-2 justify-center mt-4">
                       <button onClick={() => setIsEditing(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm transition">Редактировать</button>
                       <button onClick={() => setShowLeaveModal(true)} className="bg-orange-50 hover:bg-orange-100 text-orange-600 px-6 py-2 rounded-xl font-bold text-sm transition">В отпуск / декрет</button>
+                    </div>
+                    <div className="flex justify-center mt-2">
+                      <button onClick={() => setShowExitSurveyModal(true)} className="bg-red-50 hover:bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold text-sm transition">Выйти из профсоюза</button>
                     </div>
                   </>
                 ) : (
@@ -1605,6 +1728,160 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ОПРОСНИК: Причина выхода */}
+      {showExitSurveyModal && !showExitSignatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setShowExitSurveyModal(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition">✕</button>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Выход из профсоюза</h2>
+            <p className="text-gray-500 text-sm mb-6 font-medium">Пожалуйста, расскажите, почему вы решили выйти. Эта информация поможет нам стать лучше.</p>
+            
+            <textarea 
+              value={exitReason} 
+              onChange={(e) => setExitReason(e.target.value)} 
+              placeholder="Напишите причину здесь..."
+              className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none focus:ring-2 focus:ring-red-200 h-32 resize-none mb-4"
+              required
+            />
+
+            <button 
+              onClick={() => {
+                if (!exitReason) {
+                  alert('Пожалуйста, укажите причину');
+                  return;
+                }
+                setShowExitSignatureModal(true);
+              }} 
+              className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-200 hover:bg-red-600 transition"
+            >
+              Далее (Подписать заявление)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ПОДПИСЬ: Заявление на выход */}
+      {showExitSignatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => { setShowExitSignatureModal(false); setExitSignatureDataUrl(''); }} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition">✕</button>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Подписание заявлений</h2>
+            <p className="text-gray-500 text-sm mb-6 font-medium">Распишитесь ниже. Ваша подпись будет прикреплена к заявлениям на выход и прекращение удержаний.</p>
+
+            {!exitSignatureDataUrl ? (
+              <>
+                <div className="border-2 border-dashed border-gray-200 rounded-2xl overflow-hidden mb-4 bg-gray-50">
+                  <SignatureCanvas 
+                    ref={exitSignaturePad} 
+                    canvasProps={{ className: 'w-full h-40 cursor-crosshair' }} 
+                    minWidth={1}
+                    maxWidth={2}
+                    penColor="blue"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleClearExitSignature} className="flex-1 py-3 font-bold text-gray-500 bg-gray-100 rounded-xl hover:bg-gray-200 transition">Очистить</button>
+                  <button type="button" onClick={handleSaveExitSignature} className="flex-1 py-3 font-black text-white bg-blue-500 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-600 transition">Сохранить</button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-6 rounded-2xl flex items-center justify-center border-2 border-blue-100">
+                  <img src={exitSignatureDataUrl} alt="Saved Signature" className="max-h-24 max-w-[200px]" />
+                </div>
+                <button type="button" onClick={() => setExitSignatureDataUrl('')} className="w-full text-center text-sm font-bold text-blue-500 hover:text-blue-600 transition">
+                  Перерисовать подпись
+                </button>
+              </div>
+            )}
+
+            <button 
+              onClick={handleSendExitRequest}
+              disabled={isSubmittingExit || !exitSignatureDataUrl}
+              className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-200 hover:bg-red-700 transition disabled:opacity-50 mt-6"
+            >
+              {isSubmittingExit ? 'Формирование PDF и отправка...' : 'Отправить заявления'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* СКРЫТЫЕ ШАБЛОНЫ ДЛЯ ГЕНЕРАЦИИ PDF ПРИ ВЫХОДЕ */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '0' }}>
+        {/* Шаблон: Заявление на выход */}
+        <div id="exit-membership-template" style={{ width: '794px', height: '1123px', backgroundColor: '#fff', color: '#000', padding: '80px', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
+          <div style={{ textAlign: 'right', marginBottom: '60px', fontSize: '18px', lineHeight: '1.5' }}>
+            Председателю ОО<br/>
+            «Локальный Профсоюз<br/>
+            Работников Авиации Казахстана»<br/>
+            Фелькеру П.В.<br/>
+            от <b>{userData?.displayName || '________________'}</b><br/>
+            <span style={{ fontSize: '14px' }}>(Ф.И.О.)</span><br/>
+            <b>{userData?.position || '________________'}</b><br/>
+            <span style={{ fontSize: '14px' }}>(департамент/отдел)</span><br/>
+            <b>{userData?.phoneNumber || '________________'}</b><br/>
+            <span style={{ fontSize: '14px' }}>(контактный телефон)</span>
+          </div>
+
+          <h2 style={{ textAlign: 'center', marginBottom: '40px', fontSize: '20px' }}>Заявление</h2>
+
+          <p style={{ textIndent: '40px', fontSize: '18px', lineHeight: '1.6', marginBottom: '40px' }}>
+            Я, <b>{userData?.displayName || '_________________________________________________'}</b>,
+            прошу Вас исключить меня из членов ОО «Локальный Профсоюз Работников Авиации Казахстана» по собственному желанию.
+          </p>
+
+          <p style={{ fontSize: '18px', lineHeight: '1.6', marginBottom: '80px' }}>
+            Причина: {exitReason}
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <span>Подпись</span>
+              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative' }}>
+                {exitSignatureDataUrl && <img src={exitSignatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '50px', maxWidth: '150px' }} />}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <span>Дата</span>
+              <div style={{ width: '200px', borderBottom: '1px solid #000', textAlign: 'center' }}>{new Date().toLocaleDateString('ru-RU')}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Шаблон: Заявление на прекращение удержания */}
+        <div id="exit-deduction-template" style={{ width: '794px', height: '1123px', backgroundColor: '#fff', color: '#000', padding: '80px', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
+          <div style={{ textAlign: 'right', marginBottom: '60px', fontSize: '18px', lineHeight: '1.5' }}>
+            Главному бухгалтеру<br/>
+            Хасеновой С.<br/>
+            от <b>{userData?.displayName || '________________'}</b><br/>
+            <span style={{ fontSize: '14px' }}>(Ф.И.О.)</span><br/>
+            <b>{userData?.position || '________________'}</b><br/>
+            <span style={{ fontSize: '14px' }}>(департамент/отдел)</span><br/>
+            <b>{userData?.phoneNumber || '________________'}</b><br/>
+            <span style={{ fontSize: '14px' }}>(контактный телефон)</span>
+          </div>
+
+          <h2 style={{ textAlign: 'center', marginBottom: '40px', fontSize: '20px' }}>Заявление</h2>
+
+          <p style={{ textIndent: '40px', fontSize: '18px', lineHeight: '1.6', marginBottom: '80px' }}>
+            Прошу прекратить удержание профсоюзных взносов в размере 1% от заработной платы для перечисления на расчетный счет ОО «Локальный Профсоюз Работников Авиации Казахстана» в связи с выходом из профсоюза.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <span>Подпись</span>
+              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative' }}>
+                {exitSignatureDataUrl && <img src={exitSignatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '50px', maxWidth: '150px' }} />}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <span>Дата</span>
+              <div style={{ width: '200px', borderBottom: '1px solid #000', textAlign: 'center' }}>{new Date().toLocaleDateString('ru-RU')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Footer Nav */}
       <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto overflow-x-auto no-scrollbar gap-1">
