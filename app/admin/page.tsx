@@ -20,6 +20,8 @@ interface UserData {
   idCardUrl?: string;
   category?: string;
   leaveStatus?: 'none' | 'unpaid' | 'maternity';
+  leaveStartDate?: string;
+  leaveEndDate?: string;
 }
 
 // Тесты
@@ -111,7 +113,7 @@ export default function AdminPage() {
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isEditingUser, setIsEditingUser] = useState(false);
-  const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '', category: '', leaveStatus: 'none' as 'none' | 'unpaid' | 'maternity' });
+  const [editUserForm, setEditUserForm] = useState({ name: '', pos: '', phone: '', email: '', category: '', leaveStatus: 'none' as 'none' | 'unpaid' | 'maternity', leaveStartDate: '', leaveEndDate: '' });
   const [pendingCategories, setPendingCategories] = useState<{[key: string]: string}>({});
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortMode, setUserSortMode] = useState<'alpha' | 'date'>('alpha');
@@ -675,10 +677,12 @@ export default function AdminPage() {
         phoneNumber: editUserForm.phone,
         email: editUserForm.email,
         category: editUserForm.category,
-        leaveStatus: editUserForm.leaveStatus
+        leaveStatus: editUserForm.leaveStatus,
+        leaveStartDate: editUserForm.leaveStartDate,
+        leaveEndDate: editUserForm.leaveEndDate
       };
       await updateDoc(doc(db, 'users', selectedUser.id), updateData);
-      setSelectedUser({...selectedUser, displayName: editUserForm.name, position: editUserForm.pos, phoneNumber: editUserForm.phone, email: editUserForm.email, category: editUserForm.category, leaveStatus: editUserForm.leaveStatus});
+      setSelectedUser({...selectedUser, displayName: editUserForm.name, position: editUserForm.pos, phoneNumber: editUserForm.phone, email: editUserForm.email, category: editUserForm.category, leaveStatus: editUserForm.leaveStatus, leaveStartDate: editUserForm.leaveStartDate, leaveEndDate: editUserForm.leaveEndDate});
       setIsEditingUser(false);
       await logAction('edit_user', 'user', `Отредактирован профиль: ${selectedUser.id}`);
       fetchData();
@@ -1661,7 +1665,7 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-gray-100">
                       {filteredApprovedUsers
                         .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600 flex items-center gap-1">{u.displayName}{u.leaveStatus === 'unpaid' && <span title="Отпуск без содержания" className="text-base leading-none">🏖️</span>}{u.leaveStatus === 'maternity' && <span title="Декретный отпуск" className="text-base leading-none">🍼</span>}</div><div className="text-xs font-bold text-gray-500">{u.position}</div>{u.joinDate && <div className="text-[10px] text-green-600 font-bold mt-0.5">🔰 В профсоюзе с {u.joinDate}</div>}</div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl, u.deductionUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
+                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600 flex items-center gap-1">{u.displayName}{u.leaveStatus === 'unpaid' && <span title={`Отпуск без содержания\n${u.leaveStartDate || ''} - ${u.leaveEndDate || ''}`} className="text-base leading-none">🏖️</span>}{u.leaveStatus === 'maternity' && <span title={`Декретный отпуск\n${u.leaveStartDate || ''} - ${u.leaveEndDate || ''}`} className="text-base leading-none">🍼</span>}{(u.leaveStatus === 'unpaid' || u.leaveStatus === 'maternity') && u.leaveEndDate && <span className="text-[10px] text-gray-400 font-bold ml-1">до {new Date(u.leaveEndDate).toLocaleDateString('ru-RU')}</span>}</div><div className="text-xs font-bold text-gray-500">{u.position}</div>{u.joinDate && <div className="text-[10px] text-green-600 font-bold mt-0.5">🔰 В профсоюзе с {u.joinDate}</div>}</div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl, u.deductionUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
                     </tbody>
                   </table>
                 </div>
@@ -1712,7 +1716,7 @@ export default function AdminPage() {
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white relative">
                     <div className="absolute top-6 right-6 flex gap-2">
                       {!isEditingUser ? (
-                        <button onClick={() => { setIsEditingUser(true); setEditUserForm({ name: selectedUser.displayName, pos: selectedUser.position, phone: selectedUser.phoneNumber || '', email: selectedUser.email, category: selectedUser.category || '', leaveStatus: selectedUser.leaveStatus || 'none' }); }} className="bg-white/20 rounded-full p-2 hover:bg-white/30 text-sm font-bold px-4">✏️ Редактировать</button>
+                        <button onClick={() => { setIsEditingUser(true); setEditUserForm({ name: selectedUser.displayName, pos: selectedUser.position, phone: selectedUser.phoneNumber || '', email: selectedUser.email, category: selectedUser.category || '', leaveStatus: selectedUser.leaveStatus || 'none', leaveStartDate: selectedUser.leaveStartDate || '', leaveEndDate: selectedUser.leaveEndDate || '' }); }} className="bg-white/20 rounded-full p-2 hover:bg-white/30 text-sm font-bold px-4">✏️ Редактировать</button>
                       ) : (
                         <button onClick={handleSaveUserEdit} className="bg-green-500 rounded-full p-2 hover:bg-green-600 text-sm font-bold px-4 shadow-lg">✅ Сохранить</button>
                       )}
@@ -1742,6 +1746,12 @@ export default function AdminPage() {
                                 <option value="maternity" className="text-black">🍼 Декретный</option>
                               </select>
                             </div>
+                            {editUserForm.leaveStatus !== 'none' && (
+                              <div className="flex gap-2 mt-2">
+                                <input type="date" className="font-bold text-white bg-black/20 rounded-lg px-3 py-1 outline-none flex-1" value={editUserForm.leaveStartDate} onChange={e => setEditUserForm({...editUserForm, leaveStartDate: e.target.value})} title="Дата начала" />
+                                <input type="date" className="font-bold text-white bg-black/20 rounded-lg px-3 py-1 outline-none flex-1" value={editUserForm.leaveEndDate} onChange={e => setEditUserForm({...editUserForm, leaveEndDate: e.target.value})} title="Дата окончания" />
+                              </div>
+                            )}
                           </>
                         ) : (
                           <>

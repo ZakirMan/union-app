@@ -415,6 +415,65 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSendLeaveNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leaveStartDate || !user) {
+      alert('Укажите дату начала');
+      return;
+    }
+    setIsSubmittingLeave(true);
+    try {
+      let finalEndDate = leaveEndDate;
+      if (leaveType === 'Декретный отпуск' && !finalEndDate) {
+        const start = new Date(leaveStartDate);
+        start.setFullYear(start.getFullYear() + 1);
+        finalEndDate = start.toISOString().split('T')[0];
+      }
+
+      const text = `Уведомление об отпуске: ${leaveType}\nС ${leaveStartDate}${finalEndDate ? ' по ' + finalEndDate : ''}${leaveComment ? '\nКомментарий: ' + leaveComment : ''}`;
+      
+      // Создаем обращение
+      const newReqData = {
+        userId: user.uid,
+        userEmail: user.email || '',
+        text,
+        fileUrl: '',
+        status: 'new',
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'requests'), newReqData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setMyRequests([{ ...newReqData, id: docRef.id } as any, ...myRequests]);
+
+      // Автоматически обновляем статус пользователя
+      await updateDoc(doc(db, 'users', user.uid), {
+        leaveStatus: leaveType === 'Декретный отпуск' ? 'maternity' : 'unpaid',
+        leaveStartDate,
+        leaveEndDate: finalEndDate
+      });
+
+      setShowLeaveModal(false);
+      setLeaveStartDate('');
+      setLeaveEndDate('');
+      setLeaveComment('');
+      alert('Уведомление отправлено и статус обновлен!');
+
+      // Отправляем уведомление в Telegram
+      try {
+        const token = await user.getIdToken();
+        await fetch('/api/send-telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            text: `🏖️ <b>Уведомление об отпуске / декрете!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n📝 <b>Детали:</b>\n${text}`
+          })
+        });
+      } catch (tgError) {
+        console.error('Telegram notification failed:', tgError);
+      }
+    } catch { alert('Ошибка'); } finally { setIsSubmittingLeave(false); }
+  };
+
   const handleSaveProfile = async () => {
     if (!user || !userData) return;
     setIsSavingProfile(true);
