@@ -121,6 +121,14 @@ export default function DashboardPage() {
   const [aidFile, setAidFile] = useState<File | null>(null);
   const [isSubmittingAid, setIsSubmittingAid] = useState(false);
 
+  // Уведомления об отпуске
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveType, setLeaveType] = useState('Отпуск без содержания');
+  const [leaveStartDate, setLeaveStartDate] = useState('');
+  const [leaveEndDate, setLeaveEndDate] = useState('');
+  const [leaveComment, setLeaveComment] = useState('');
+  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
+
   // Тестирование
   const [activeTest, setActiveTest] = useState<Test | null>(null);
   const [testAnswers, setTestAnswers] = useState<{ [key: string]: string }>({});
@@ -1098,7 +1106,10 @@ export default function DashboardPage() {
                   <>
                     <h2 className="font-black text-3xl text-gray-900 mb-1">{userData.displayName}</h2>
                     <p className="text-blue-500 font-bold text-lg mb-6">{userData.position}</p>
-                    <button onClick={() => setIsEditing(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm transition">Редактировать профиль</button>
+                    <div className="flex gap-2 justify-center">
+                      <button onClick={() => setIsEditing(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm transition">Редактировать</button>
+                      <button onClick={() => setShowLeaveModal(true)} className="bg-orange-50 hover:bg-orange-100 text-orange-600 px-6 py-2 rounded-xl font-bold text-sm transition">В отпуск / декрет</button>
+                    </div>
                   </>
                 ) : (
                   <div className="space-y-4 max-w-xs mx-auto">
@@ -1475,6 +1486,61 @@ export default function DashboardPage() {
                 className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition disabled:opacity-50 mt-4"
               >
                 {isSubmittingAid ? 'Отправка...' : 'Отправить запрос'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно уведомления об отпуске */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setShowLeaveModal(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition">✕</button>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Уведомить об отпуске</h2>
+            <p className="text-gray-500 text-sm mb-6 font-medium">Сообщите, чтобы вас не исключили из профсоюза из-за приостановки выплат.</p>
+            
+            <form onSubmit={handleSendLeaveNotice} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Тип отпуска</label>
+                <select 
+                  value={leaveType} 
+                  onChange={(e) => setLeaveType(e.target.value)} 
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-200 appearance-none"
+                  required
+                >
+                  <option value="Отпуск без содержания">Отпуск без содержания</option>
+                  <option value="Декретный отпуск">Декретный отпуск</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Дата начала</label>
+                  <input type="date" required value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">По дату (не обяз.)</label>
+                  <input type="date" value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-200" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Комментарий</label>
+                <textarea 
+                  value={leaveComment} 
+                  onChange={(e) => setLeaveComment(e.target.value)} 
+                  placeholder="Дополнительная информация..."
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none focus:ring-2 focus:ring-blue-200 h-24 resize-none"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isSubmittingLeave}
+                className="w-full bg-orange-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-200 hover:bg-orange-600 transition disabled:opacity-50 mt-4"
+              >
+                {isSubmittingLeave ? 'Отправка...' : 'Отправить уведомление'}
               </button>
             </form>
           </div>
