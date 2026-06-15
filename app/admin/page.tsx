@@ -89,7 +89,7 @@ interface AdminLog {
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'delegations' | 'users' | 'news' | 'requests' | 'resources' | 'team' | 'polls' | 'logs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'delegations' | 'users' | 'news' | 'requests' | 'resources' | 'team' | 'polls' | 'logs' | 'registry'>('dashboard');
   const [eventSubTab, setEventSubTab] = useState<'conferences' | 'tests'>('conferences');
   const [delegationSubTab, setDelegationSubTab] = useState<'pending' | 'history'>('pending');
   const [delegationFilterConf, setDelegationFilterConf] = useState<string>('all');
@@ -117,6 +117,7 @@ export default function AdminPage() {
   const [pendingCategories, setPendingCategories] = useState<{[key: string]: string}>({});
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortMode, setUserSortMode] = useState<'alpha' | 'date'>('alpha');
+  const [userStatusFilter, setUserStatusFilter] = useState<'approved' | 'frozen' | 'all'>('approved');
   const [userCategoryFilter, setUserCategoryFilter] = useState('');
 
   // Конструктор теста
@@ -700,6 +701,22 @@ export default function AdminPage() {
     } 
   };
 
+  const handleFreezeUser = async (u: UserData) => {
+    if (confirm(`Заморозить аккаунт ${u.displayName}?`)) {
+      await updateDoc(doc(db, 'users', u.id), { status: 'frozen' });
+      await logAction('freeze_user', 'user', `Участник заморожен: ${u.id}`);
+      fetchData();
+    }
+  };
+
+  const handleUnfreezeUser = async (u: UserData) => {
+    if (confirm(`Разморозить аккаунт ${u.displayName}?`)) {
+      await updateDoc(doc(db, 'users', u.id), { status: 'approved' });
+      await logAction('unfreeze_user', 'user', `Участник разморожен: ${u.id}`);
+      fetchData();
+    }
+  };
+
   const handleSaveUserEdit = async () => {
     if (!selectedUser) return;
     try {
@@ -940,7 +957,7 @@ export default function AdminPage() {
 
   const filteredApprovedUsers = users
     .filter(u => 
-      u.status === 'approved' && 
+      (userStatusFilter === 'all' ? (u.status === 'approved' || u.status === 'frozen') : u.status === userStatusFilter) && 
       (userCategoryFilter === '' || 
        (userCategoryFilter === 'none' && !u.category) || 
        u.category === userCategoryFilter) &&
@@ -1652,6 +1669,18 @@ export default function AdminPage() {
                   <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
                     <select
                       className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-blue-500 text-sm font-bold bg-white"
+                      value={userStatusFilter}
+                      onChange={(e) => {
+                        setUserStatusFilter(e.target.value as any);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="approved">Активные</option>
+                      <option value="frozen">Замороженные</option>
+                      <option value="all">Все</option>
+                    </select>
+                    <select
+                      className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-blue-500 text-sm font-bold bg-white"
                       value={userCategoryFilter}
                       onChange={(e) => {
                         setUserCategoryFilter(e.target.value);
@@ -1699,7 +1728,12 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-gray-100">
                       {filteredApprovedUsers
                         .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600 flex items-center gap-1">{u.displayName}{u.leaveStatus === 'unpaid' && <span title={`Отпуск без содержания\n${u.leaveStartDate || ''} - ${u.leaveEndDate || ''}`} className="text-base leading-none">🏖️</span>}{u.leaveStatus === 'maternity' && <span title={`Декретный отпуск\n${u.leaveStartDate || ''} - ${u.leaveEndDate || ''}`} className="text-base leading-none">🍼</span>}{(u.leaveStatus === 'unpaid' || u.leaveStatus === 'maternity') && u.leaveEndDate && <span className="text-[10px] text-gray-400 font-bold ml-1">до {new Date(u.leaveEndDate).toLocaleDateString('ru-RU')}</span>}</div><div className="text-xs font-bold text-gray-500">{u.position}</div>{u.joinDate && <div className="text-[10px] text-green-600 font-bold mt-0.5">🔰 В профсоюзе с {u.joinDate}</div>}</div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right"><button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl, u.deductionUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
+                        .map(u => (<tr key={u.id} className="hover:bg-blue-50/50 cursor-pointer group" onClick={() => setSelectedUser(u)}><td className="p-6"><div className="flex items-center gap-4"><div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center relative">{u.photoUrl ? <Image src={u.photoUrl} alt={u.displayName} fill className="object-cover" /> : '👤'}</div><div><div className="font-black text-gray-900 group-hover:text-blue-600 flex items-center gap-1">{u.displayName}{u.leaveStatus === 'unpaid' && <span title={`Отпуск без содержания\n${u.leaveStartDate || ''} - ${u.leaveEndDate || ''}`} className="text-base leading-none">🏖️</span>}{u.leaveStatus === 'maternity' && <span title={`Декретный отпуск\n${u.leaveStartDate || ''} - ${u.leaveEndDate || ''}`} className="text-base leading-none">🍼</span>}{(u.leaveStatus === 'unpaid' || u.leaveStatus === 'maternity') && u.leaveEndDate && <span className="text-[10px] text-gray-400 font-bold ml-1">до {new Date(u.leaveEndDate).toLocaleDateString('ru-RU')}</span>}</div><div className="text-xs font-bold text-gray-500">{u.position}</div>{u.status === 'frozen' && <div className="text-[10px] text-orange-600 font-bold mt-0.5 bg-orange-100 px-2 py-0.5 rounded-md inline-block">❄️ Заморожен</div>}{u.joinDate && <div className="text-[10px] text-green-600 font-bold mt-0.5">🔰 В профсоюзе с {u.joinDate}</div>}</div></div></td><td className="p-6"><div className="text-sm font-bold">{u.phoneNumber}</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right">{u.status === 'frozen' ? (
+  <button onClick={(e) => { e.stopPropagation(); handleUnfreezeUser(u); }} className="text-blue-500 hover:text-blue-700 font-bold px-2 whitespace-nowrap text-xs">Разморозить</button>
+) : (
+  <button onClick={(e) => { e.stopPropagation(); handleFreezeUser(u); }} className="text-orange-300 hover:text-orange-500 font-bold px-2 whitespace-nowrap text-xs">❄️ Заморозить</button>
+)}
+<button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl, u.deductionUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
                     </tbody>
                   </table>
                 </div>
@@ -2348,6 +2382,59 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
+
+              {/* АНАЛИЗ ОТВАЛИВШИХСЯ */}
+              {registryNames.length > 0 && (
+                <div className="mt-8 bg-white p-6 rounded-[2rem] border border-orange-100 shadow-sm">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h3 className="font-black text-xl text-orange-900">Кандидаты на заморозку (Отвалившиеся)</h3>
+                    <div className="text-sm text-gray-500 font-bold">
+                      Участники, которых нет в текущем загруженном реестре
+                    </div>
+                  </div>
+                  
+                  <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+                    <table className="w-full text-left border-collapse min-w-[500px]">
+                      <thead className="bg-orange-50/50 text-orange-800 text-xs uppercase tracking-wider font-bold">
+                        <tr>
+                          <th className="p-4 pl-6">Сотрудник</th>
+                          <th className="p-4">Категория / Должность</th>
+                          <th className="p-4 text-right">Действие</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {users.filter(u => {
+                          if (u.status !== 'approved') return false;
+                          const inRegistry = registryNames.some(name => 
+                            u.displayName.toLowerCase().includes(name.toLowerCase()) || 
+                            name.toLowerCase().includes(u.displayName.toLowerCase())
+                          );
+                          return !inRegistry;
+                        }).map(u => (
+                          <tr key={u.id} className="hover:bg-orange-50/30 transition-colors">
+                            <td className="p-4 pl-6 font-bold">
+                              <div>{u.displayName}</div>
+                              <div className="text-xs text-gray-400 font-normal">{u.email}</div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm">{u.category || 'Без категории'}</div>
+                              <div className="text-xs text-gray-400">{u.position}</div>
+                            </td>
+                            <td className="p-4 text-right">
+                              <button onClick={() => handleFreezeUser(u)} className="bg-orange-100 text-orange-700 hover:bg-orange-200 px-4 py-2 rounded-xl text-sm font-black transition-colors">
+                                ❄️ Заморозить
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {users.filter(u => u.status === 'approved' && !registryNames.some(name => u.displayName.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(u.displayName.toLowerCase()))).length === 0 && (
+                          <tr><td colSpan={3} className="p-8 text-center text-gray-400 font-bold">Все текущие участники найдены в реестре ✅</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

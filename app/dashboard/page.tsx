@@ -826,6 +826,23 @@ export default function DashboardPage() {
     );
   }
 
+  if (userData?.status === 'frozen') {
+    return (
+      <div className="min-h-screen bg-[#F2F6FF] font-sans text-[#1A1A1A] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl text-center border border-orange-100">
+          <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">❄️</div>
+          <h2 className="text-2xl font-black text-gray-900 mb-4">Аккаунт временно заморожен</h2>
+          <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+            Ваш аккаунт временно приостановлен. Если вы считаете, что произошла ошибка, или вы вернулись из отпуска/декрета, пожалуйста, обратитесь в бухгалтерию или к администратору для восстановления доступа.
+          </p>
+          <button onClick={() => signOut(auth)} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-black transition-all">
+            Выйти из аккаунта
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (userData?.status === 'pending') return <div className="p-10 text-center">Ожидание подтверждения</div>;
 
   return (
