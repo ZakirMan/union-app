@@ -171,6 +171,12 @@ export default function AdminPage() {
   const [manualAidFile, setManualAidFile] = useState<File | null>(null);
   const [isSubmittingManualAid, setIsSubmittingManualAid] = useState(false);
 
+  // Реестр бухгалтерии
+  const [registryNames, setRegistryNames] = useState<string[]>([]);
+  const [registryInput, setRegistryInput] = useState('');
+  const [isSavingRegistry, setIsSavingRegistry] = useState(false);
+  const [registryFilter, setRegistryFilter] = useState<'all' | 'unregistered'>('all');
+
   const itemsPerPage = 10;
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, eventSubTab, delegationSubTab]);
@@ -221,6 +227,14 @@ export default function AdminPage() {
       const settingsSnap = await getDoc(doc(db, 'settings', 'general'));
       if (settingsSnap.exists()) {
         setAccountingEmail(settingsSnap.data().accountingEmail || '');
+      }
+
+      // Реестр бухгалтерии
+      const registryDoc = await getDoc(doc(db, 'admin', 'registry'));
+      if (registryDoc.exists()) {
+        const names = registryDoc.data().names || [];
+        setRegistryNames(names);
+        setRegistryInput(names.join('\n'));
       }
 
       setLoading(false);
@@ -304,6 +318,24 @@ export default function AdminPage() {
       setDocTitle(''); setDocContent(''); setEditingDocId(null); setIsCreatingDoc(false);
       fetchData();
     } catch { alert('Ошибка при сохранении документа'); }
+  };
+
+  const handleSaveRegistry = async () => {
+    setIsSavingRegistry(true);
+    try {
+      const names = registryInput.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+      await updateDoc(doc(db, 'admin', 'registry'), { names }).catch(async () => {
+        await setDoc(doc(db, 'admin', 'registry'), { names });
+      });
+      setRegistryNames(names);
+      await logAction('update_registry', 'system', `Обновлен реестр бухгалтерии (записей: ${names.length})`);
+      alert('Реестр успешно сохранен!');
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при сохранении реестра.');
+    } finally {
+      setIsSavingRegistry(false);
+    }
   };
 
   const handleEditDocument = (d: UnionDocument) => {
@@ -1022,7 +1054,8 @@ export default function AdminPage() {
             { id: 'news', label: 'Новости', icon: '📰' },
             { id: 'resources', label: 'Ресурсы', icon: '📂' },
             { id: 'team', label: 'Совет', icon: '👔' },
-            { id: 'logs', label: 'Аудит', icon: '🛡️' }
+            { id: 'logs', label: 'Аудит', icon: '🛡️' },
+            { id: 'registry', label: 'Реестр', icon: '📋' }
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`px-4 py-2.5 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition-all duration-300 text-sm ${activeTab === tab.id ? 'bg-white text-blue-900 shadow-lg scale-105' : 'bg-blue-900/40 text-blue-100 hover:bg-blue-800/50'}`}>
               <span className="text-base">{tab.icon}</span> {tab.label}
@@ -1045,7 +1078,8 @@ export default function AdminPage() {
                 { id: 'news', label: 'Новости', icon: '📰' },
                 { id: 'resources', label: 'Ресурсы', icon: '📂' },
                 { id: 'team', label: 'Совет', icon: '👔' },
-                { id: 'logs', label: 'Аудит', icon: '🛡️' }
+                { id: 'logs', label: 'Аудит', icon: '🛡️' },
+                { id: 'registry', label: 'Реестр', icon: '📋' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -2233,6 +2267,86 @@ export default function AdminPage() {
                     <button onClick={() => setCurrentPage(p => (p * itemsPerPage < logs.length ? p + 1 : p))} disabled={currentPage * itemsPerPage >= logs.length} className="px-4 py-2 rounded-xl bg-gray-100 font-bold text-gray-600 disabled:opacity-50">→</button>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ВКЛАДКА: РЕЕСТР БУХГАЛТЕРИИ */}
+          {activeTab === 'registry' && (
+            <div className="animate-in fade-in zoom-in-95 duration-300 pb-12">
+              <div className="flex justify-between items-end mb-8">
+                <div>
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">Реестр бухгалтерии</h2>
+                  <p className="text-gray-500 font-medium mt-2">Список плательщиков взносов для сверки (всего: {registryNames.length})</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Левая колонка - Импорт */}
+                <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm h-fit">
+                  <h3 className="font-black text-xl mb-4">Импорт списка</h3>
+                  <p className="text-sm text-gray-500 mb-4">Вставьте список ФИО плательщиков (каждое имя с новой строки).</p>
+                  <textarea
+                    value={registryInput}
+                    onChange={(e) => setRegistryInput(e.target.value)}
+                    placeholder="Иванов Иван Иванович&#10;Петров Петр Петрович"
+                    className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none focus:ring-2 focus:ring-indigo-200 h-64 resize-none mb-4"
+                  />
+                  <button
+                    onClick={handleSaveRegistry}
+                    disabled={isSavingRegistry}
+                    className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition disabled:opacity-50"
+                  >
+                    {isSavingRegistry ? 'Сохранение...' : 'Обновить реестр'}
+                  </button>
+                </div>
+
+                {/* Правая колонка - Аналитика */}
+                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h3 className="font-black text-xl">Сверка базы</h3>
+                    <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+                      <button onClick={() => setRegistryFilter('all')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${registryFilter === 'all' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>Все</button>
+                      <button onClick={() => setRegistryFilter('unregistered')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${registryFilter === 'unregistered' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}>Только незарег.</button>
+                    </div>
+                  </div>
+                  
+                  <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+                    <table className="w-full text-left border-collapse min-w-[500px]">
+                      <thead className="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider font-bold">
+                        <tr>
+                          <th className="p-4 pl-6">ФИО из реестра</th>
+                          <th className="p-4 text-center">Статус</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {registryNames.map(name => {
+                          const isRegistered = users.some(u => 
+                            u.status === 'approved' && 
+                            (u.displayName.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(u.displayName.toLowerCase()))
+                          );
+                          if (registryFilter === 'unregistered' && isRegistered) return null;
+                          
+                          return (
+                            <tr key={name} className="hover:bg-gray-50 transition-colors">
+                              <td className="p-4 pl-6 font-bold">{name}</td>
+                              <td className="p-4 text-center">
+                                {isRegistered ? (
+                                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black inline-flex items-center gap-1"><span className="text-[12px]">✅</span> В приложении</span>
+                                ) : (
+                                  <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-black inline-flex items-center gap-1"><span className="text-[12px]">❌</span> Не зарегистрирован</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {registryNames.length === 0 && (
+                          <tr><td colSpan={2} className="p-8 text-center text-gray-400 font-bold">Реестр пуст</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           )}
