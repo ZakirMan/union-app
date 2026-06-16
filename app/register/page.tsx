@@ -14,7 +14,10 @@ import jsPDF from 'jspdf';
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const name = [lastName, firstName, middleName].filter(Boolean).join(' ');
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState('');
   const [tabelNumber, setTabelNumber] = useState(''); // НОВОЕ ПОЛЕ
@@ -286,9 +289,19 @@ export default function RegisterPage() {
         {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>}
 
         <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-1">ФИО</label>
-            <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Имя Фамилия" value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Фамилия</label>
+              <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иванов" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Имя</label>
+              <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иван" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Отчество (если есть)</label>
+              <input type="text" className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иванович" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
+            </div>
           </div>
 
           <div>
