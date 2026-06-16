@@ -332,9 +332,34 @@ export default function AdminPage() {
       lines.forEach(line => {
         const parts = line.split('\t');
         if (parts.length >= 2) {
-          let amountStr = parts[parts.length - 1].replace(/,/g, '.').replace(/[^\d.-]/g, '');
+          let amountStr = parts[parts.length - 1];
           let nameStr = parts.length >= 3 ? parts[parts.length - 2] : parts[0];
-          let amount = parseFloat(amountStr);
+          
+          let str = amountStr.replace(/\s+/g, '').replace(/[^\d.,-]/g, '');
+          const lastDot = str.lastIndexOf('.');
+          const lastComma = str.lastIndexOf(',');
+          const sepIdx = Math.max(lastDot, lastComma);
+          
+          if (sepIdx !== -1) {
+              const hasBoth = lastDot !== -1 && lastComma !== -1;
+              if (hasBoth) {
+                  if (lastDot > lastComma) {
+                      str = str.replace(/,/g, '');
+                  } else {
+                      str = str.replace(/\./g, '').replace(',', '.');
+                  }
+              } else {
+                  if (str.length - sepIdx - 1 === 2) {
+                      str = str.substring(0, sepIdx).replace(/[.,]/g, '') + '.' + str.substring(sepIdx + 1);
+                  } else if (str.length - sepIdx - 1 === 3) {
+                      str = str.replace(/[.,]/g, '');
+                  } else {
+                      str = str.substring(0, sepIdx).replace(/[.,]/g, '') + '.' + str.substring(sepIdx + 1);
+                  }
+              }
+          }
+          let amount = parseFloat(str);
+
           if (!isNaN(amount) && nameStr.trim().length > 3 && !/^\d+$/.test(nameStr)) {
             records.push({ name: nameStr.trim(), amount });
           }
