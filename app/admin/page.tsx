@@ -743,14 +743,18 @@ export default function AdminPage() {
   const handleDeleteUserFile = async (id: string, fileUrl: string, field: 'statementUrl' | 'idCardUrl' | 'deductionUrl') => {
     if (confirm('Удалить прикрепленный файл пользователя из облака?')) {
       try {
-        const fileRef = ref(storage, fileUrl);
-        await deleteObject(fileRef);
+        try {
+          const fileRef = ref(storage, fileUrl);
+          await deleteObject(fileRef);
+        } catch (storageErr) {
+          console.warn("Файл не найден в хранилище, удаляем только ссылку:", storageErr);
+        }
         await updateDoc(doc(db, 'users', id), { [field]: '' });
         await logAction('delete_user_file', 'user', `Удален файл у пользователя: ${id}`);
         fetchData();
       } catch (e) {
-        console.error("Ошибка при удалении файла", e);
-        alert('Ошибка при удалении файла. Возможно, он уже удален.');
+        console.error("Ошибка при обновлении профиля пользователя", e);
+        alert('Ошибка при удалении файла.');
       }
     }
   };
