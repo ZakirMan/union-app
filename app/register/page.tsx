@@ -292,21 +292,21 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-1">Фамилия</label>
-              <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иванов" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иванов" pattern="[А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨө\s\-]+" title="Пожалуйста, введите на кириллице" value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-1">Имя</label>
-              <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иван" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иван" pattern="[А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨө\s\-]+" title="Пожалуйста, введите на кириллице" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-1">Отчество (если есть)</label>
-              <input type="text" className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иванович" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
+              <input type="text" className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Иванович" pattern="[А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨө\s\-]+" title="Пожалуйста, введите на кириллице" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-1">Должность</label>
-            <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Ваша должность" value={position} onChange={(e) => setPosition(e.target.value)} />
+            <input type="text" required className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Ваша должность" pattern="[А-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨө0-9\s\-\.,]+" title="Пожалуйста, введите на кириллице" value={position} onChange={(e) => setPosition(e.target.value)} />
           </div>
 
           <div>
