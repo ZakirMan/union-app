@@ -2206,7 +2206,13 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} /><div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button></div>))}</div>
+          {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} /><div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button>
+<button onClick={() => {
+  setEditingNews(n);
+  setEditNewsTitle(n.title);
+  setEditNewsBody(n.body);
+  setEditNewsLink(n.linkUrl || '');
+}} className="absolute top-4 right-10 text-blue-500 font-black hover:text-blue-700">✏️</button></div>))}</div>
             {/* PAGINATION NEWS */}
             {news.length > itemsPerPage && (
               <div className="flex justify-center gap-2">
@@ -2602,6 +2608,34 @@ export default function AdminPage() {
       )}
         </div>
       </div>
+
+      {/* MODAL FOR EDITING NEWS */}
+      {editingNews && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setEditingNews(null)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl p-6 md:p-8 w-full max-w-2xl relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setEditingNews(null)} className="absolute top-6 right-6 text-gray-400 hover:text-black font-black bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+            <h2 className="text-2xl font-black mb-6">Редактирование новости</h2>
+            <form onSubmit={handleSaveNewsEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Заголовок</label>
+                <input required className="w-full bg-gray-50 p-4 rounded-xl font-bold border-0 outline-none" value={editNewsTitle} onChange={e => setEditNewsTitle(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Текст</label>
+                <textarea required className="w-full bg-gray-50 p-4 rounded-xl font-medium border-0 outline-none h-40" value={editNewsBody} onChange={e => setEditNewsBody(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Ссылка</label>
+                <input className="w-full bg-gray-50 p-4 rounded-xl font-medium border-0 outline-none" value={editNewsLink} onChange={e => setEditNewsLink(e.target.value)} />
+              </div>
+              <div className="flex justify-end pt-4 gap-3">
+                <button type="button" onClick={() => setEditingNews(null)} className="px-6 py-3 font-bold text-gray-500 hover:text-black">Отмена</button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-black shadow-lg shadow-blue-600/30">Сохранить</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
