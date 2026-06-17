@@ -12,6 +12,7 @@ import Image from 'next/image';
 interface UserData {
   id: string; displayName: string; email: string; phoneNumber?: string; position: string; role: string; status: string;
   voteWeight?: number; delegatedTo?: string; delegatedToName?: string; delegatedFrom?: string[];
+  createdAt?: string;
   delegationStatus?: string; delegationConferenceId?: string; photoUrl?: string;
   statementUrl?: string;
   deductionUrl?: string;
