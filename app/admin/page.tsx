@@ -145,6 +145,10 @@ export default function AdminPage() {
   const [confTitle, setConfTitle] = useState(''); const [confDate, setConfDate] = useState('');
   const [newsTitle, setNewsTitle] = useState(''); const [newsBody, setNewsBody] = useState(''); const [newsFile, setNewsFile] = useState<File | null>(null);
   const [newsFileDoc, setNewsFileDoc] = useState<File | null>(null); const [newsLink, setNewsLink] = useState('');
+  const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
+  const [editNewsTitle, setEditNewsTitle] = useState('');
+  const [editNewsBody, setEditNewsBody] = useState('');
+  const [editNewsLink, setEditNewsLink] = useState('');
   const [memberName, setMemberName] = useState(''); const [memberRole, setMemberRole] = useState(''); const [memberFile, setMemberFile] = useState<File | null>(null);
   const [linkTitle, setLinkTitle] = useState(''); const [linkUrl, setLinkUrl] = useState('');
   const [tplTitle, setTplTitle] = useState(''); const [tplDesc, setTplDesc] = useState(''); const [tplFile, setTplFile] = useState<File | null>(null);
@@ -508,6 +512,22 @@ export default function AdminPage() {
   };
 
   const handleDeleteNews = async (id: string) => { if (confirm('Del?')) await deleteDoc(doc(db, 'news', id)); await logAction('delete_news', 'news', `Удалена новость: ${id}`); fetchData(); };
+  const handleSaveNewsEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingNews) return;
+    try {
+      await updateDoc(doc(db, 'news', editingNews.id), {
+        title: editNewsTitle,
+        body: editNewsBody,
+        linkUrl: editNewsLink
+      });
+      setEditingNews(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при сохранении новости');
+    }
+  };
 
   // 4. СОЗДАНИЕ ОПРОСА
   const handleCreatePoll = async () => {
