@@ -7,6 +7,11 @@ service firebase.storage {
       return request.resource.size < maxSizeMB * 1024 * 1024;
     }
 
+    // Проверка на админа через Firestore
+    function isAdmin() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Чтение разрешено всем авторизованным
     match /{allPaths=**} {
       allow read: if request.auth != null;
@@ -17,7 +22,8 @@ service firebase.storage {
       allow create: if request.auth != null 
                     && (fileName.matches(request.auth.uid + '_.*') || fileName.matches('manual_.*'))
                     && isFileSizeValid(10);
-      allow update, delete: if false; // Запрещаем изменение и удаление истории
+      allow update: if false; 
+      allow delete: if isAdmin(); // Админ может удалять
     }
 
     // АВАТАРЫ
@@ -33,7 +39,8 @@ service firebase.storage {
       allow create: if request.auth != null 
                    && fileName.matches(request.auth.uid + '_.*') 
                    && isFileSizeValid(5);
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     // РЕГИСТРАЦИОННЫЕ ДОКУМЕНТЫ
@@ -64,7 +71,8 @@ service firebase.storage {
     match /{folder}/{fileName} {
       allow create: if request.auth != null 
                     && isFileSizeValid(20);
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }
