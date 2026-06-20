@@ -261,7 +261,7 @@ export default function AdminPage() {
   };
 
   // --- 🔥 ФУНКЦИЯ ОТПРАВКИ PUSH-УВЕДОМЛЕНИЙ ---
-  const sendPushNotification = async (title: string, body: string) => {
+  const sendPushNotification = async (title: string, body: string, userIds?: string[]) => {
     try {
       const token = await auth.currentUser?.getIdToken();
       await fetch('/api/send-notification', {
@@ -270,7 +270,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({ title, body, userIds }),
       });
       console.log('Уведомление отправлено:', title);
     } catch (e) {
@@ -543,7 +543,12 @@ export default function AdminPage() {
         createdBy: auth.currentUser?.uid,
         createdAt: new Date().toISOString()
       });
-      // Push notification could go here
+      
+      let targetUserIds: string[] | undefined = undefined;
+      if (pollTargetCategory && pollTargetCategory !== 'Все') {
+        targetUserIds = users.filter(u => u.position === pollTargetCategory).map(u => u.id);
+      }
+      await sendPushNotification('📊 Новый опрос', `Пожалуйста, уделите минуту: ${pollQuestion}`, targetUserIds);
 
       setPollQuestion(''); setPollOptions(['', '']); setPollTargetCategory('Все'); setIsCreatingPoll(false);
       await logAction('create_poll', 'poll', `Создан опрос: ${pollQuestion}`);
