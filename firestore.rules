@@ -47,7 +47,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Можно обновлять, но нельзя менять сам вопрос и варианты ответов
       allow update: if request.auth != null
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'options', 'createdAt', 'endDate', 'status']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['question', 'createdAt', 'endDate', 'status']);
     }
     match /tests/{docId} { 
       allow read: if request.auth != null;
