@@ -184,6 +184,7 @@ export default function AdminPage() {
   const [registryInput, setRegistryInput] = useState('');
   const [isSavingRegistry, setIsSavingRegistry] = useState(false);
   const [registryFilter, setRegistryFilter] = useState<'all' | 'unregistered'>('all');
+  const [registrySearch, setRegistrySearch] = useState('');
 
   const itemsPerPage = 10;
 
@@ -2438,9 +2439,18 @@ export default function AdminPage() {
                 <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h3 className="font-black text-xl">Данные за {registryMonth}</h3>
-                    <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
-                      <button onClick={() => setRegistryFilter('all')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${registryFilter === 'all' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>Все ({registries[registryMonth]?.length || 0})</button>
-                      <button onClick={() => setRegistryFilter('unregistered')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${registryFilter === 'unregistered' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}>Незарег.</button>
+                    <div className="flex gap-2 w-full sm:w-auto flex-col sm:flex-row">
+                      <input
+                        type="text"
+                        placeholder="Поиск по реестру..."
+                        value={registrySearch}
+                        onChange={(e) => setRegistrySearch(e.target.value)}
+                        className="px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-indigo-500 text-sm font-bold w-full sm:w-64"
+                      />
+                      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+                        <button onClick={() => setRegistryFilter('all')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${registryFilter === 'all' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>Все ({registries[registryMonth]?.length || 0})</button>
+                        <button onClick={() => setRegistryFilter('unregistered')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${registryFilter === 'unregistered' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}>Незарег.</button>
+                      </div>
                     </div>
                   </div>
                   
@@ -2454,7 +2464,12 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {(registries[registryMonth] || []).map((record, i) => {
+                        {[...(registries[registryMonth] || [])]
+                          .sort((a, b) => b.amount - a.amount)
+                          .filter(record => 
+                            !registrySearch || record.name.toLowerCase().includes(registrySearch.toLowerCase())
+                          )
+                          .map((record, i) => {
                           const isRegistered = users.some(u => 
                             u.status === 'approved' && 
                             (u.displayName.toLowerCase().includes(record.name.toLowerCase()) || record.name.toLowerCase().includes(u.displayName.toLowerCase()))
