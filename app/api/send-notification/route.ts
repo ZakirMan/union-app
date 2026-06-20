@@ -63,6 +63,12 @@ export async function POST(request: Request) {
         title: title,
         body: body,
       },
+      webpush: {
+        notification: {
+          icon: '/icon-192.png',
+          badge: '/icon-192.png'
+        }
+      },
       tokens: tokens,
     };
 
