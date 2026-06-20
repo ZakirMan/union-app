@@ -65,8 +65,8 @@ export async function POST(request: Request) {
       },
       webpush: {
         notification: {
-          icon: '/icon-192.png',
-          badge: '/icon-192.png'
+          icon: 'https://union-app-two.vercel.app/icon-192.png',
+          badge: 'https://union-app-two.vercel.app/icon-192.png'
         }
       },
       tokens: tokens,
