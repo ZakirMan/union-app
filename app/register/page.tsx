@@ -198,7 +198,11 @@ export default function RegisterPage() {
           </p>
 
           <p style={{ fontSize: '18px', lineHeight: '1.6', marginBottom: '80px' }}>
-            Обязуюсь произвести оплату вступительного и членских взносов, а так же признавать и выполнять Устав Объединения.
+            {isPilot ? (
+              <>Обязуюсь произвести оплату членских взносов, а так же признавать и выполнять Устав Объединения.</>
+            ) : (
+              <>Обязуюсь произвести оплату вступительного и членских взносов, а так же признавать и выполнять Устав Объединения.</>
+            )}
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
