@@ -151,26 +151,7 @@ export default function RegisterPage() {
         console.error('Telegram notification failed:', tgError);
       }
 
-      // Отправка письма бухгалтеру (только для новых членов)
-      if (!isAlreadyMember && deductionUrl) {
-        try {
-          const token = await user.getIdToken();
-          await fetch('/api/send-accounting-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({
-              userEmail: email,
-              userName: name,
-              phone: phone,
-              position: position,
-              category: 'Новое вступление',
-              deductionUrl: deductionUrl
-            })
-          });
-        } catch (accError) {
-          console.error('Accounting email failed:', accError);
-        }
-      }
+
 
       router.push('/');
     } catch (err: unknown) {
