@@ -37,7 +37,7 @@ interface UserProfile {
   category?: string;
 }
 
-interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; }
+interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; requiresResponse?: boolean; responseDeadlineDays?: number; isResponseReceived?: boolean; }
 interface LinkItem { id: string; title: string; url: string; }
 interface TemplateItem { id: string; title: string; description?: string; fileUrl: string; }
 interface RequestItem { id: string; text: string; response?: string; createdAt: string; userId: string; userEmail: string; status: string; }

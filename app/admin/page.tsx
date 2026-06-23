@@ -39,7 +39,7 @@ interface DelegationRequest {
 }
 
 interface Conference { id: string; title: string; date: string; createdAt: string; }
-interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; }
+interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; requiresResponse?: boolean; responseDeadlineDays?: number; isResponseReceived?: boolean; }
 interface TeamMember {
   id: string;
   name: string;
@@ -145,7 +145,7 @@ export default function AdminPage() {
   // Формы
   const [confTitle, setConfTitle] = useState(''); const [confDate, setConfDate] = useState('');
   const [newsTitle, setNewsTitle] = useState(''); const [newsBody, setNewsBody] = useState(''); const [newsFile, setNewsFile] = useState<File | null>(null);
-  const [newsFileDoc, setNewsFileDoc] = useState<File | null>(null); const [newsLink, setNewsLink] = useState('');
+  const [newsFileDoc, setNewsFileDoc] = useState<File | null>(null); const [newsLink, setNewsLink] = useState(''); const [newsRequiresResponse, setNewsRequiresResponse] = useState(false); const [newsResponseDeadlineDays, setNewsResponseDeadlineDays] = useState(15);
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
   const [editNewsTitle, setEditNewsTitle] = useState('');
   const [editNewsBody, setEditNewsBody] = useState('');
@@ -503,17 +503,17 @@ export default function AdminPage() {
     try {
       let imageUrl = ''; if (newsFile) imageUrl = await uploadImage(newsFile, 'news');
       let fileUrl = ''; if (newsFileDoc) fileUrl = await uploadImage(newsFileDoc, 'news_docs');
-      await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, fileUrl, linkUrl: newsLink, createdAt: new Date().toISOString() });
+      await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, fileUrl, linkUrl: newsLink, requiresResponse: newsRequiresResponse, responseDeadlineDays: newsRequiresResponse ? newsResponseDeadlineDays : null, isResponseReceived: false, createdAt: new Date().toISOString() });
 
       // Отправляем пуш
       await sendPushNotification('⚡️ Свежая новость', newsTitle, undefined, 'https://union-app-two.vercel.app/dashboard?tab=news');
       await logAction('publish_news', 'news', `Опубликована новость: ${newsTitle}`);
 
-      setNewsTitle(''); setNewsBody(''); setNewsFile(null); setNewsFileDoc(null); setNewsLink(''); fetchData();
+      setNewsTitle(''); setNewsBody(''); setNewsFile(null); setNewsFileDoc(null); setNewsLink(''); setNewsRequiresResponse(false); setNewsResponseDeadlineDays(15); fetchData();
     } catch { alert('Ошибка'); } finally { setIsUploading(false); }
   };
 
-  const handleDeleteNews = async (id: string) => { if (confirm('Del?')) await deleteDoc(doc(db, 'news', id)); await logAction('delete_news', 'news', `Удалена новость: ${id}`); fetchData(); };
+  const handleDeleteNews = async (id: string) => { if (confirm('Del?')) await deleteDoc(doc(db, 'news', id)); await logAction('delete_news', 'news', `Удалена новость: ${id}`); fetchData(); }; const handleToggleResponseReceived = async (id: string, received: boolean) => { try { await updateDoc(doc(db, 'news', id), { isResponseReceived: received }); fetchData(); } catch { alert('Ошибка сохранения'); } };
   const handleSaveNewsEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingNews) return;
@@ -2257,7 +2257,28 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} /><div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button>
+          {activeTab === 'news' && <div className="space-y-6"><div className="bg-white p-6 rounded-[2rem] shadow-lg"><h2 className="font-black text-xl mb-4">Новость</h2><form onSubmit={handlePublishNews} className="space-y-3"><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Заголовок" value={newsTitle} onChange={e => setNewsTitle(e.target.value)} /><textarea className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-0 outline-none h-32" placeholder="Текст..." value={newsBody} onChange={e => setNewsBody(e.target.value)} /><input className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none" placeholder="Внешняя ссылка (опционально)" value={newsLink} onChange={e => setNewsLink(e.target.value)} />
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="reqResp" checked={newsRequiresResponse} onChange={e => setNewsRequiresResponse(e.target.checked)} className="w-5 h-5" />
+                  <label htmlFor="reqResp" className="font-bold text-gray-700">Требует ответа работодателя</label>
+                </div>
+                {newsRequiresResponse && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-700">Срок ответа (рабочих дней):</span>
+                    <input type="number" min="1" className="bg-gray-50 p-2 rounded-xl font-bold border-0 outline-none w-24 text-center" value={newsResponseDeadlineDays} onChange={e => setNewsResponseDeadlineDays(parseInt(e.target.value) || 1)} />
+                  </div>
+                )}<div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl"><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Обложка (фото):</span><input type="file" onChange={e => setNewsFile(e.target.files?.[0] || null)} className="text-xs" accept="image/*" /></div><div className="flex justify-between items-center"><span className="text-sm font-bold text-gray-500">Документ (файл):</span><input type="file" onChange={e => setNewsFileDoc(e.target.files?.[0] || null)} className="text-xs" /></div></div><div className="flex justify-end pt-2"><button disabled={isUploading} className="bg-black text-white px-8 py-3 rounded-xl font-black">{isUploading ? 'Загрузка...' : 'Опубликовать'}</button></div></form></div><div className="grid md:grid-cols-2 gap-4">{news.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(n => (<div key={n.id} className="bg-white p-3 md:p-4 rounded-3xl border border-gray-100 shadow-sm relative"><h3 className="font-black text-lg mb-2">{n.title}</h3><p className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleDateString()}</p><button onClick={() => handleDeleteNews(n.id)} className="absolute top-4 right-4 text-red-300 font-black">✕</button>
+                      {n.requiresResponse && (
+                        <div className="mt-3 bg-gray-50 p-3 rounded-xl flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-600">Ответ получен?</span>
+                          <input 
+                            type="checkbox" 
+                            checked={n.isResponseReceived || false} 
+                            onChange={(e) => handleToggleResponseReceived(n.id, e.target.checked)}
+                            className="w-5 h-5"
+                          />
+                        </div>
+                      )}
 <button onClick={() => {
   setEditingNews(n);
   setEditNewsTitle(n.title);
