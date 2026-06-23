@@ -150,6 +150,17 @@ export default function DashboardPage() {
 
   // --- ЗАГРУЗКА ДАННЫХ ---
   useEffect(() => {
+    // Проверка URL параметра для открытия нужной вкладки при переходе из пуш-уведомления
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['news', 'chat', 'resources', 'training', 'profile', 'polls', 'reports'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'reports' && !unionStats && !isStatsLoading && user) {
       setIsStatsLoading(true);
       user.getIdToken().then(token => {

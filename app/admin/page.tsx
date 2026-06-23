@@ -261,7 +261,7 @@ export default function AdminPage() {
   };
 
   // --- 🔥 ФУНКЦИЯ ОТПРАВКИ PUSH-УВЕДОМЛЕНИЙ ---
-  const sendPushNotification = async (title: string, body: string, userIds?: string[]) => {
+  const sendPushNotification = async (title: string, body: string, userIds?: string[], link?: string) => {
     try {
       const token = await auth.currentUser?.getIdToken();
       await fetch('/api/send-notification', {
@@ -270,7 +270,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ title, body, userIds }),
+        body: JSON.stringify({ title, body, userIds, link }),
       });
       console.log('Уведомление отправлено:', title);
     } catch (e) {
@@ -458,7 +458,7 @@ export default function AdminPage() {
           createdAt: new Date().toISOString(),
           completedBy: []
         });
-        await sendPushNotification('🎓 Новый тест доступен', `Проверьте свои знания: ${testTitle}`);
+        await sendPushNotification('🎓 Новый тест доступен', `Проверьте свои знания: ${testTitle}`, undefined, 'https://union-app-two.vercel.app/dashboard?tab=training');
         await logAction('create_test', 'test', `Создан тест: ${testTitle}`);
         alert('Тест создан!');
       }
@@ -506,7 +506,7 @@ export default function AdminPage() {
       await addDoc(collection(db, 'news'), { title: newsTitle, body: newsBody, imageUrl, fileUrl, linkUrl: newsLink, createdAt: new Date().toISOString() });
 
       // Отправляем пуш
-      await sendPushNotification('⚡️ Свежая новость', newsTitle);
+      await sendPushNotification('⚡️ Свежая новость', newsTitle, undefined, 'https://union-app-two.vercel.app/dashboard?tab=news');
       await logAction('publish_news', 'news', `Опубликована новость: ${newsTitle}`);
 
       setNewsTitle(''); setNewsBody(''); setNewsFile(null); setNewsFileDoc(null); setNewsLink(''); fetchData();
@@ -548,7 +548,7 @@ export default function AdminPage() {
       if (pollTargetCategory && pollTargetCategory !== 'Все') {
         targetUserIds = users.filter(u => u.position === pollTargetCategory).map(u => u.id);
       }
-      await sendPushNotification('📊 Новый опрос', `Пожалуйста, уделите минуту: ${pollQuestion}`, targetUserIds);
+      await sendPushNotification('📊 Новый опрос', `Пожалуйста, уделите минуту: ${pollQuestion}`, targetUserIds, 'https://union-app-two.vercel.app/dashboard?tab=polls');
 
       setPollQuestion(''); setPollOptions(['', '']); setPollTargetCategory('Все'); setIsCreatingPoll(false);
       await logAction('create_poll', 'poll', `Создан опрос: ${pollQuestion}`);
