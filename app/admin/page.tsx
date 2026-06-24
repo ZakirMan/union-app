@@ -1519,9 +1519,10 @@ export default function AdminPage() {
                       <h3 className="font-black text-lg leading-tight pr-2">{poll.question}</h3>
                       <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase whitespace-nowrap ${poll.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{poll.isActive ? 'Активен' : 'Завершен'}</span>
                     </div>
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 mb-4 flex-wrap">
                       <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md">🎯 {poll.targetCategory || 'Для всех'}</span>
                       <span className="text-[10px] font-bold text-gray-400">📅 {new Date(poll.createdAt).toLocaleDateString('ru-RU')}</span>
+                      <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">👥 Всего голосов: {poll.options.reduce((acc, o) => acc + (o.votes?.length || 0), 0)}</span>
                     </div>
                     <div className="space-y-3">
                       {poll.options.map(opt => {
