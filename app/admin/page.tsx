@@ -2621,6 +2621,11 @@ export default function AdminPage() {
                         <tbody className="divide-y divide-gray-100">
                           {users.filter(u => {
                             if (u.status !== 'approved') return false;
+                            
+                            // Исключаем новых участников (вступивших в этом месяце или позже)
+                            const userJoinMonth = u.joinDate || (u.createdAt ? u.createdAt.slice(0, 7) : '');
+                            if (userJoinMonth && userJoinMonth >= registryMonth) return false;
+
                             const inRegistry = registries[registryMonth].some(r => 
                               u.displayName.toLowerCase().includes(r.name.toLowerCase()) || 
                               r.name.toLowerCase().includes(u.displayName.toLowerCase())
@@ -2639,7 +2644,12 @@ export default function AdminPage() {
                               </td>
                             </tr>
                           ))}
-                          {users.filter(u => u.status === 'approved' && !registries[registryMonth].some(r => u.displayName.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(u.displayName.toLowerCase()))).length === 0 && (
+                          {users.filter(u => {
+                            if (u.status !== 'approved') return false;
+                            const userJoinMonth = u.joinDate || (u.createdAt ? u.createdAt.slice(0, 7) : '');
+                            if (userJoinMonth && userJoinMonth >= registryMonth) return false;
+                            return !registries[registryMonth].some(r => u.displayName.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(u.displayName.toLowerCase()));
+                          }).length === 0 && (
                             <tr><td colSpan={2} className="p-8 text-center text-gray-400 font-bold">Все текущие участники найдены в реестре ✅</td></tr>
                           )}
                         </tbody>
