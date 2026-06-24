@@ -1940,10 +1940,10 @@ export default function AdminPage() {
                       <div className="flex-grow">
                         {isEditingUser ? (
                           <>
-                            <input className="text-3xl font-black bg-black/20 rounded-lg px-3 py-1 outline-none w-full mb-2 placeholder-white/50" value={editUserForm.name} onChange={e => setEditUserForm({...editUserForm, name: e.target.value})} placeholder="ФИО" />
-                            <div className="flex gap-2">
-                              <input className="font-bold text-blue-100 bg-black/20 rounded-lg px-3 py-1 outline-none flex-1 placeholder-white/50" value={editUserForm.pos} onChange={e => setEditUserForm({...editUserForm, pos: e.target.value})} placeholder="Должность" />
-                              <select className="bg-black/20 rounded-lg px-3 py-1 outline-none text-white font-bold w-40" value={editUserForm.category} onChange={e => setEditUserForm({...editUserForm, category: e.target.value})}>
+                            <input className="text-3xl font-black bg-black/20 rounded-lg px-3 py-1 outline-none w-[calc(100%-150px)] mb-2 placeholder-white/50" value={editUserForm.name} onChange={e => setEditUserForm({...editUserForm, name: e.target.value})} placeholder="ФИО" />
+                            <div className="flex gap-2 flex-wrap">
+                              <input className="font-bold text-blue-100 bg-black/20 rounded-lg px-3 py-1 outline-none flex-1 min-w-[150px] placeholder-white/50" value={editUserForm.pos} onChange={e => setEditUserForm({...editUserForm, pos: e.target.value})} placeholder="Должность" />
+                              <select className="bg-black/20 rounded-lg px-3 py-1 outline-none text-white font-bold w-40 flex-shrink-0" value={editUserForm.category} onChange={e => setEditUserForm({...editUserForm, category: e.target.value})}>
                                 <option value="" className="text-black">Без категории</option>
                                 <option value="Бортпроводник" className="text-black">Бортпроводник</option>
                                 <option value="Пилот" className="text-black">Пилот</option>
@@ -1954,7 +1954,7 @@ export default function AdminPage() {
                                 <option value="Офис" className="text-black">Офис</option>
                                 <option value="Авиационная безопасность" className="text-black">Авиационная безопасность</option>
                               </select>
-                              <select className="bg-black/20 rounded-lg px-3 py-1 outline-none text-white font-bold w-40" value={editUserForm.leaveStatus} onChange={e => setEditUserForm({...editUserForm, leaveStatus: e.target.value as 'none' | 'unpaid' | 'maternity'})}>
+                              <select className="bg-black/20 rounded-lg px-3 py-1 outline-none text-white font-bold w-40 flex-shrink-0" value={editUserForm.leaveStatus} onChange={e => setEditUserForm({...editUserForm, leaveStatus: e.target.value as 'none' | 'unpaid' | 'maternity'})}>
                                 <option value="none" className="text-black">Активен (Без отпуска)</option>
                                 <option value="unpaid" className="text-black">🏖️ Отпуск без содерж.</option>
                                 <option value="maternity" className="text-black">🍼 Декретный</option>
@@ -1969,7 +1969,7 @@ export default function AdminPage() {
                           </>
                         ) : (
                           <>
-                            <h2 className="text-3xl font-black">{selectedUser.displayName}</h2>
+                            <h2 className="text-3xl font-black pr-[150px]">{selectedUser.displayName}</h2>
                             <p className="font-bold text-blue-100 text-lg opacity-90">
                               {selectedUser.position}
                               {selectedUser.category && <span className="ml-3 bg-white/20 px-2 py-0.5 rounded text-sm text-white border border-white/30 shadow-sm">🏷️ {selectedUser.category}</span>}
