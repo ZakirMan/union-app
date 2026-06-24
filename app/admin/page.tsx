@@ -49,6 +49,7 @@ interface TeamMember {
 }
 interface RequestData {
   id: string;
+  userId?: string;
   userEmail: string;
   text: string;
   fileUrl?: string;
@@ -1027,6 +1028,44 @@ export default function AdminPage() {
         updateData.aidAmount = parseInt(replyAidAmount[id] || '0', 10);
       }
       await updateDoc(doc(db, 'requests', id), updateData);
+      
+      const req = requests.find(r => r.id === id);
+      if (req) {
+        // Отправка Push-уведомления
+        if (req.userId) {
+          await sendPushNotification(
+            'Ответ на ваше обращение',
+            replyText[id].substring(0, 100) + (replyText[id].length > 100 ? '...' : ''),
+            [req.userId],
+            'https://union-app-two.vercel.app/dashboard?tab=requests'
+          );
+        }
+
+        // Отправка Email-уведомления
+        if (req.userEmail) {
+          try {
+            const token = await auth.currentUser?.getIdToken();
+            if (token) {
+              await fetch('/api/send-reply-email', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  userEmail: req.userEmail,
+                  userName: req.userName || '',
+                  questionText: req.text,
+                  replyText: replyText[id]
+                })
+              });
+            }
+          } catch (err) {
+            console.error('Ошибка отправки Email-уведомления об ответе:', err);
+          }
+        }
+      }
+
       fetchData();
     }
   };
@@ -2246,9 +2285,9 @@ export default function AdminPage() {
                     )}
                   </div>
                 )}
-                <div className="flex gap-2">
-                  <input className="bg-white border border-gray-200 p-3 w-full font-medium rounded-xl outline-none text-sm shadow-sm" placeholder="Ответ..." onChange={(e) => setReplyText({ ...replyText, [req.id]: e.target.value })} />
-                  <button onClick={() => handleReplyRequest(req.id, req.text.startsWith('Запрос материальной помощи'))} className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl font-black text-sm shadow-md transition">Отправить</button>
+                <div className="flex gap-2 items-start">
+                  <textarea className="bg-white border border-gray-200 p-3 w-full font-medium rounded-xl outline-none text-sm shadow-sm resize-y min-h-[100px]" placeholder="Ответ..." value={replyText[req.id] || ''} onChange={(e) => setReplyText({ ...replyText, [req.id]: e.target.value })} />
+                  <button onClick={() => handleReplyRequest(req.id, req.text.startsWith('Запрос материальной помощи'))} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-black text-sm shadow-md transition shrink-0">Отправить</button>
                 </div>
               </div>
             )}
