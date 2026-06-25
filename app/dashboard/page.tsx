@@ -1198,51 +1198,53 @@ export default function DashboardPage() {
             ) : unionStats ? (
               <div className="grid md:grid-cols-2 gap-6">
                 {/* NEW MEMBERS STATS */}
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
-                  <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
-                  </div>
-                  <div className="relative z-10">
-                    <h3 className="font-black text-xl mb-2 flex items-center gap-2">
-                      <span className="text-2xl">📈</span> Статистика вступлений
-                    </h3>
-                    <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза за текущий год ({new Date().getFullYear()}).</p>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {[
-                        { num: '01', name: 'Янв' }, { num: '02', name: 'Фев' }, { num: '03', name: 'Мар' },
-                        { num: '04', name: 'Апр' }, { num: '05', name: 'Май' }, { num: '06', name: 'Июн' },
-                        { num: '07', name: 'Июл' }, { num: '08', name: 'Авг' }, { num: '09', name: 'Сен' },
-                        { num: '10', name: 'Окт' }, { num: '11', name: 'Ноя' }, { num: '12', name: 'Дек' }
-                      ].map(m => {
-                        const key = `${new Date().getFullYear()}-${m.num}`;
-                        const stat = unionStats.newMembersStats[key] || { count: 0 };
-                        return (
-                          <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
-                            <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
-                            <span className={`text-xl md:text-2xl font-black ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>{stat.count}</span>
-                            
-                            {stat.details && stat.details.length > 0 && (
-                              <div className="absolute z-50 bottom-full pb-2 md:left-1/2 md:-translate-x-1/2 right-0 w-[260px] opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all z-[100]">
-                                <div className="bg-gray-900 text-white text-xs rounded-xl p-4 shadow-xl relative text-left">
-                                  <div className="font-black mb-2 text-blue-400 border-b border-gray-700 pb-1 text-sm">Новые участники за {m.name}</div>
-                                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
-                                    {stat.details.map((d: any, i: number) => (
-                                      <div key={i} className="flex flex-col py-1.5 border-b border-gray-800 last:border-0">
-                                        <span className="font-bold text-[13px] text-white">{d.name}</span>
-                                        <span className="text-gray-400 text-[11px] mt-0.5">{d.position}</span>
-                                      </div>
-                                    ))}
+                {userData?.role === 'admin' && (
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
+                    <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
+                    </div>
+                    <div className="relative z-10">
+                      <h3 className="font-black text-xl mb-2 flex items-center gap-2">
+                        <span className="text-2xl">📈</span> Статистика вступлений
+                      </h3>
+                      <p className="text-blue-100 font-bold text-xs mb-6">Новые члены профсоюза за текущий год ({new Date().getFullYear()}).</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {[
+                          { num: '01', name: 'Янв' }, { num: '02', name: 'Фев' }, { num: '03', name: 'Мар' },
+                          { num: '04', name: 'Апр' }, { num: '05', name: 'Май' }, { num: '06', name: 'Июн' },
+                          { num: '07', name: 'Июл' }, { num: '08', name: 'Авг' }, { num: '09', name: 'Сен' },
+                          { num: '10', name: 'Окт' }, { num: '11', name: 'Ноя' }, { num: '12', name: 'Дек' }
+                        ].map(m => {
+                          const key = `${new Date().getFullYear()}-${m.num}`;
+                          const stat = unionStats.newMembersStats[key] || { count: 0 };
+                          return (
+                            <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
+                              <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
+                              <span className={`text-xl md:text-2xl font-black ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>{stat.count}</span>
+                              
+                              {stat.details && stat.details.length > 0 && (
+                                <div className="absolute z-50 bottom-full pb-2 md:left-1/2 md:-translate-x-1/2 right-0 w-[260px] opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all z-[100]">
+                                  <div className="bg-gray-900 text-white text-xs rounded-xl p-4 shadow-xl relative text-left">
+                                    <div className="font-black mb-2 text-blue-400 border-b border-gray-700 pb-1 text-sm">Новые участники за {m.name}</div>
+                                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
+                                      {stat.details.map((d: any, i: number) => (
+                                        <div key={i} className="flex flex-col py-1.5 border-b border-gray-800 last:border-0">
+                                          <span className="font-bold text-[13px] text-white">{d.name}</span>
+                                          <span className="text-gray-400 text-[11px] mt-0.5">{d.position}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="absolute -bottom-1 right-6 md:left-1/2 md:-translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45"></div>
                                   </div>
-                                  <div className="absolute -bottom-1 right-6 md:left-1/2 md:-translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45"></div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* AID STATS */}
                 <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
@@ -1288,6 +1290,7 @@ export default function DashboardPage() {
                                   <div className="absolute -bottom-1 right-6 md:left-1/2 md:-translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45"></div>
                                 </div>
                               </div>
+                            )}
                           </div>
                         );
                       })}
