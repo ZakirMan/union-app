@@ -1202,8 +1202,7 @@ export default function DashboardPage() {
             ) : unionStats ? (
               <div className="grid md:grid-cols-2 gap-6">
                 {/* NEW MEMBERS STATS */}
-                {userData?.role === 'admin' && (
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
                     <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
                       <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20 group-hover:bg-white/20 transition-all duration-700"></div>
                     </div>
@@ -1248,7 +1247,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* AID STATS */}
                 <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
@@ -1273,11 +1272,11 @@ export default function DashboardPage() {
                           <div 
                             key={m.num} 
                             tabIndex={0} 
-                            onClick={() => { if (stat.count > 0 && stat.details && stat.details.length > 0) setSelectedAidStats({ name: m.name, details: stat.details }); }}
-                            className={`bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm transition ${stat.count > 0 ? 'cursor-pointer hover:bg-white/20 hover:scale-105' : 'cursor-default opacity-50'} outline-none`}
+                            onClick={() => { if ((stat.count > 0 || stat.pendingCount > 0) && stat.details && stat.details.length > 0) setSelectedAidStats({ name: m.name, details: stat.details }); }}
+                            className={`bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm transition ${(stat.count > 0 || stat.pendingCount > 0) ? 'cursor-pointer hover:bg-white/20 hover:scale-105' : 'cursor-default opacity-50'} outline-none`}
                           >
                             <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
-                            <span className={`text-sm md:text-[15px] font-black leading-tight ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>
+                            <span className={`text-sm md:text-[15px] font-black leading-tight ${(stat.count > 0 || stat.pendingCount > 0) ? 'text-white' : 'text-white/30'}`}>
                               {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
                             </span>
                             {stat.count > 0 && <span className="text-[9px] text-green-100 font-bold mt-0.5">{stat.count} шт</span>}
