@@ -1337,11 +1337,11 @@ export default function AdminPage() {
                           <div 
                             key={m.num} 
                             tabIndex={0} 
-                            onClick={() => { if (stat.count > 0 && stat.details && stat.details.length > 0) setSelectedAidStats({ name: m.name, details: stat.details }); }}
-                            className={`bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm transition ${stat.count > 0 ? 'cursor-pointer hover:bg-white/20 hover:scale-105' : 'cursor-default opacity-50'} outline-none`}
+                            onClick={() => { if ((stat.count > 0 || stat.pendingCount > 0) && stat.details && stat.details.length > 0) setSelectedAidStats({ name: m.name, details: stat.details }); }}
+                            className={`bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm transition ${(stat.count > 0 || stat.pendingCount > 0) ? 'cursor-pointer hover:bg-white/20 hover:scale-105' : 'cursor-default opacity-50'} outline-none`}
                           >
                             <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
-                            <span className={`text-sm md:text-[15px] font-black leading-tight ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>
+                            <span className={`text-sm md:text-[15px] font-black leading-tight ${(stat.count > 0 || stat.pendingCount > 0) ? 'text-white' : 'text-white/30'}`}>
                               {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
                             </span>
                             {stat.count > 0 && <span className="text-[9px] text-green-100 font-bold mt-0.5">{stat.count} шт</span>}
