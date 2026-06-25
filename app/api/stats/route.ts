@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     });
 
     // Проверяем, является ли текущий пользователь админом
-    const currentUser = users.find((u: any) => u.id === uid);
+    const currentUser: any = users.find((u: any) => u.id === uid);
     const isAdmin = currentUser?.role === 'admin';
 
     // Если не админ, не передаем список вступивших

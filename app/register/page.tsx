@@ -48,7 +48,7 @@ export default function RegisterPage() {
     }
 
     if (isAlreadyMember && !passFile) {
-      setError('Необходимо прикрепить фото пропуска');
+      setError('Необходимо прикрепить корпоративный пропуск либо справку с места работы');
       setLoading(false);
       return;
     }
