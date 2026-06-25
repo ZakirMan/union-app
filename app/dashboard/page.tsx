@@ -1221,33 +1221,20 @@ export default function DashboardPage() {
                           const key = `${new Date().getFullYear()}-${m.num}`;
                           const stat = unionStats.newMembersStats[key] || { count: 0 };
                           return (
-                            <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
+                            <div 
+                              key={m.num} 
+                              tabIndex={0} 
+                              onClick={() => { if (stat.count > 0 && stat.details && stat.details.length > 0) setSelectedMonthStats({ name: m.name, details: stat.details }); }}
+                              className={`bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm transition ${stat.count > 0 && stat.details && stat.details.length > 0 ? 'cursor-pointer hover:bg-white/20 hover:scale-105' : 'cursor-default opacity-50'} outline-none`}
+                            >
                               <span className="text-[10px] text-blue-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
                               <span className={`text-xl md:text-2xl font-black ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>{stat.count}</span>
-                              
-                              {stat.details && stat.details.length > 0 && (
-                                <div className="absolute z-50 bottom-full pb-2 md:left-1/2 md:-translate-x-1/2 right-0 w-[260px] opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all z-[100]">
-                                  <div className="bg-gray-900 text-white text-xs rounded-xl p-4 shadow-xl relative text-left">
-                                    <div className="font-black mb-2 text-blue-400 border-b border-gray-700 pb-1 text-sm">Новые участники за {m.name}</div>
-                                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
-                                      {stat.details.map((d: any, i: number) => (
-                                        <div key={i} className="flex flex-col py-1.5 border-b border-gray-800 last:border-0">
-                                          <span className="font-bold text-[13px] text-white">{d.name}</span>
-                                          <span className="text-gray-400 text-[11px] mt-0.5">{d.position}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <div className="absolute -bottom-1 right-6 md:left-1/2 md:-translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45"></div>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           );
                         })}
                       </div>
                     </div>
                   </div>
-                </div>
 
                 {/* AID STATS */}
                 <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-[2rem] shadow-xl text-white p-6 md:p-8 relative group">
