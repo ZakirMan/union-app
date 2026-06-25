@@ -1998,10 +1998,27 @@ export default function AdminPage() {
                       )}
                     </div>
                     {selectedUser.joinDate && (
-                      <div className="mt-3 text-xs font-black text-green-300">
+                      <div className="mt-3 text-xs font-black text-green-300 flex items-center gap-2">
                         🔰 Член профсоюза (с {selectedUser.joinDate})
                       </div>
                     )}
+                    <div className="mt-3">
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Изменить статус "Уже был в профсоюзе" на ${selectedUser.isAlreadyMember ? 'НЕТ' : 'ДА'}?`)) {
+                            try {
+                              await updateDoc(doc(db, 'users', selectedUser.id), { isAlreadyMember: !selectedUser.isAlreadyMember });
+                              setSelectedUser({...selectedUser, isAlreadyMember: !selectedUser.isAlreadyMember});
+                              fetchData();
+                            } catch (err) { alert('Ошибка'); }
+                          }
+                        }}
+                        className={`text-[10px] font-black px-3 py-1.5 rounded-lg border transition ${selectedUser.isAlreadyMember ? 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30' : 'bg-white/10 text-white/50 border-white/20 hover:bg-white/20'}`}
+                      >
+                        {selectedUser.isAlreadyMember ? '✅ Отмечен как старый участник' : '❌ Считается новым участником (клик чтобы изменить)'}
+                      </button>
+                    </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {selectedUser.statementUrl && <a href={selectedUser.statementUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">📄 {selectedUser.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a>}
                       {selectedUser.deductionUrl && <a href={selectedUser.deductionUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">📄 На удержание</a>}

@@ -21,28 +21,17 @@ export async function GET(request: Request) {
     const requestsSnap = await adminDb.collection('requests').get();
     const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Считаем статистику вступлений (newMembersStats)
     const newMembersStats: Record<string, { count: number; details: Array<{name: string, position: string}> }> = {};
     users.forEach((u: any) => {
-      if (!u.isAlreadyMember && u.createdAt) {
-        let dateStr = '';
-        if (typeof u.createdAt === 'string') {
-          dateStr = u.createdAt;
-        } else if (u.createdAt.toDate) {
-          dateStr = u.createdAt.toDate().toISOString();
-        } else if (u.createdAt._seconds) {
-          dateStr = new Date(u.createdAt._seconds * 1000).toISOString();
-        }
-
-        if (dateStr) {
-          const month = dateStr.substring(0, 7);
-          if (!newMembersStats[month]) newMembersStats[month] = { count: 0, details: [] };
-          newMembersStats[month].count += 1;
-          newMembersStats[month].details.push({
-            name: u.displayName || u.email || 'Неизвестно',
-            position: u.position || 'Без должности'
-          });
-        }
+      // Считаем только тех, кто ВПЕРВЫЕ вступил в профсоюз и уже одобрен
+      if (u.status === 'approved' && u.isAlreadyMember === false && u.joinDate) {
+        const month = u.joinDate.substring(0, 7);
+        if (!newMembersStats[month]) newMembersStats[month] = { count: 0, details: [] };
+        newMembersStats[month].count += 1;
+        newMembersStats[month].details.push({
+          name: u.displayName || u.email || 'Неизвестно',
+          position: u.position || 'Без должности'
+        });
       }
     });
 
