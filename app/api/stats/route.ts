@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     // Считаем статистику вступлений (newMembersStats)
-    const newMembersStats: Record<string, { count: number }> = {};
+    const newMembersStats: Record<string, { count: number; details: Array<{name: string, position: string}> }> = {};
     users.forEach((u: any) => {
       if (!u.isAlreadyMember && u.createdAt) {
         let dateStr = '';
@@ -35,8 +35,12 @@ export async function GET(request: Request) {
 
         if (dateStr) {
           const month = dateStr.substring(0, 7);
-          if (!newMembersStats[month]) newMembersStats[month] = { count: 0 };
+          if (!newMembersStats[month]) newMembersStats[month] = { count: 0, details: [] };
           newMembersStats[month].count += 1;
+          newMembersStats[month].details.push({
+            name: u.displayName || u.email || 'Неизвестно',
+            position: u.position || 'Без должности'
+          });
         }
       }
     });
