@@ -390,7 +390,7 @@ export default function RegisterPage() {
             {isAlreadyMember && (
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-1">
-                  Прикрепить фото пропуска *
+                  Прикрепить корпоративный пропуск либо справку с места работы *
                 </label>
                 <input
                   type="file"
@@ -418,7 +418,19 @@ export default function RegisterPage() {
             
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold mt-4 shadow-lg transition">
+          <div className="mt-6 mb-4 flex items-start gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <input
+              type="checkbox"
+              id="dataProcessing"
+              required
+              className="mt-0.5 w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="dataProcessing" className="text-xs font-medium text-gray-600 cursor-pointer leading-tight">
+              Я даю согласие на сбор и обработку моих персональных данных.
+            </label>
+          </div>
+
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold mt-2 shadow-lg transition">
             {loading ? 'Создание заявки и документов...' : 'Отправить заявку'}
           </button>
         </form>
