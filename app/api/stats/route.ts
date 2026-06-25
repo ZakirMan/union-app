@@ -10,7 +10,8 @@ export async function GET(request: Request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    await adminAuth.verifyIdToken(idToken); // Доступно всем авторизованным пользователям
+    const decodedToken = await adminAuth.verifyIdToken(idToken); // Доступно всем авторизованным пользователям
+    const uid = decodedToken.uid;
 
     // Получаем всех пользователей (approved)
     const usersSnap = await adminDb.collection('users').where('status', '==', 'approved').get();
@@ -85,6 +86,17 @@ export async function GET(request: Request) {
         }
       }
     });
+
+    // Проверяем, является ли текущий пользователь админом
+    const currentUser = users.find((u: any) => u.id === uid);
+    const isAdmin = currentUser?.role === 'admin';
+
+    // Если не админ, не передаем список вступивших
+    if (!isAdmin) {
+      Object.keys(newMembersStats).forEach(key => {
+        newMembersStats[key].details = [];
+      });
+    }
 
     return NextResponse.json({ success: true, newMembersStats, aidStats });
 
