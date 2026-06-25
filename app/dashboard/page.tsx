@@ -117,6 +117,10 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // Стейты для модалок статистики
+  const [selectedMonthStats, setSelectedMonthStats] = useState<{name: string, details: any[]} | null>(null);
+  const [selectedAidStats, setSelectedAidStats] = useState<{name: string, details: any[]} | null>(null);
+
   // Материальная помощь
   const [showAidModal, setShowAidModal] = useState(false);
   const [aidCategory, setAidCategory] = useState('');
@@ -1266,31 +1270,18 @@ export default function DashboardPage() {
                         const key = `${new Date().getFullYear()}-${m.num}`;
                         const stat = unionStats.aidStats[key] || { count: 0, amount: 0, pendingCount: 0, details: [] };
                         return (
-                          <div key={m.num} tabIndex={0} className="bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm hover:bg-white/20 transition cursor-pointer md:cursor-default relative group/month outline-none">
+                          <div 
+                            key={m.num} 
+                            tabIndex={0} 
+                            onClick={() => { if (stat.count > 0 && stat.details && stat.details.length > 0) setSelectedAidStats({ name: m.name, details: stat.details }); }}
+                            className={`bg-white/10 backdrop-blur-md px-2 py-3 rounded-xl flex flex-col items-center justify-center border border-white/10 shadow-sm transition ${stat.count > 0 ? 'cursor-pointer hover:bg-white/20 hover:scale-105' : 'cursor-default opacity-50'} outline-none`}
+                          >
                             <span className="text-[10px] text-green-200 font-bold mb-1 uppercase tracking-wider">{m.name}</span>
                             <span className={`text-sm md:text-[15px] font-black leading-tight ${stat.count > 0 ? 'text-white' : 'text-white/30'}`}>
                               {stat.count > 0 ? `${stat.amount.toLocaleString('ru-RU')} ₸` : '0 ₸'}
                             </span>
                             {stat.count > 0 && <span className="text-[9px] text-green-100 font-bold mt-0.5">{stat.count} шт</span>}
                             {stat.pendingCount > 0 && <span className="text-[9px] text-orange-200 font-bold mt-0.5 opacity-80">+ {stat.pendingCount} ожид.</span>}
-                            
-                            {stat.details && stat.details.length > 0 && (
-                              <div className="absolute z-50 bottom-full pb-2 md:left-1/2 md:-translate-x-1/2 right-0 w-[260px] opacity-0 invisible group-hover/month:opacity-100 group-hover/month:visible group-focus/month:opacity-100 group-focus/month:visible transition-all z-[100]">
-                                <div className="bg-gray-900 text-white text-xs rounded-xl p-4 shadow-xl relative">
-                                  <div className="font-black mb-2 text-green-400 border-b border-gray-700 pb-1 text-sm">Выплаты за {m.name}</div>
-                                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
-                                    {stat.details.map((d: any, i: number) => (
-                                      <div key={i} className={`flex flex-col py-1.5 ${d.isPending ? 'bg-orange-500/10 px-2 rounded-lg border border-orange-500/30 mb-1' : ''}`}>
-                                        <span className="font-bold text-[13px]">{d.name} {d.isPending && <span className="text-orange-400 text-[10px] uppercase tracking-wider ml-1">В очереди</span>}</span>
-                                        <span className="text-gray-400 text-[11px] mt-0.5">{d.reason}</span>
-                                        <span className={`${d.isPending ? 'text-orange-300' : 'text-green-300'} font-black text-[13px] mt-0.5`}>{d.amount.toLocaleString('ru-RU')} ₸</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <div className="absolute -bottom-1 right-6 md:left-1/2 md:-translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45"></div>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -1951,6 +1942,67 @@ export default function DashboardPage() {
           );
         })}
       </div>
+
+      {/* MODAL FOR MONTH STATS (NEW MEMBERS) */}
+      {selectedMonthStats && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 flex justify-between items-center text-white shrink-0">
+              <div>
+                <h3 className="font-black text-xl">Новые участники</h3>
+                <p className="text-blue-100 text-sm font-bold opacity-80">Месяц: {selectedMonthStats.name}</p>
+              </div>
+              <button onClick={() => setSelectedMonthStats(null)} className="text-white/50 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {selectedMonthStats.details.map((d: any, i: number) => (
+                <div key={i} className="flex flex-col bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <span className="font-black text-gray-900">{d.name}</span>
+                  <span className="text-blue-500 font-bold text-xs mt-1">{d.position}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-4 bg-gray-50 border-t border-gray-100 shrink-0">
+              <button onClick={() => setSelectedMonthStats(null)} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition">
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FOR AID STATS */}
+      {selectedAidStats && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-gradient-to-r from-green-500 to-teal-600 p-6 flex justify-between items-center text-white shrink-0">
+              <div>
+                <h3 className="font-black text-xl">Одобренная мат. помощь</h3>
+                <p className="text-green-100 text-sm font-bold opacity-80">Месяц: {selectedAidStats.name}</p>
+              </div>
+              <button onClick={() => setSelectedAidStats(null)} className="text-white/50 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {selectedAidStats.details.map((d: any, i: number) => (
+                <div key={i} className={`flex flex-col p-4 rounded-xl border ${d.isPending ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-100'}`}>
+                  <span className="font-black text-gray-900 text-sm">{d.name} {d.isPending && <span className="text-orange-500 text-[10px] uppercase tracking-wider ml-2 bg-orange-100 px-2 py-0.5 rounded-md">В очереди</span>}</span>
+                  <span className="text-gray-500 font-medium text-xs mt-1">{d.reason}</span>
+                  <span className={`${d.isPending ? 'text-orange-500' : 'text-green-600'} font-black text-sm mt-2`}>{d.amount.toLocaleString('ru-RU')} ₸</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-4 bg-gray-50 border-t border-gray-100 shrink-0">
+              <button onClick={() => setSelectedAidStats(null)} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition">
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }
