@@ -1382,9 +1382,9 @@ export default function AdminPage() {
 
                 {/* SETTINGS (ACCOUNTING EMAIL) */}
                 <div className="md:col-span-1 bg-white p-6 md:p-8 rounded-[2rem] shadow-lg border border-gray-100 flex flex-col justify-center">
-                  <h3 className="font-black text-xl mb-2 text-gray-800">Общие настройки</h3>
-                  <p className="text-gray-500 font-bold text-xs mb-4">Email бухгалтерии для заявлений:</p>
-                  <div className="space-y-4">
+                  <h3 className="font-black text-xl mb-2 text-gray-800">Настройки уведомлений</h3>
+                  <p className="text-gray-500 font-bold text-xs mb-4">Настройте автоматическую отправку заявлений на удержание взносов. Можно указать несколько Email через запятую.</p>
+                  <div className="space-y-3">
                     <input 
                       type="text" 
                       placeholder="acc1@mail.ru, acc2@mail.ru" 
@@ -1392,20 +1392,12 @@ export default function AdminPage() {
                       value={accountingEmail}
                       onChange={e => setAccountingEmail(e.target.value)}
                     />
-                    <p className="text-gray-500 font-bold text-xs mb-1">Базовое количество членов (по отчислениям):</p>
-                    <input 
-                      type="number" 
-                      placeholder="508" 
-                      className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-500 transition"
-                      value={accountingBaseMembers}
-                      onChange={e => setAccountingBaseMembers(Number(e.target.value))}
-                    />
                     <button 
                       onClick={handleSaveSettings}
                       disabled={isSavingEmail}
                       className="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition hover:scale-105 disabled:opacity-50"
                     >
-                      {isSavingEmail ? 'Сохранение...' : 'Сохранить настройки'}
+                      {isSavingEmail ? 'Сохранение...' : 'Сохранить Email'}
                     </button>
                   </div>
                 </div>
@@ -1795,6 +1787,34 @@ export default function AdminPage() {
                     <span className={`text-3xl font-black mb-1 ${userCategoryFilter === '' ? 'text-white' : 'text-indigo-600'}`}>{users.filter(u => u.status === 'approved').length}</span>
                     <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${userCategoryFilter === '' ? 'text-indigo-100' : 'text-gray-500'}`}>Всего участников</span>
                   </div>
+                </div>
+              </div>
+
+              {/* НАСТРОЙКИ СЧЕТЧИКА УЧАСТНИКОВ */}
+              <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
+                <h2 className="font-black text-2xl mb-4 text-gray-900">Настройка счетчика участников</h2>
+                <p className="text-gray-500 font-bold text-sm mb-6">
+                  Укажите базовое количество членов профсоюза (по данным отчислений из бухгалтерии). 
+                  Это число будет автоматически суммироваться с количеством зарегистрированных в приложении участников и отображаться на главной странице (в блоке "500+").
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                  <div className="relative w-full sm:w-auto">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black">👥</span>
+                    <input 
+                      type="number" 
+                      placeholder="Например, 508" 
+                      className="w-full sm:w-48 bg-gray-50 pl-12 pr-4 py-4 rounded-2xl font-black border-0 outline-none focus:ring-2 focus:ring-blue-500 transition text-xl text-gray-800"
+                      value={accountingBaseMembers}
+                      onChange={e => setAccountingBaseMembers(Number(e.target.value))}
+                    />
+                  </div>
+                  <button 
+                    onClick={handleSaveSettings}
+                    disabled={isSavingEmail}
+                    className="w-full sm:w-auto bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSavingEmail ? 'Сохранение...' : 'Обновить счетчик'}
+                  </button>
                 </div>
               </div>
 
