@@ -16,6 +16,7 @@ export default function HomePage() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
+  const [totalMembers, setTotalMembers] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -59,6 +60,16 @@ export default function HomePage() {
         setTeam(teamData);
       } catch (e) { console.error(e); }
       finally { setLoadingNews(false); }
+
+      try {
+        const statsRes = await fetch('/api/public-stats');
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (statsData.success && statsData.totalMembers) {
+            setTotalMembers(statsData.totalMembers);
+          }
+        }
+      } catch (e) { console.error("Error loading stats", e); }
     };
     loadData();
 
@@ -143,7 +154,7 @@ export default function HomePage() {
         {/* STATS DECORATION */}
         <div className="max-w-5xl mx-auto mt-20 grid md:grid-cols-3 gap-6 px-6 relative z-10">
           <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
-            <div className="text-4xl font-black text-white mb-1">500+</div>
+            <div className="text-4xl font-black text-white mb-1">{totalMembers ? totalMembers : '500+'}</div>
             <div className="text-blue-200 text-sm font-bold uppercase">Участников</div>
           </div>
           <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">

@@ -142,6 +142,7 @@ export default function AdminPage() {
 
   // Настройки
   const [accountingEmail, setAccountingEmail] = useState('');
+  const [accountingBaseMembers, setAccountingBaseMembers] = useState(508);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
   // Формы
@@ -235,10 +236,10 @@ export default function AdminPage() {
       const logsSnap = await getDocs(collection(db, 'admin_logs'));
       setLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AdminLog)).sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? 1 : -1));
 
-      // Настройки
       const settingsSnap = await getDoc(doc(db, 'settings', 'general'));
       if (settingsSnap.exists()) {
         setAccountingEmail(settingsSnap.data().accountingEmail || '');
+        setAccountingBaseMembers(settingsSnap.data().accountingBaseMembers || 508);
       }
 
       // Реестры бухгалтерии (по месяцам)
@@ -297,11 +298,11 @@ export default function AdminPage() {
 
   // --- ACTIONS ---
 
-  const handleSaveAccountingEmail = async () => {
+  const handleSaveSettings = async () => {
     setIsSavingEmail(true);
     try {
-      await setDoc(doc(db, 'settings', 'general'), { accountingEmail }, { merge: true });
-      alert('Email бухгалтерии успешно сохранен!');
+      await setDoc(doc(db, 'settings', 'general'), { accountingEmail, accountingBaseMembers: Number(accountingBaseMembers) }, { merge: true });
+      alert('Настройки успешно сохранены!');
     } catch (e) {
       console.error(e);
       alert('Ошибка при сохранении');
@@ -1381,9 +1382,9 @@ export default function AdminPage() {
 
                 {/* SETTINGS (ACCOUNTING EMAIL) */}
                 <div className="md:col-span-1 bg-white p-6 md:p-8 rounded-[2rem] shadow-lg border border-gray-100 flex flex-col justify-center">
-                  <h3 className="font-black text-xl mb-2 text-gray-800">Настройки уведомлений</h3>
-                  <p className="text-gray-500 font-bold text-xs mb-4">Настройте автоматическую отправку заявлений на удержание взносов. Можно указать несколько Email через запятую.</p>
-                  <div className="space-y-3">
+                  <h3 className="font-black text-xl mb-2 text-gray-800">Общие настройки</h3>
+                  <p className="text-gray-500 font-bold text-xs mb-4">Email бухгалтерии для заявлений:</p>
+                  <div className="space-y-4">
                     <input 
                       type="text" 
                       placeholder="acc1@mail.ru, acc2@mail.ru" 
@@ -1391,12 +1392,20 @@ export default function AdminPage() {
                       value={accountingEmail}
                       onChange={e => setAccountingEmail(e.target.value)}
                     />
+                    <p className="text-gray-500 font-bold text-xs mb-1">Базовое количество членов (по отчислениям):</p>
+                    <input 
+                      type="number" 
+                      placeholder="508" 
+                      className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      value={accountingBaseMembers}
+                      onChange={e => setAccountingBaseMembers(Number(e.target.value))}
+                    />
                     <button 
-                      onClick={handleSaveAccountingEmail}
+                      onClick={handleSaveSettings}
                       disabled={isSavingEmail}
                       className="w-full bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition hover:scale-105 disabled:opacity-50"
                     >
-                      {isSavingEmail ? 'Сохранение...' : 'Сохранить Email'}
+                      {isSavingEmail ? 'Сохранение...' : 'Сохранить настройки'}
                     </button>
                   </div>
                 </div>
