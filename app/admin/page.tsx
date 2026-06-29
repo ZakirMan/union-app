@@ -25,6 +25,17 @@ interface UserData {
   leaveEndDate?: string;
 }
 
+interface ExitedMember {
+  id: string;
+  name: string;
+  exitDate: string;
+  reason?: string;
+  statementUrl?: string;
+  isAppUser?: boolean;
+  userId?: string;
+  createdAt: string;
+}
+
 // Тесты
 interface TestOption { id: string; text: string; isCorrect: boolean; }
 interface TestQuestion { id: string; text: string; options: TestOption[]; }
@@ -112,6 +123,7 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [selectedMonthStats, setSelectedMonthStats] = useState<{name: string, details: any[]} | null>(null);
   const [selectedAidStats, setSelectedAidStats] = useState<{name: string, details: any[]} | null>(null);
+  const [exitedMembers, setExitedMembers] = useState<ExitedMember[]>([]);
 
   // Состояние для просмотра результатов теста
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
@@ -191,6 +203,12 @@ export default function AdminPage() {
   const [registryFilter, setRegistryFilter] = useState<'all' | 'unregistered'>('all');
   const [registrySearch, setRegistrySearch] = useState('');
 
+  // Выбывшие (ручное добавление)
+  const [manualExitName, setManualExitName] = useState('');
+  const [manualExitDate, setManualExitDate] = useState(new Date().toISOString().substring(0, 10));
+  const [manualExitFile, setManualExitFile] = useState<File | null>(null);
+  const [isSubmittingExit, setIsSubmittingExit] = useState(false);
+
   const itemsPerPage = 10;
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, eventSubTab, delegationSubTab]);
@@ -251,6 +269,9 @@ export default function AdminPage() {
         regs[docSnap.id] = docSnap.data().records || [];
       });
       setRegistries(regs);
+
+      const exitedSnap = await getDocs(collection(db, 'exited_members'));
+      setExitedMembers(exitedSnap.docs.map(d => ({ id: d.id, ...d.data() } as ExitedMember)).sort((a, b) => (a.exitDate || '') < (b.exitDate || '') ? 1 : -1));
 
       setLoading(false);
     } catch (e) {
@@ -783,6 +804,79 @@ export default function AdminPage() {
       await logAction('reject_user', 'user', `Участник удален/отклонен: ${id}`); 
       fetchData(); 
     } 
+  };
+
+  const handleExcludeUser = async (u: UserData) => {
+    if (!confirm(`Вы уверены, что хотите ИСКЛЮЧИТЬ участника ${u.displayName} из профсоюза? Его аккаунт будет удален.`)) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (token) {
+        await fetch('/api/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ targetUserId: u.id })
+        });
+      }
+      
+      await addDoc(collection(db, 'exited_members'), {
+        name: u.displayName,
+        exitDate: new Date().toISOString().substring(0, 10),
+        isAppUser: true,
+        userId: u.id,
+        createdAt: new Date().toISOString()
+      });
+
+      if (u.statementUrl) await deleteObject(ref(storage, u.statementUrl)).catch(() => {});
+      if (u.deductionUrl) await deleteObject(ref(storage, u.deductionUrl)).catch(() => {});
+      if (u.idCardUrl) await deleteObject(ref(storage, u.idCardUrl)).catch(() => {});
+
+      await deleteDoc(doc(db, 'users', u.id));
+      await logAction('exclude_user', 'user', `Исключен из профсоюза: ${u.displayName}`);
+      fetchData();
+    } catch (e) {
+      console.error('Ошибка исключения:', e);
+      alert('Ошибка при исключении участника');
+    }
+  };
+
+  const handleAddManualExit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingExit(true);
+    try {
+      let statementUrl = '';
+      if (manualExitFile) {
+        statementUrl = await uploadImage(manualExitFile, 'exits');
+      }
+      await addDoc(collection(db, 'exited_members'), {
+        name: manualExitName,
+        exitDate: manualExitDate,
+        isAppUser: false,
+        statementUrl,
+        createdAt: new Date().toISOString()
+      });
+      await logAction('add_manual_exit', 'user', `Добавлен выбывший: ${manualExitName}`);
+      setManualExitName('');
+      setManualExitFile(null);
+      setManualExitDate(new Date().toISOString().substring(0, 10));
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка сохранения');
+    } finally {
+      setIsSubmittingExit(false);
+    }
+  };
+
+  const handleDeleteExit = async (id: string, statementUrl?: string) => {
+    if (!confirm('Удалить запись о выбывшем?')) return;
+    try {
+      if (statementUrl) await deleteObject(ref(storage, statementUrl)).catch(() => {});
+      await deleteDoc(doc(db, 'exited_members', id));
+      await logAction('delete_exit', 'user', `Удалена запись о выбывшем: ${id}`);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleFreezeUser = async (u: UserData) => {
@@ -1835,6 +1929,72 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* РЕЕСТР ВЫБЫВШИХ */}
+              <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100 mb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                  <div>
+                    <h2 className="font-black text-2xl text-gray-900">Реестр выбывших</h2>
+                    <p className="text-gray-500 font-bold text-sm">Участники, которые покинули профсоюз.</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-6 rounded-2xl mb-6">
+                  <h3 className="font-black text-gray-800 mb-3">Вручную добавить выбывшего (по бумажному заявлению)</h3>
+                  <form onSubmit={handleAddManualExit} className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1 w-full">
+                      <label className="text-xs font-bold text-gray-500 ml-1">ФИО</label>
+                      <input type="text" required placeholder="Иванов Иван Иванович" className="w-full bg-white p-3 rounded-xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-500" value={manualExitName} onChange={e => setManualExitName(e.target.value)} />
+                    </div>
+                    <div className="w-full md:w-40">
+                      <label className="text-xs font-bold text-gray-500 ml-1">Дата выхода</label>
+                      <input type="date" required className="w-full bg-white p-3 rounded-xl font-bold border-0 outline-none focus:ring-2 focus:ring-blue-500 text-sm" value={manualExitDate} onChange={e => setManualExitDate(e.target.value)} />
+                    </div>
+                    <div className="w-full md:w-auto">
+                      <label className="text-xs font-bold text-gray-500 ml-1">Заявление (фото/pdf)</label>
+                      <input type="file" required accept="image/*,.pdf" className="w-full bg-white p-2 rounded-xl text-xs font-bold file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={e => setManualExitFile(e.target.files?.[0] || null)} />
+                    </div>
+                    <button disabled={isSubmittingExit} type="submit" className="w-full md:w-auto bg-blue-600 text-white font-black px-6 py-3 rounded-xl shadow-lg hover:bg-blue-700 disabled:opacity-50 transition">
+                      {isSubmittingExit ? 'Добавление...' : 'Добавить'}
+                    </button>
+                  </form>
+                </div>
+
+                {exitedMembers.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-500">
+                      <thead className="text-xs text-gray-400 uppercase bg-gray-50/50">
+                        <tr>
+                          <th className="px-4 py-3">ФИО</th>
+                          <th className="px-4 py-3">Дата выхода</th>
+                          <th className="px-4 py-3">Источник</th>
+                          <th className="px-4 py-3 text-center">Заявление</th>
+                          <th className="px-4 py-3 text-right">Действия</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {exitedMembers.map(m => (
+                          <tr key={m.id} className="border-b border-gray-50">
+                            <td className="px-4 py-3 font-bold text-gray-900">{m.name}</td>
+                            <td className="px-4 py-3 font-bold">{m.exitDate}</td>
+                            <td className="px-4 py-3">
+                              {m.isAppUser ? <span className="text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded-md text-xs">Приложение</span> : <span className="text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded-md text-xs">Вручную</span>}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {m.statementUrl ? <a href={m.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs font-bold">Смотреть</a> : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button onClick={() => handleDeleteExit(m.id, m.statementUrl)} className="text-red-400 hover:text-red-600 font-bold text-xs uppercase">Удалить</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400 font-bold">Нет выбывших участников</div>
+                )}
+              </div>
+
               <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
                 <div className="p-8 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <h2 className="font-black text-2xl">Реестр участников</h2>
@@ -1913,7 +2073,10 @@ export default function AdminPage() {
 </div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right">{u.status === 'frozen' ? (
   <button onClick={(e) => { e.stopPropagation(); handleUnfreezeUser(u); }} className="text-blue-500 hover:text-blue-700 font-bold px-2 whitespace-nowrap text-xs">Разморозить</button>
 ) : (
-  <button onClick={(e) => { e.stopPropagation(); handleFreezeUser(u); }} className="text-orange-300 hover:text-orange-500 font-bold px-2 whitespace-nowrap text-xs">❄️ Заморозить</button>
+  <>
+    <button onClick={(e) => { e.stopPropagation(); handleFreezeUser(u); }} className="text-orange-300 hover:text-orange-500 font-bold px-2 whitespace-nowrap text-xs">❄️ Заморозить</button>
+    <button onClick={(e) => { e.stopPropagation(); handleExcludeUser(u); }} className="text-red-400 hover:text-red-600 font-bold px-2 whitespace-nowrap text-xs">❌ Исключить</button>
+  </>
 )}
 <button onClick={(e) => { e.stopPropagation(); handleRejectUser(u.id, u.statementUrl, u.idCardUrl, u.deductionUrl); }} className="text-red-300 hover:text-red-500 font-bold px-2">✕</button></td></tr>))}
                     </tbody>

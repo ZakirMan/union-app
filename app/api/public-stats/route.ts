@@ -22,7 +22,17 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json({ success: true, totalMembers: baseCount + appUsersCount });
+    // 3. Вычитаем выбывших участников (тех, кто вышел ПОСЛЕ базовой даты)
+    const exitedSnap = await adminDb.collection('exited_members').get();
+    let exitedCount = 0;
+    exitedSnap.forEach(doc => {
+      const data = doc.data();
+      if (!baseDate || (data.exitDate && data.exitDate >= baseDate)) {
+        exitedCount++;
+      }
+    });
+
+    return NextResponse.json({ success: true, totalMembers: baseCount + appUsersCount - exitedCount });
   } catch (error: any) {
     console.error('Error fetching public stats:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
