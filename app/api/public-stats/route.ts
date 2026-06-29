@@ -8,6 +8,7 @@ export async function GET() {
     // 1. Получаем базовое количество из настроек
     const settingsSnap = await adminDb.collection('settings').doc('general').get();
     const baseCount = settingsSnap.exists ? (settingsSnap.data()?.accountingBaseMembers || 508) : 508;
+    const baseDate = settingsSnap.exists ? (settingsSnap.data()?.accountingBaseDate || '') : '';
 
     // 2. Получаем количество НОВЫХ пользователей в приложении (которые не были членами до регистрации и одобрены)
     const usersSnap = await adminDb.collection('users').get();
@@ -15,7 +16,9 @@ export async function GET() {
     usersSnap.forEach(doc => {
       const data = doc.data();
       if (data.status === 'approved' && data.isAlreadyMember === false) {
-        appUsersCount++;
+        if (!baseDate || (data.joinDate && data.joinDate >= baseDate)) {
+          appUsersCount++;
+        }
       }
     });
 

@@ -143,6 +143,7 @@ export default function AdminPage() {
   // Настройки
   const [accountingEmail, setAccountingEmail] = useState('');
   const [accountingBaseMembers, setAccountingBaseMembers] = useState(508);
+  const [accountingBaseDate, setAccountingBaseDate] = useState('');
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
   // Формы
@@ -240,6 +241,7 @@ export default function AdminPage() {
       if (settingsSnap.exists()) {
         setAccountingEmail(settingsSnap.data().accountingEmail || '');
         setAccountingBaseMembers(settingsSnap.data().accountingBaseMembers || 508);
+        setAccountingBaseDate(settingsSnap.data().accountingBaseDate || '');
       }
 
       // Реестры бухгалтерии (по месяцам)
@@ -301,7 +303,7 @@ export default function AdminPage() {
   const handleSaveSettings = async () => {
     setIsSavingEmail(true);
     try {
-      await setDoc(doc(db, 'settings', 'general'), { accountingEmail, accountingBaseMembers: Number(accountingBaseMembers) }, { merge: true });
+      await setDoc(doc(db, 'settings', 'general'), { accountingEmail, accountingBaseMembers: Number(accountingBaseMembers), accountingBaseDate }, { merge: true });
       alert('Настройки успешно сохранены!');
     } catch (e) {
       console.error(e);
@@ -1794,24 +1796,39 @@ export default function AdminPage() {
               <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-gray-100">
                 <h2 className="font-black text-2xl mb-4 text-gray-900">Настройка счетчика участников</h2>
                 <p className="text-gray-500 font-bold text-sm mb-6">
-                  Укажите базовое количество членов профсоюза (по данным отчислений из бухгалтерии). 
-                  Это число будет автоматически суммироваться с количеством зарегистрированных в приложении участников и отображаться на главной странице (в блоке "500+").
+                  Укажите базовое количество членов профсоюза (по данным отчислений из бухгалтерии) и дату, начиная с которой считать новых вступивших через приложение. 
+                  Это число будет автоматически суммироваться с количеством новых участников, зарегистрированных ПОСЛЕ указанной даты, и отображаться на главной странице.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                  <div className="relative w-full sm:w-auto">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black">👥</span>
-                    <input 
-                      type="number" 
-                      placeholder="Например, 508" 
-                      className="w-full sm:w-48 bg-gray-50 pl-12 pr-4 py-4 rounded-2xl font-black border-0 outline-none focus:ring-2 focus:ring-blue-500 transition text-xl text-gray-800"
-                      value={accountingBaseMembers}
-                      onChange={e => setAccountingBaseMembers(Number(e.target.value))}
-                    />
+                  <div className="relative w-full sm:w-auto flex flex-col gap-1">
+                    <span className="text-xs font-bold text-gray-500 ml-1">Базовое кол-во</span>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black">👥</span>
+                      <input 
+                        type="number" 
+                        placeholder="Например, 508" 
+                        className="w-full sm:w-40 bg-gray-50 pl-12 pr-4 py-4 rounded-2xl font-black border-0 outline-none focus:ring-2 focus:ring-blue-500 transition text-xl text-gray-800"
+                        value={accountingBaseMembers}
+                        onChange={e => setAccountingBaseMembers(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                  <div className="relative w-full sm:w-auto flex flex-col gap-1">
+                    <span className="text-xs font-bold text-gray-500 ml-1">Считать новых начиная с</span>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black">📅</span>
+                      <input 
+                        type="date" 
+                        className="w-full sm:w-48 bg-gray-50 pl-10 pr-4 py-4 rounded-2xl font-black border-0 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm text-gray-800"
+                        value={accountingBaseDate}
+                        onChange={e => setAccountingBaseDate(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <button 
                     onClick={handleSaveSettings}
                     disabled={isSavingEmail}
-                    className="w-full sm:w-auto bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto mt-6 bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isSavingEmail ? 'Сохранение...' : 'Обновить счетчик'}
                   </button>
