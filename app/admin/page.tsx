@@ -16,6 +16,7 @@ interface UserData {
   delegationStatus?: string; delegationConferenceId?: string; photoUrl?: string;
   statementUrl?: string;
   deductionUrl?: string;
+  signatureUrl?: string;
   isAlreadyMember?: boolean;
   joinDate?: string;
   idCardUrl?: string;
@@ -1806,6 +1807,11 @@ export default function AdminPage() {
                                 📎 {u.isAlreadyMember ? 'Фото пропуска' : 'Заявление'}
                               </a>
                             )}
+                            {u.signatureUrl && (
+                              <a href={u.signatureUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-purple-100 transition border border-purple-100">
+                                🔑 SIGEX .sig
+                              </a>
+                            )}
                             {u.deductionUrl && (
                               <a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-green-100 transition border border-green-100">
                                 📎 На удержание
@@ -2070,7 +2076,7 @@ export default function AdminPage() {
       WhatsApp
     </a>
   )}
-</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right">{u.status === 'frozen' ? (
+</div><div className="text-xs text-gray-400">{u.email}</div></td><td className="p-6 text-center"><div className="flex flex-col items-center gap-2">{u.statementUrl && (<div className="flex flex-col items-center gap-1"><a href={u.statementUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>{u.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.statementUrl!, 'statementUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.signatureUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.signatureUrl} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Подпись .sig</a></div>)}{u.deductionUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.deductionUrl} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>На удержание</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.deductionUrl!, 'deductionUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{u.idCardUrl && (<div className="flex flex-col items-center gap-1 border-t pt-1 border-gray-100"><a href={u.idCardUrl} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline text-[10px] font-bold" onClick={e => e.stopPropagation()}>Уд. Личности</a><button onClick={(e) => { e.stopPropagation(); handleDeleteUserFile(u.id, u.idCardUrl!, 'idCardUrl'); }} className="text-red-400 hover:text-red-600 text-[10px] uppercase font-black">✕</button></div>)}{!u.statementUrl && !u.idCardUrl && !u.deductionUrl && <span className="text-gray-300 text-xs">—</span>}</div></td><td className="p-6 text-center">{u.delegatedTo ? <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black">Голос передан</span> : u.delegatedFrom && u.delegatedFrom.length > 0 ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black">Делегат (+{u.delegatedFrom.length})</span> : <span className="text-gray-300">—</span>}</td><td className="p-6 text-right">{u.status === 'frozen' ? (
   <button onClick={(e) => { e.stopPropagation(); handleUnfreezeUser(u); }} className="text-blue-500 hover:text-blue-700 font-bold px-2 whitespace-nowrap text-xs">Разморозить</button>
 ) : (
   <>
@@ -2230,6 +2236,7 @@ export default function AdminPage() {
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {selectedUser.statementUrl && <a href={selectedUser.statementUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">📄 {selectedUser.isAlreadyMember ? 'Пропуск' : 'Заявление'}</a>}
+                      {selectedUser.signatureUrl && <a href={selectedUser.signatureUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">🔑 Подпись .sig</a>}
                       {selectedUser.deductionUrl && <a href={selectedUser.deductionUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">📄 На удержание</a>}
                       {selectedUser.idCardUrl && <a href={selectedUser.idCardUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">🪪 Уд. Личности</a>}
                     </div>

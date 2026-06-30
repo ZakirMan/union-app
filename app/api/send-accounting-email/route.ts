@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { userEmail, userName, phone, position, category, deductionUrl } = await request.json();
+    const { userEmail, userName, phone, position, category, statementUrl, signatureUrl } = await request.json();
 
     // Check authorization: must be admin OR the user themselves
     const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
@@ -28,8 +28,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (!deductionUrl) {
-      return NextResponse.json({ message: 'Нет заявления на удержание, отправка не требуется' });
+    if (!statementUrl) {
+      return NextResponse.json({ message: 'Нет заявления, отправка не требуется' });
     }
 
     // Get accounting email from settings
@@ -41,19 +41,30 @@ export async function POST(request: Request) {
     }
 
     // Fetch the file buffer
-    const fileResponse = await fetch(deductionUrl);
+    const fileResponse = await fetch(statementUrl);
     if (!fileResponse.ok) {
-      return NextResponse.json({ error: 'Failed to fetch deduction file' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to fetch statement file' }, { status: 500 });
     }
     
     const arrayBuffer = await fileResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Determine extension from content-type
-    const contentType = fileResponse.headers.get('content-type') || '';
+    const contentType = fileResponse.headers.get('content-type') || 'application/pdf';
     let extension = 'pdf'; // default
     if (contentType.includes('image/jpeg')) extension = 'jpg';
     else if (contentType.includes('image/png')) extension = 'png';
+
+    let sigBuffer = null;
+    if (signatureUrl) {
+      try {
+        const sigResponse = await fetch(signatureUrl);
+        if (sigResponse.ok) {
+          sigBuffer = Buffer.from(await sigResponse.arrayBuffer());
+        }
+      } catch (e) {
+        console.error('Failed to fetch signature file:', e);
+      }
+    }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -85,10 +96,15 @@ export async function POST(request: Request) {
       `,
       attachments: [
         {
-          filename: `Заявление_на_удержание_${userName.replace(/\s+/g, '_')}.${extension}`,
+          filename: `Заявление_${userName.replace(/\s+/g, '_')}.${extension}`,
           content: buffer,
           contentType: contentType,
-        }
+        },
+        ...(sigBuffer ? [{
+          filename: `Подпись_${userName.replace(/\s+/g, '_')}.sig`,
+          content: sigBuffer,
+          contentType: 'application/pkcs7-signature',
+        }] : [])
       ]
     };
 
