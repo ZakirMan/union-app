@@ -235,10 +235,25 @@ export default function RegisterPage() {
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <span>Подпись</span>
-              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '12px' }}>
-                Документ подписан ЭЦП
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+              <span style={{ marginTop: '10px' }}>Подпись</span>
+              <div style={{ 
+                border: '2px solid #2563eb', 
+                borderRadius: '8px', 
+                padding: '12px', 
+                color: '#1e3a8a', 
+                fontSize: '11px',
+                lineHeight: '1.5',
+                width: '280px',
+                fontFamily: 'monospace',
+                backgroundColor: '#eff6ff',
+                boxSizing: 'border-box'
+              }}>
+                <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '8px', color: '#1d4ed8', borderBottom: '1px solid #bfdbfe', paddingBottom: '4px' }}>
+                  ☑ ДОКУМЕНТ ПОДПИСАН ЭЦП
+                </div>
+                <div><b>Подписант:</b> {name || '________________'}</div>
+                <div><b>Метод:</b> eGov Mobile (QR / SIGEX)</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -279,10 +294,25 @@ export default function RegisterPage() {
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <span>Подпись</span>
-              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '12px' }}>
-                Документ подписан ЭЦП
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+              <span style={{ marginTop: '10px' }}>Подпись</span>
+              <div style={{ 
+                border: '2px solid #2563eb', 
+                borderRadius: '8px', 
+                padding: '12px', 
+                color: '#1e3a8a', 
+                fontSize: '11px',
+                lineHeight: '1.5',
+                width: '280px',
+                fontFamily: 'monospace',
+                backgroundColor: '#eff6ff',
+                boxSizing: 'border-box'
+              }}>
+                <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '8px', color: '#1d4ed8', borderBottom: '1px solid #bfdbfe', paddingBottom: '4px' }}>
+                  ☑ ДОКУМЕНТ ПОДПИСАН ЭЦП
+                </div>
+                <div><b>Подписант:</b> {name || '________________'}</div>
+                <div><b>Метод:</b> eGov Mobile (QR / SIGEX)</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
