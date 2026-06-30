@@ -76,17 +76,11 @@ export default function RegisterPage() {
         
         generatedStatementBlob = pdf.output('blob');
         
-        // Получаем base64 для SIGEX
-        const pdfBase64 = btoa(
-          new Uint8Array(await generatedStatementBlob.arrayBuffer())
-            .reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-
         // 2. Инициализация SIGEX QR
         setIsSigning(true);
         try {
           const qrSigner = new QRSigningClientCMS('Заявление на вступление и удержание взносов');
-          await qrSigner.addDataToSign(['Заявление.pdf'], pdfBase64, [], false);
+          await qrSigner.addDataToSign(['Заявление.pdf'], generatedStatementBlob, [], true);
           
           const qrCode = await qrSigner.registerQRSinging();
           setQrCodeDataUrl(`data:image/gif;base64,${qrCode}`);
