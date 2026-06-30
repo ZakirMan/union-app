@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import SignatureCanvas from 'react-signature-canvas';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { QRSigningClientCMS } from 'sigex-qr-signing-client';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -29,8 +29,10 @@ export default function RegisterPage() {
   const [isAlreadyMember, setIsAlreadyMember] = useState(false);
   const [joinDate, setJoinDate] = useState(''); 
 
-  const sigCanvas = useRef<SignatureCanvas>(null);
-  const [signatureDataUrl, setSignatureDataUrl] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [eGovMobileLink, setEGovMobileLink] = useState('');
+  const [eGovBusinessLink, setEGovBusinessLink] = useState('');
+  const [isSigning, setIsSigning] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,48 +55,78 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!isAlreadyMember && sigCanvas.current?.isEmpty()) {
-      setError('Пожалуйста, поставьте подпись в соответствующем поле');
-      setLoading(false);
-      return;
+    let generatedStatementBlob: Blob | null = null;
+    let generatedSignatureBlob: Blob | null = null;
+
+    if (!isAlreadyMember) {
+      // 1. Генерация одного объединенного PDF
+      const membershipEl = document.getElementById('membership-template');
+      const deductionEl = document.getElementById('deduction-template');
+      
+      if (membershipEl && deductionEl) {
+        // Рендерим первую страницу
+        const canvas1 = await html2canvas(membershipEl, { scale: 1.5 });
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        pdf.addImage(canvas1.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+        
+        // Рендерим вторую страницу
+        const canvas2 = await html2canvas(deductionEl, { scale: 1.5 });
+        pdf.addPage();
+        pdf.addImage(canvas2.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+        
+        generatedStatementBlob = pdf.output('blob');
+        
+        // Получаем base64 для SIGEX
+        const pdfBase64 = btoa(
+          new Uint8Array(await generatedStatementBlob.arrayBuffer())
+            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+
+        // 2. Инициализация SIGEX QR
+        setIsSigning(true);
+        try {
+          const qrSigner = new QRSigningClientCMS('Заявление на вступление и удержание взносов');
+          await qrSigner.addDataToSign(['Заявление.pdf'], pdfBase64, [], false);
+          
+          const qrCode = await qrSigner.registerQRSinging();
+          setQrCodeDataUrl(`data:image/gif;base64,${qrCode}`);
+          setEGovMobileLink(qrSigner.getEGovMobileLaunchLink());
+          setEGovBusinessLink(qrSigner.getEGovBusinessLaunchLink());
+
+          // 3. Ждем подписание
+          const signatures = await qrSigner.getSignatures();
+          const signature = signatures[0];
+          
+          // Конвертируем base64 подпись в Blob
+          const byteCharacters = atob(signature);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          generatedSignatureBlob = new Blob([byteArray], {type: 'application/pkcs7-signature'});
+
+        } catch (sigexErr: unknown) {
+          console.error(sigexErr);
+          const err = sigexErr as { details?: string; message?: string };
+          setError('Ошибка при подписании документа: ' + (err.details || err.message || 'Неизвестная ошибка'));
+          setLoading(false);
+          setIsSigning(false);
+          return;
+        } finally {
+          setIsSigning(false);
+        }
+      }
     }
 
     try {
-      // Подготовка подписи и генерация PDF для НОВЫХ участников
-      let generatedStatementBlob: Blob | null = null;
-      let generatedDeductionBlob: Blob | null = null;
-
-      if (!isAlreadyMember) {
-        const sigUrl = sigCanvas.current!.getTrimmedCanvas().toDataURL('image/png');
-        setSignatureDataUrl(sigUrl);
-        
-        // Даем React время отрендерить картинку подписи в скрытом шаблоне
-        await new Promise(r => setTimeout(r, 200));
-
-        // Генерация Заявления на вступление
-        const membershipEl = document.getElementById('membership-template');
-        if (membershipEl) {
-          const canvas = await html2canvas(membershipEl, { scale: 1.5 });
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
-          generatedStatementBlob = pdf.output('blob');
-        }
-
-        // Генерация Заявления на удержание
-        const deductionEl = document.getElementById('deduction-template');
-        if (deductionEl) {
-          const canvas = await html2canvas(deductionEl, { scale: 1.5 });
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
-          generatedDeductionBlob = pdf.output('blob');
-        }
-      }
-
       // Регистрация в Firebase
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       let statementUrl = '';
+      let signatureUrl = '';
+
       if (isAlreadyMember && passFile) {
         const storageRef = ref(storage, `registration_statements/${user.uid}_pass_${passFile.name}`);
         await uploadBytes(storageRef, passFile);
@@ -103,13 +135,12 @@ export default function RegisterPage() {
         const storageRef = ref(storage, `registration_statements/${user.uid}_statement.pdf`);
         await uploadBytes(storageRef, generatedStatementBlob);
         statementUrl = await getDownloadURL(storageRef);
-      }
 
-      let deductionUrl = '';
-      if (!isAlreadyMember && generatedDeductionBlob) {
-        const storageRef = ref(storage, `deductions/${user.uid}_deduction.pdf`);
-        await uploadBytes(storageRef, generatedDeductionBlob);
-        deductionUrl = await getDownloadURL(storageRef);
+        if (generatedSignatureBlob) {
+          const sigRef = ref(storage, `registration_statements/${user.uid}_statement.sig`);
+          await uploadBytes(sigRef, generatedSignatureBlob);
+          signatureUrl = await getDownloadURL(sigRef);
+        }
       }
 
       let idCardUrl = '';
@@ -128,7 +159,8 @@ export default function RegisterPage() {
         phoneNumber: phone,
         tabelNumber: tabelNumber || '',
         statementUrl: statementUrl,
-        deductionUrl: deductionUrl,
+        signatureUrl: signatureUrl,
+        deductionUrl: "", // Мы объединили заявления в один файл
         idCardUrl: idCardUrl,
         isAlreadyMember: isAlreadyMember,
         joinDate: isAlreadyMember ? joinDate : '',
@@ -144,7 +176,7 @@ export default function RegisterPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
-            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}${statementUrl ? `\n\n📎 <a href="${statementUrl}">${isAlreadyMember ? 'Пропуск' : 'Заявление на вступление'}</a>` : ''}${deductionUrl ? `\n📎 <a href="${deductionUrl}">Заявление на удержание</a>` : ''}${idCardUrl ? `\n📎 <a href="${idCardUrl}">Уд. личности</a>` : ''}`
+            text: `🆕 <b>Новая заявка на вступление!</b>\n\n👤 <b>ФИО:</b> ${name}\n💼 <b>Должность:</b> ${position}\n📞 <b>Телефон:</b> ${phone}\n✉️ <b>Email:</b> ${email}\n🔰 <b>Уже в профсоюзе:</b> ${isAlreadyMember ? `Да (с ${joinDate || 'не указано'})` : 'Нет'}${statementUrl ? `\n\n📎 <a href="${statementUrl}">${isAlreadyMember ? 'Пропуск' : 'Заявление (объед.)'}</a>` : ''}${signatureUrl ? `\n📎 <a href="${signatureUrl}">Подпись SIGEX (.sig)</a>` : ''}${idCardUrl ? `\n📎 <a href="${idCardUrl}">Уд. личности</a>` : ''}`
           })
         });
       } catch (tgError) {
@@ -208,8 +240,8 @@ export default function RegisterPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <span>Подпись</span>
-              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative' }}>
-                {signatureDataUrl && <img src={signatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '50px', maxWidth: '150px' }} />}
+              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '12px' }}>
+                Документ подписан ЭЦП
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -252,8 +284,8 @@ export default function RegisterPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexDirection: 'column', gap: '40px', fontSize: '18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <span>Подпись</span>
-              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative' }}>
-                {signatureDataUrl && <img src={signatureDataUrl} alt="signature" style={{ position: 'absolute', bottom: '0', left: '0', maxHeight: '50px', maxWidth: '150px' }} />}
+              <div style={{ width: '200px', borderBottom: '1px solid #000', height: '60px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '12px' }}>
+                Документ подписан ЭЦП
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -362,27 +394,12 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-900 mb-2">
-                    Ваша электронная подпись *
+                    Подписание заявления
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Распишитесь пальцем в поле ниже. Эта подпись будет автоматически добавлена в ваши заявления (на вступление и удержание).
+                    Документ будет подписан с помощью eGov Mobile после нажатия кнопки &quot;Отправить заявку&quot;. 
+                    Два заявления (на вступление и удержание) будут объединены в один документ для удобства.
                   </p>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl bg-white overflow-hidden">
-                    <SignatureCanvas 
-                      ref={sigCanvas} 
-                      penColor="mediumblue"
-                      minWidth={0.5}
-                      maxWidth={1.5}
-                      canvasProps={{ className: 'w-full h-40 cursor-crosshair' }} 
-                    />
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => sigCanvas.current?.clear()} 
-                    className="text-xs font-bold text-blue-600 mt-2 hover:underline"
-                  >
-                    Очистить подпись
-                  </button>
                 </div>
               </>
             )}
@@ -440,13 +457,43 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {loading && (
+      {loading && !isSigning && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <h3 className="text-xl font-black text-blue-900 mb-2">Генерация заявлений...</h3>
+          <h3 className="text-xl font-black text-blue-900 mb-2">Обработка...</h3>
           <p className="text-gray-600 font-medium text-center max-w-sm">
-            Пожалуйста, подождите. Мы формируем PDF-документы с вашей электронной подписью и отправляем данные.
+            Пожалуйста, подождите. Создаем документ и сохраняем данные.
           </p>
+        </div>
+      )}
+
+      {isSigning && qrCodeDataUrl && (
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full flex flex-col items-center text-center border border-gray-100">
+            <h3 className="text-xl font-black text-blue-900 mb-2">Подпишите документ</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Отсканируйте этот QR-код через приложение <b>eGov Mobile</b> для подписания заявлений.
+            </p>
+            
+            <div className="bg-white p-2 rounded-xl shadow-inner border border-gray-100 mb-6">
+              <img src={qrCodeDataUrl} alt="eGov QR Code" className="w-48 h-48" />
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4">Ожидание подписания...</p>
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+
+            <div className="flex flex-col gap-2 w-full">
+              <a href={eGovMobileLink} target="_blank" rel="noopener noreferrer" className="text-sm font-bold bg-blue-50 text-blue-700 py-2 rounded-lg hover:bg-blue-100 transition">
+                Открыть в eGov Mobile
+              </a>
+              <a href={eGovBusinessLink} target="_blank" rel="noopener noreferrer" className="text-sm font-bold bg-gray-50 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition">
+                Открыть в eGov Business
+              </a>
+            </div>
+            <button onClick={() => { setIsSigning(false); setLoading(false); }} className="mt-6 text-sm text-red-500 font-bold hover:underline">
+              Отмена
+            </button>
+          </div>
         </div>
       )}
     </div>
