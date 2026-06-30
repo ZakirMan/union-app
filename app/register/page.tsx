@@ -79,8 +79,9 @@ export default function RegisterPage() {
         // 2. Инициализация SIGEX QR
         setIsSigning(true);
         try {
-          const qrSigner = new QRSigningClientCMS('Заявление на вступление и удержание взносов');
-          await qrSigner.addDataToSign(['Заявление.pdf'], generatedStatementBlob, [], true);
+          const safeName = name ? name.replace(/\s+/g, '_') : 'user';
+          const qrSigner = new QRSigningClientCMS(`Заявление от ${name || 'нового участника'}`);
+          await qrSigner.addDataToSign([`Заявление_${safeName}.pdf`], generatedStatementBlob, [], true);
           
           const qrCode = await qrSigner.registerQRSinging();
           setQrCodeDataUrl(`data:image/gif;base64,${qrCode}`);
@@ -121,17 +122,19 @@ export default function RegisterPage() {
       let statementUrl = '';
       let signatureUrl = '';
 
+      const safeName = name ? name.replace(/\s+/g, '_') : 'user';
+
       if (isAlreadyMember && passFile) {
-        const storageRef = ref(storage, `registration_statements/${user.uid}_pass_${passFile.name}`);
+        const storageRef = ref(storage, `registration_statements/${user.uid}_pass_${safeName}_${passFile.name}`);
         await uploadBytes(storageRef, passFile);
         statementUrl = await getDownloadURL(storageRef);
       } else if (generatedStatementBlob) {
-        const storageRef = ref(storage, `registration_statements/${user.uid}_statement.pdf`);
+        const storageRef = ref(storage, `registration_statements/${user.uid}_Заявление_${safeName}.pdf`);
         await uploadBytes(storageRef, generatedStatementBlob);
         statementUrl = await getDownloadURL(storageRef);
 
         if (generatedSignatureBlob) {
-          const sigRef = ref(storage, `registration_statements/${user.uid}_statement.sig`);
+          const sigRef = ref(storage, `registration_statements/${user.uid}_Подпись_${safeName}.sig`);
           await uploadBytes(sigRef, generatedSignatureBlob);
           signatureUrl = await getDownloadURL(sigRef);
         }
