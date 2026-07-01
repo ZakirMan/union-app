@@ -725,8 +725,8 @@ export default function AdminPage() {
         console.error('Ошибка отправки Email-уведомления:', err);
       }
 
-      // Отправляем заявление на удержание в бухгалтерию (если есть)
-      if (u.deductionUrl) {
+      // Отправляем объединенное заявление в бухгалтерию (если это новый участник)
+      if (!u.isAlreadyMember && u.statementUrl) {
         try {
           const token = await auth.currentUser?.getIdToken();
           if (token) {
@@ -742,7 +742,8 @@ export default function AdminPage() {
                 phone: u.phoneNumber,
                 position: u.position,
                 category: u.category,
-                deductionUrl: u.deductionUrl
+                statementUrl: u.statementUrl,
+                signatureUrl: u.signatureUrl
               })
             });
           }
