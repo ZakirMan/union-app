@@ -125,7 +125,9 @@ export default function DashboardPage() {
   const [showAidModal, setShowAidModal] = useState(false);
   const [aidCategory, setAidCategory] = useState('');
   const [aidComment, setAidComment] = useState('');
+  const [aidIban, setAidIban] = useState('');
   const [aidFile, setAidFile] = useState<File | null>(null);
+  const [aidFile2, setAidFile2] = useState<File | null>(null);
   const [isSubmittingAid, setIsSubmittingAid] = useState(false);
 
   // Уведомления об отпуске
@@ -389,13 +391,20 @@ export default function DashboardPage() {
         await uploadBytes(storageRef, aidFile);
         fileUrl = await getDownloadURL(storageRef);
       }
+      let fileUrl2 = '';
+      if (aidFile2) {
+        const storageRef2 = ref(storage, `requests/${user.uid}_${Date.now()}_${aidFile2.name}`);
+        await uploadBytes(storageRef2, aidFile2);
+        fileUrl2 = await getDownloadURL(storageRef2);
+      }
 
-      const text = `Запрос материальной помощи: ${aidCategory}${aidComment ? '\nКомментарий: ' + aidComment : ''}`;
+      const text = `Запрос материальной помощи: ${aidCategory}${aidComment ? '\nКомментарий: ' + aidComment : ''}${aidIban ? '\nIBAN: ' + aidIban : ''}`;
       const newReqData = {
         userId: user.uid,
         userEmail: user.email || '',
         text,
         fileUrl,
+        fileUrl2,
         status: 'new',
         createdAt: new Date().toISOString()
       };
@@ -406,19 +415,25 @@ export default function DashboardPage() {
       setShowAidModal(false);
       setAidCategory('');
       setAidComment('');
+      setAidIban('');
       setAidFile(null);
+      setAidFile2(null);
       alert('Запрос на материальную помощь отправлен!');
 
       // Загрузка файла на Google Drive
-      if (fileUrl) {
+      if (fileUrl || fileUrl2) {
         try {
+          const filesToUpload = [];
+          if (fileUrl) filesToUpload.push({ url: fileUrl, type: 'aid' });
+          if (fileUrl2) filesToUpload.push({ url: fileUrl2, type: 'aid' });
+          
           const token = await user.getIdToken();
           await fetch('/api/upload-to-drive', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
               userName: userData?.displayName || user.email,
-              files: [{ url: fileUrl, type: 'aid' }]
+              files: filesToUpload
             })
           });
         } catch (err) { console.error('Drive upload failed:', err); }
@@ -429,7 +444,7 @@ export default function DashboardPage() {
         await fetch('/api/send-telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ text: `💰 <b>Запрос материальной помощи!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n🏷️ <b>Категория:</b> ${aidCategory}${aidComment ? '\n📝 <b>Комментарий:</b> ' + aidComment : ''}${fileUrl ? `\n\n📎 <a href="${fileUrl}">Прикрепленный документ</a>` : ''}` })
+          body: JSON.stringify({ text: `💰 <b>Запрос материальной помощи!</b>\n\n👤 <b>От:</b> ${userData?.displayName || user.email}\n📧 <b>Email:</b> ${user.email}\n\n🏷️ <b>Категория:</b> ${aidCategory}${aidComment ? '\n📝 <b>Комментарий:</b> ' + aidComment : ''}${aidIban ? '\n🏦 <b>IBAN:</b> ' + aidIban : ''}${fileUrl ? `\n\n📎 <a href="${fileUrl}">Свидетельство о смерти / Документ 1</a>` : ''}${fileUrl2 ? `\n📎 <a href="${fileUrl2}">Свидетельство о рождении (родство)</a>` : ''}` })
         });
       } catch (err) { console.error(err); }
 
@@ -1641,7 +1656,7 @@ export default function DashboardPage() {
                 </select>
                 {aidCategory === 'В связи со смертью близкого родственника' && (
                   <p className="mt-3 text-xs font-black text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-200 shadow-sm">
-                    ⚠️ ОБРАТИТЕ ВНИМАНИЕ: Необходимо прикрепить свидетельство о смерти (фото или PDF) в поле ниже.
+                    ⚠️ ОБРАТИТЕ ВНИМАНИЕ: Необходимо прикрепить <b>свидетельство о смерти</b> и <b>свидетельство о рождении</b> (для подтверждения родства).
                   </p>
                 )}
                 {aidCategory === 'По рождению ребенка' && (
@@ -1662,6 +1677,18 @@ export default function DashboardPage() {
               </div>
               
               <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">IBAN счет для перевода <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="KZ123..."
+                  value={aidIban}
+                  onChange={e => setAidIban(e.target.value)}
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Комментарий (необязательно)</label>
                 <textarea 
                   className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition min-h-[100px]"
@@ -1672,7 +1699,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Подтверждающий документ (фото/PDF)</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">{aidCategory === 'В связи со смертью близкого родственника' ? 'Свидетельство о смерти (фото/PDF)' : 'Подтверждающий документ (фото/PDF)'}</label>
                 <input 
                   type="file" 
                   onChange={e => {
@@ -1688,6 +1715,26 @@ export default function DashboardPage() {
                 />
                 <p className="text-[10px] text-gray-400 mt-1 font-medium">Максимальный размер: 5 МБ (PDF, JPG, PNG)</p>
               </div>
+
+              {aidCategory === 'В связи со смертью близкого родственника' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Свидетельство о рождении (для подтверждения родства)</label>
+                  <input 
+                    type="file" 
+                    onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f && f.size > 5 * 1024 * 1024) {
+                        alert('Размер файла не должен превышать 5 МБ');
+                        e.target.value = '';
+                        return;
+                      }
+                      setAidFile2(f || null);
+                    }}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 transition cursor-pointer"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 font-medium">Максимальный размер: 5 МБ (PDF, JPG, PNG)</p>
+                </div>
+              )}
 
               <button 
                 type="submit" 
