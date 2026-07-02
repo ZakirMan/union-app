@@ -209,6 +209,7 @@ export default function AdminPage() {
   const [manualExitDate, setManualExitDate] = useState(new Date().toISOString().substring(0, 10));
   const [manualExitFile, setManualExitFile] = useState<File | null>(null);
   const [isSubmittingExit, setIsSubmittingExit] = useState(false);
+  const [requestFilter, setRequestFilter] = useState<'all' | 'appeals' | 'aid' | 'leave'>('all');
 
   const itemsPerPage = 10;
 
@@ -2448,9 +2449,44 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                <button 
+                  onClick={() => setRequestFilter('all')} 
+                  className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition ${requestFilter === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Все
+                </button>
+                <button 
+                  onClick={() => setRequestFilter('aid')} 
+                  className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition ${requestFilter === 'aid' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Мат. помощь
+                </button>
+                <button 
+                  onClick={() => setRequestFilter('appeals')} 
+                  className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition ${requestFilter === 'appeals' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Обращения
+                </button>
+                <button 
+                  onClick={() => setRequestFilter('leave')} 
+                  className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition ${requestFilter === 'leave' ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Отпуска / Декреты
+                </button>
+              </div>
 
               <div className="grid gap-4">
-                {requests.map(req => (
+                {requests.filter(req => {
+                  if (requestFilter === 'all') return true;
+                  const isAid = req.text.startsWith('Запрос материальной помощи:') || req.text.startsWith('Оффлайн-заявка:') || req.isOffline;
+                  const isLeave = req.text.startsWith('Уведомление об отпуске:');
+                  const isAppeal = !isAid && !isLeave;
+                  if (requestFilter === 'aid') return isAid;
+                  if (requestFilter === 'leave') return isLeave;
+                  if (requestFilter === 'appeals') return isAppeal;
+                  return true;
+                }).map(req => (
                   <div key={req.id} className={`bg-white p-4 md:p-6 rounded-[2rem] border shadow-sm relative transition-all ${req.aidStatus === 'pending' ? 'border-orange-300 border-2 bg-orange-50/50' : 'border-gray-100'}`}>
                     {req.aidStatus === 'pending' && (
                       <div className="absolute -top-3 left-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md animate-pulse">⌛ В очереди на оплату</div>
