@@ -1421,7 +1421,7 @@ export default function DashboardPage() {
       {
         showDelegateModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
-            <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl transform transition-transform scale-100">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-sm max-h-[90vh] overflow-y-auto p-8 shadow-2xl transform transition-transform scale-100">
               <h3 className="font-black text-2xl mb-2 text-gray-900">Передача голоса</h3>
               <p className="text-sm font-medium text-gray-500 mb-6 leading-relaxed">Выберите коллегу, которому вы доверяете свой голос на предстоящем собрании.</p>
 
@@ -1496,7 +1496,7 @@ export default function DashboardPage() {
       {
         activeTest && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
-            <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-y-auto p-8 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
               <button onClick={() => setActiveTest(null)} className="absolute top-6 right-6 text-gray-300 hover:text-gray-600 font-bold text-2xl transition">✕</button>
 
               <h2 className="font-black text-3xl mb-2 pr-8 text-gray-900">{activeTest.title}</h2>
@@ -1612,7 +1612,7 @@ export default function DashboardPage() {
       {/* МОДАЛЬНОЕ ОКНО ЗАПРОСА МАТЕРИАЛЬНОЙ ПОМОЩИ */}
       {showAidModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in" onClick={() => setShowAidModal(false)}>
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden p-8" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto p-8" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-2xl text-gray-800">Материальная помощь</h3>
               <button onClick={() => setShowAidModal(false)} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition font-bold">✕</button>
@@ -1704,7 +1704,7 @@ export default function DashboardPage() {
       {/* Модальное окно уведомления об отпуске */}
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowLeaveModal(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition">✕</button>
             <h2 className="text-2xl font-black text-gray-900 mb-2">Уведомить об отпуске</h2>
             <p className="text-gray-500 text-sm mb-6 font-medium">Сообщите, чтобы вас не исключили из профсоюза из-за приостановки выплат.</p>
@@ -1759,7 +1759,7 @@ export default function DashboardPage() {
       {/* ОПРОСНИК: Причина выхода */}
       {showExitSurveyModal && !showExitSignatureModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowExitSurveyModal(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition">✕</button>
             <h2 className="text-2xl font-black text-gray-900 mb-2">Выход из профсоюза</h2>
             <p className="text-gray-500 text-sm mb-6 font-medium">Пожалуйста, расскажите, почему вы решили выйти. Эта информация поможет нам стать лучше.</p>
@@ -1791,7 +1791,7 @@ export default function DashboardPage() {
       {/* ПОДПИСЬ: Заявление на выход */}
       {showExitSignatureModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-md max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button onClick={() => { setShowExitSignatureModal(false); setExitSignatureDataUrl(''); }} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition">✕</button>
             <h2 className="text-2xl font-black text-gray-900 mb-2">Подписание заявлений</h2>
             <p className="text-gray-500 text-sm mb-6 font-medium">Распишитесь ниже. Ваша подпись будет прикреплена к заявлениям на выход и прекращение удержаний.</p>
