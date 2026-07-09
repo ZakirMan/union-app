@@ -2672,7 +2672,7 @@ export default function AdminPage() {
 
                 {/* TEMPLATES */}
                 <div className="bg-white p-8 rounded-[2rem] shadow-lg">
-                  <h3 className="font-black text-xl mb-4 text-orange-500">Шаблоны</h3>
+                  <h3 className="font-black text-xl mb-4 text-orange-500">Документация</h3>
                   <form onSubmit={handleAddTemplate} className="flex flex-col gap-3 mb-6">
                     <input className="bg-gray-50 p-3 rounded-xl font-bold" placeholder="Название" value={tplTitle} onChange={e => setTplTitle(e.target.value)} />
                     <input className="bg-gray-50 p-3 rounded-xl text-sm" placeholder="Описание (для чего этот документ?)" value={tplDesc} onChange={e => setTplDesc(e.target.value)} />

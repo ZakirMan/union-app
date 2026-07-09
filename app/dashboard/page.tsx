@@ -1085,7 +1085,7 @@ export default function DashboardPage() {
             )}
 
             <div>
-              <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Шаблоны</h2>
+              <h2 className="font-black text-2xl mb-4 ml-2 text-gray-800">Документация</h2>
               <div className="grid gap-3">
                 {templates.map(t => (
                   <div key={t.id} className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition">
