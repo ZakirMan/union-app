@@ -1345,19 +1345,19 @@ export default function AdminPage() {
 
               {/* STATS CARDS */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50">
+                <div onClick={() => setActiveTab('users')} className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-300">
                   <p className="text-xs font-bold text-gray-400 uppercase">Всего участников</p>
                   <p className="text-3xl font-black text-indigo-900 mt-1">{users.filter(u => u.status === 'approved').length}</p>
                 </div>
-                <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50">
+                <div onClick={() => setActiveTab('users')} className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-300">
                   <p className="text-xs font-bold text-gray-400 uppercase">Новые заявки</p>
                   <p className="text-3xl font-black text-orange-500 mt-1">{pendingUsers.length}</p>
                 </div>
-                <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50">
+                <div onClick={() => setActiveTab('requests')} className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-300">
                   <p className="text-xs font-bold text-gray-400 uppercase">Вопросов</p>
                   <p className="text-3xl font-black text-blue-500 mt-1">{activeRequests}</p>
                 </div>
-                <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50">
+                <div onClick={() => setActiveTab('polls')} className="bg-white p-5 rounded-[2rem] shadow-sm border border-indigo-50 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-300">
                   <p className="text-xs font-bold text-gray-400 uppercase">Активных опросов</p>
                   <p className="text-3xl font-black text-green-500 mt-1">{polls.filter(p => p.isActive).length}</p>
                 </div>
