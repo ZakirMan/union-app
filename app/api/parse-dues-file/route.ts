@@ -23,22 +23,7 @@ export async function POST(req: NextRequest) {
     // Получаем данные как 2D массив (raw: true сохраняет числа как числа)
     const rows = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1, raw: true });
 
-    // 1. Ищем колонку с профсоюзными взносами
-    let duesCol = -1;
-    for (let i = 0; i < Math.min(100, rows.length); i++) {
-      const row = rows[i];
-      if (!row) continue;
-      for (let j = 0; j < row.length; j++) {
-        const cell = String(row[j] || '').toLowerCase();
-        if (cell.includes('профсоюз')) {
-          duesCol = j;
-          break;
-        }
-      }
-      if (duesCol !== -1) break;
-    }
-
-    // 2. Ищем колонку с ФИО (где больше всего совпадений с шаблоном ФИО)
+    // 1. Ищем колонку с ФИО (где больше всего совпадений с шаблоном ФИО)
     let nameCol = -1;
     let maxNames = 0;
     const nameRegex = /^([А-ЯӨҚӘҮҰҒІҢA-Z][a-zA-ZА-Яа-яЁёӨөҚқӘәҮүҰұҒғІіҢң\-]+(?:\s+[А-ЯӨҚӘҮҰҒІҢA-Z][a-zA-ZА-Яа-яЁёӨөҚқӘәҮүҰұҒғІіҢң\-]+){1,2})$/;
@@ -57,6 +42,48 @@ export async function POST(req: NextRequest) {
       if (nameCount > maxNames) {
         maxNames = nameCount;
         nameCol = j;
+      }
+    }
+
+    // 2. Ищем колонку с профсоюзными взносами
+    let duesCol = -1;
+    for (let i = 0; i < Math.min(100, rows.length); i++) {
+      const row = rows[i];
+      if (!row) continue;
+      for (let j = 0; j < row.length; j++) {
+        if (j === nameCol) continue;
+        const cell = String(row[j] || '').toLowerCase();
+        if (cell.includes('профсоюз') || cell.includes('сумма') || cell.includes('взнос') || cell.includes('итого') || cell.includes('удержано')) {
+          duesCol = j;
+          break;
+        }
+      }
+      if (duesCol !== -1) break;
+    }
+
+    // Если по словам не нашли, берем колонку с максимальным количеством чисел (исключая колонку ФИО)
+    if (duesCol === -1) {
+      let maxNumbers = 0;
+      for (let j = 0; j < 50; j++) {
+        if (j === nameCol) continue;
+        let numCount = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row) continue;
+          const val = row[j];
+          if (val !== undefined && val !== null && val !== '') {
+            if (typeof val === 'number') {
+              numCount++;
+            } else {
+              const clean = String(val).replace(/\s+/g, '').replace(',', '.');
+              if (!isNaN(parseFloat(clean))) numCount++;
+            }
+          }
+        }
+        if (numCount > maxNumbers) {
+          maxNumbers = numCount;
+          duesCol = j;
+        }
       }
     }
 
