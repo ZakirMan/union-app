@@ -201,6 +201,7 @@ export default function AdminPage() {
   const [registries, setRegistries] = useState<Record<string, {name: string, amount: number}[]>>({});
   const [registryInput, setRegistryInput] = useState('');
   const [isSavingRegistry, setIsSavingRegistry] = useState(false);
+  const [isUploadingDuesPdf, setIsUploadingDuesPdf] = useState(false);
   const [registryFilter, setRegistryFilter] = useState<'all' | 'unregistered'>('all');
   const [registrySearch, setRegistrySearch] = useState('');
 
@@ -356,6 +357,31 @@ export default function AdminPage() {
       setDocTitle(''); setDocContent(''); setEditingDocId(null); setIsCreatingDoc(false);
       fetchData();
     } catch { alert('Ошибка при сохранении документа'); }
+  };
+
+  const handlePdfDuesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingDuesPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/parse-dues-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка при парсинге');
+      
+      const newText = data.results.map((r: {name: string, amount: string}) => `${r.name}\t${r.amount}`).join('\n');
+      setRegistryInput(prev => prev ? prev + '\n' + newText : newText);
+      alert(`Успешно обработано: ${data.totalParsed} записей`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsUploadingDuesPdf(false);
+      e.target.value = '';
+    }
   };
 
   const handleSaveRegistry = async () => {
@@ -2769,8 +2795,17 @@ export default function AdminPage() {
               <div className="grid lg:grid-cols-3 gap-6">
                 {/* Левая колонка - Вставка */}
                 <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col">
-                  <h3 className="font-black text-xl mb-2 flex items-center gap-2"><span className="text-2xl">📋</span> Импорт из Excel</h3>
-                  <p className="text-sm text-gray-500 mb-4">Скопируйте колонки <b>ФИО</b> и <b>Сумма взноса</b> из Excel или Google Sheets и вставьте в поле ниже.</p>
+                  <h3 className="font-black text-xl mb-2 flex items-center gap-2"><span className="text-2xl">📋</span> Импорт из Excel или PDF</h3>
+                  <div className="text-sm text-gray-500 mb-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      Автоматически из PDF: 
+                      <label className="cursor-pointer text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg hover:bg-indigo-100 font-bold transition">
+                        {isUploadingDuesPdf ? 'Загрузка...' : 'Выбрать PDF'}
+                        <input type="file" accept=".pdf" className="hidden" onChange={handlePdfDuesUpload} disabled={isUploadingDuesPdf} />
+                      </label>
+                    </div>
+                    <div>Или вручную: скопируйте колонки <b>ФИО</b> и <b>Сумма взноса</b> из Excel или Google Sheets и вставьте в поле ниже.</div>
+                  </div>
                   <textarea
                     value={registryInput}
                     onChange={(e) => setRegistryInput(e.target.value)}
