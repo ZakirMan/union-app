@@ -21,22 +21,30 @@ export async function POST(req: NextRequest) {
     const pdfData = await pdfParse(buffer);
     const text = pdfData.text;
 
-    // Регулярные выражения для ФИО и сумм
+    // Регулярные выражения для ФИО и сумм (более гибкие)
     const names: string[] = [];
-    const nameRegex = /([А-ЯӨҚӘҮҰҒІҢ][а-яёөқәүұғің\-]+(?:\s+[А-ЯӨҚӘҮҰҒІҢ][а-яёөқәүұғің\-]+){1,2})\s+\d{12}/g;
+    // Ищем ФИО (2 или 3 слова с заглавной буквы, разрешаем дефисы и любой регистр внутри слова)
+    const nameRegex = /([А-ЯӨҚӘҮҰҒІҢA-Z][a-zA-ZА-Яа-яЁёӨөҚқӘәҮүҰұҒғІіҢң\-]+(?:\s+[А-ЯӨҚӘҮҰҒІҢA-Z][a-zA-ZА-Яа-яЁёӨөҚқӘәҮүҰұҒғІіҢң\-]+){1,2})/g;
     let match;
     while ((match = nameRegex.exec(text)) !== null) {
-      names.push(match[1].trim());
+      const name = match[1].trim();
+      // Исключаем случайные совпадения
+      if (!name.toLowerCase().includes('профсоюз') && !name.toLowerCase().includes('итого')) {
+        names.push(name);
+      }
     }
 
     const sums: string[] = [];
-    // Поддерживаем r117 или e117 (взносы), затем 'Профсоюз' и '1', и сумму
-    const sumRegex = /(?:r117|e117).*?Профсоюз.*?\s+1\s+([\d,]+\.\d{2})/g;
+    // Ищем сумму после слова "Профсоюз" (в радиусе 50 символов), учитывая пробелы в тысячах (4 598.37)
+    const sumRegex = /Профсоюз[\s\S]{1,50}?([\d\s,]+[\.,]\d{2})/gi;
     while ((match = sumRegex.exec(text)) !== null) {
-      sums.push(match[1].replace(/,/g, ''));
+      // Очищаем от пробелов и запятых, приводим к формату 1234.56
+      sums.push(match[1].replace(/[\s,]/g, '').replace(',', '.'));
     }
 
-    // Сопоставляем
+    // Возвращаем сырой текст, если ничего не нашли (для отладки)
+    const rawTextPreview = text.substring(0, 1500);
+
     const results = [];
     const count = Math.min(names.length, sums.length);
     for (let i = 0; i < count; i++) {
@@ -48,6 +56,7 @@ export async function POST(req: NextRequest) {
       totalParsed: count,
       namesCount: names.length,
       sumsCount: sums.length,
+      rawTextPreview,
       results,
     });
   } catch (error: unknown) {

@@ -375,7 +375,11 @@ export default function AdminPage() {
       
       const newText = data.results.map((r: {name: string, amount: string}) => `${r.name}\t${r.amount}`).join('\n');
       setRegistryInput(prev => prev ? prev + '\n' + newText : newText);
-      alert(`Успешно обработано: ${data.totalParsed} записей`);
+      if (data.totalParsed === 0) {
+        alert(`Не удалось распознать ФИО или суммы.\nНайдено имён: ${data.namesCount}, сумм: ${data.sumsCount}\n\nФрагмент текста из PDF:\n${data.rawTextPreview}`);
+      } else {
+        alert(`Успешно обработано: ${data.totalParsed} записей`);
+      }
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     } finally {
