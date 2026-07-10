@@ -366,7 +366,7 @@ export default function AdminPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/parse-dues-pdf', {
+      const res = await fetch('/api/parse-dues-file', {
         method: 'POST',
         body: formData,
       });
@@ -2802,10 +2802,10 @@ export default function AdminPage() {
                   <h3 className="font-black text-xl mb-2 flex items-center gap-2"><span className="text-2xl">📋</span> Импорт из Excel или PDF</h3>
                   <div className="text-sm text-gray-500 mb-4">
                     <div className="mb-2 flex items-center gap-2">
-                      Автоматически из PDF: 
+                      Автоматически из Excel: 
                       <label className="cursor-pointer text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg hover:bg-indigo-100 font-bold transition">
-                        {isUploadingDuesPdf ? 'Загрузка...' : 'Выбрать PDF'}
-                        <input type="file" accept=".pdf" className="hidden" onChange={handlePdfDuesUpload} disabled={isUploadingDuesPdf} />
+                        {isUploadingDuesPdf ? 'Загрузка...' : 'Выбрать Excel'}
+                        <input type="file" accept=".xls,.xlsx" className="hidden" onChange={handlePdfDuesUpload} disabled={isUploadingDuesPdf} />
                       </label>
                     </div>
                     <div>Или вручную: скопируйте колонки <b>ФИО</b> и <b>Сумма взноса</b> из Excel или Google Sheets и вставьте в поле ниже.</div>
