@@ -38,8 +38,12 @@ export async function POST(req: NextRequest) {
     // Ищем сумму после слова "Профсоюз" (в радиусе 50 символов), учитывая пробелы в тысячах (4 598.37)
     const sumRegex = /Профсоюз[\s\S]{1,50}?([\d\s,]+[\.,]\d{2})/gi;
     while ((match = sumRegex.exec(text)) !== null) {
-      // Очищаем от пробелов и запятых, приводим к формату 1234.56
-      sums.push(match[1].replace(/[\s,]/g, '').replace(',', '.'));
+      // Сумма может приклеиться к количеству, например "1 4,598.37". Берем только последнюю часть
+      const raw = match[1].trim();
+      const parts = raw.split(/\s+/);
+      const amountStr = parts[parts.length - 1]; // "4,598.37"
+      // Очищаем от запятых, приводим к формату 1234.56
+      sums.push(amountStr.replace(/,/g, '').replace(',', '.'));
     }
 
     // Возвращаем сырой текст, если ничего не нашли (для отладки)
