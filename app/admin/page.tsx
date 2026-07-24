@@ -100,6 +100,25 @@ interface AdminLog {
   createdAt: string;
 }
 
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+  const regex = /(\*\*.*?\*\*|<b>.*?<\/b>)/g;
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={index}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('<b>') && part.endsWith('</b>')) {
+          return <strong key={index}>{part.slice(3, -4)}</strong>;
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -1577,7 +1596,7 @@ export default function AdminPage() {
                 <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-green-100">
                   <h2 className="font-black text-2xl mb-4">Новый опрос</h2>
                   <div className="space-y-4">
-                    <input className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none" placeholder="Вопрос..." value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} />
+                    <textarea className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none min-h-[120px] resize-y" placeholder="Вопрос... (поддерживается **жирный текст** и перенос строк)" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} />
 
                     <select 
                       className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border-r-[16px] border-transparent"
@@ -1636,7 +1655,7 @@ export default function AdminPage() {
                 {polls.filter(p => pollCategoryFilter === 'all' || p.targetCategory === pollCategoryFilter || (!p.targetCategory && pollCategoryFilter === 'Все')).map(poll => (
                   <div key={poll.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-black text-lg leading-tight pr-2">{poll.question}</h3>
+                      <h3 className="font-black text-lg leading-tight pr-2 whitespace-pre-wrap">{renderFormattedText(poll.question)}</h3>
                       <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase whitespace-nowrap ${poll.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{poll.isActive ? 'Активен' : 'Завершен'}</span>
                     </div>
                     <div className="flex items-center gap-2 mb-4 flex-wrap">

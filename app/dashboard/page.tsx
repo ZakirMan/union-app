@@ -74,6 +74,25 @@ interface Poll {
   isActive: boolean;
 }
 
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+  const regex = /(\*\*.*?\*\*|<b>.*?<\/b>)/g;
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={index}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('<b>') && part.endsWith('</b>')) {
+          return <strong key={index}>{part.slice(3, -4)}</strong>;
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+};
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
@@ -945,7 +964,7 @@ export default function DashboardPage() {
                     <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">{new Date(i.createdAt).toLocaleDateString()}</span>
                   </div>
                   <h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3>
-                  <p className="text-gray-500 text-sm font-medium leading-relaxed whitespace-pre-wrap">{i.body}</p>
+                  <p className="text-gray-500 text-sm font-medium leading-relaxed whitespace-pre-wrap">{renderFormattedText(i.body)}</p>
                   {(i.fileUrl || i.linkUrl) && (
                     <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
                       {i.fileUrl && (
@@ -1168,7 +1187,7 @@ export default function DashboardPage() {
               return (
                 <div key={poll.id} className="bg-white p-6 rounded-[2rem] shadow-lg border border-green-50">
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="font-black text-xl text-gray-800">{poll.question}</h3>
+                    <h3 className="font-black text-xl text-gray-800 whitespace-pre-wrap">{renderFormattedText(poll.question)}</h3>
                     {hasVoted && <span className="bg-green-100 text-green-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Голос учтен</span>}
                   </div>
 
