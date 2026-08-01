@@ -12,6 +12,7 @@ import imageCompression from 'browser-image-compression';
 import SignatureCanvas from 'react-signature-canvas';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon } from 'lucide-react';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -1919,36 +1920,46 @@ export default function DashboardPage() {
       </div>
 
       {/* Footer Nav */}
-      <div className="fixed bottom-6 left-6 right-6 bg-white/80 backdrop-blur-xl p-2.5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex justify-between items-center z-40 border border-white max-w-lg mx-auto overflow-x-auto no-scrollbar gap-1">
-        {['resources', 'polls', 'home', 'reports', 'profile'].map((tab) => {
-          const isActive = activeTab === tab;
-          const icons: { [key: string]: string } = { home: '🏠', polls: '📋', reports: '📈', resources: '📂', profile: '👤' };
-          const labels: { [key: string]: string } = { home: 'Главная', polls: 'Опросы', reports: 'Отчеты', resources: 'Инфо', profile: 'Я' };
+      <div className="fixed bottom-6 left-6 right-6 z-40 max-w-lg mx-auto pointer-events-none">
+        <div className="bg-white/80 backdrop-blur-xl p-2.5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex justify-between items-center border border-white gap-1 pointer-events-auto relative">
           
-          if (tab === 'home') {
+          {/* Central Home Button */}
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`absolute left-1/2 -translate-x-1/2 -top-6 w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(15,23,42,0.3)] transition-all duration-300 shrink-0 z-50 active:scale-90 border-[3px] border-white ${activeTab === 'home' ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
+          >
+            <Home size={24} strokeWidth={2.5} />
+          </button>
+
+          {['resources', 'polls', 'placeholder', 'reports', 'profile'].map((tab) => {
+            if (tab === 'placeholder') {
+              return <div key="placeholder" className="w-14 shrink-0 pointer-events-none"></div>;
+            }
+
+            const isActive = activeTab === tab;
+            const labels: { [key: string]: string } = { polls: 'Опросы', reports: 'Отчеты', resources: 'Инфо', profile: 'Я' };
+            const Icon = {
+              polls: ClipboardList,
+              reports: BarChart3,
+              resources: FolderOpen,
+              profile: UserIcon
+            }[tab as 'polls' | 'reports' | 'resources' | 'profile'];
+
             return (
               <button
                 key={tab}
-                onClick={() => setActiveTab('home')}
-                className={`relative -top-6 w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(15,23,42,0.3)] transition-all duration-300 shrink-0 z-50 active:scale-90 border-[3px] border-white ${isActive ? 'bg-indigo-600' : 'bg-slate-800 hover:bg-slate-700'}`}
+                onClick={() => setActiveTab(tab as any)}
+                className={`relative flex-1 flex flex-col items-center justify-center py-2.5 rounded-2xl transition-all duration-300 active:scale-95 ${isActive ? 'bg-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50/50'}`}
               >
-                <span className="text-2xl drop-shadow-md">{icons[tab]}</span>
+                <div className={`transition-all duration-300 ${isActive ? 'scale-110 drop-shadow-sm mb-1' : 'opacity-70 mb-0'}`}>
+                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                </div>
+                <span className={`text-[10px] font-black tracking-wide transition-all duration-300 ${isActive ? 'opacity-100 max-h-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>{labels[tab]}</span>
+                {isActive && <div className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-sm animate-fade-in-up"></div>}
               </button>
             );
-          }
-          
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`relative flex-1 flex flex-col items-center justify-center py-2.5 rounded-2xl transition-all duration-300 active:scale-95 ${isActive ? 'bg-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50/50'}`}
-            >
-              <span className={`text-[22px] transition-all duration-300 ${isActive ? 'scale-110 drop-shadow-sm mb-1' : 'grayscale-[40%] opacity-70 mb-0'}`}>{icons[tab]}</span>
-              <span className={`text-[10px] font-black tracking-wide transition-all duration-300 ${isActive ? 'opacity-100 max-h-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>{labels[tab]}</span>
-              {isActive && <div className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-sm animate-fade-in-up"></div>}
-            </button>
-          );
-        })}
+          })}
+        </div>
       </div>
 
       {/* MODAL FOR MONTH STATS (NEW MEMBERS) */}
