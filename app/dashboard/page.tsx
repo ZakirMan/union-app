@@ -1029,6 +1029,36 @@ export default function DashboardPage() {
               })()}
             </div>
 
+            {/* Mini-Apps Section */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-4">
+                <h2 className="text-xl font-black text-gray-800">Сервисы</h2>
+                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">Скоро</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {/* Pax Counter App */}
+                <button className="relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-md shadow-blue-200 text-white group-hover:rotate-12 transition-transform relative z-10">
+                    ✈️
+                  </div>
+                  <h3 className="font-black text-gray-800 text-sm leading-tight mb-1 relative z-10">Пассажиры</h3>
+                  <p className="text-[10px] text-gray-500 font-medium leading-tight relative z-10">Калькулятор для ВС</p>
+                </button>
+
+                {/* Catering Counter App */}
+                <button className="relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-bl from-orange-100 to-transparent rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-md shadow-orange-200 text-white group-hover:-rotate-12 transition-transform relative z-10">
+                    🍱
+                  </div>
+                  <h3 className="font-black text-gray-800 text-sm leading-tight mb-1 relative z-10">Провизия</h3>
+                  <p className="text-[10px] text-gray-500 font-medium leading-tight relative z-10">Учет питания и бара</p>
+                </button>
+              </div>
+            </div>
+
             {/* News Feed inside Home */}
             <div>
               <h2 className="text-xl font-black text-gray-800 mb-4 px-2">Новости Профсоюза</h2>
