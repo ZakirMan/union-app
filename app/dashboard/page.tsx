@@ -939,38 +939,29 @@ export default function DashboardPage() {
           <div className="space-y-6 pb-24 animate-fade-in-up">
             
             {/* Top Widgets */}
-            <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setShowAidModal(true)} className="relative overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-3xl shadow-lg shadow-teal-200 flex flex-col items-start justify-between text-left hover:-translate-y-1 transition duration-300 h-32 group">
-                <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 group-hover:scale-110 transition-transform rotate-12">🤝</div>
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-xl mb-2 text-white shadow-inner">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <button onClick={() => setShowAidModal(true)} className="relative overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 p-3 sm:p-4 rounded-[1.25rem] shadow-lg shadow-teal-200 flex flex-col items-center justify-center text-center hover:-translate-y-1 transition duration-300 h-28 group">
+                <div className="absolute -right-2 -bottom-2 text-5xl opacity-20 group-hover:scale-110 transition-transform rotate-12 pointer-events-none">🤝</div>
+                <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base mb-2 text-white shadow-inner relative z-10">
                   💖
                 </div>
-                <span className="font-black text-white text-sm leading-tight relative z-10">Подать мат<br/>помощь</span>
+                <span className="font-black text-white text-[10px] sm:text-xs leading-tight relative z-10">Мат.<br/>помощь</span>
               </button>
               
-              <button onClick={() => setShowAdminRequestModal(true)} className="relative overflow-hidden bg-gradient-to-br from-indigo-400 to-blue-500 p-5 rounded-3xl shadow-lg shadow-blue-200 flex flex-col items-start justify-between text-left hover:-translate-y-1 transition duration-300 h-32 group">
-                <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 group-hover:scale-110 transition-transform -rotate-12">💬</div>
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-xl mb-2 text-white shadow-inner">
+              <button onClick={() => setShowAdminRequestModal(true)} className="relative overflow-hidden bg-gradient-to-br from-indigo-400 to-blue-500 p-3 sm:p-4 rounded-[1.25rem] shadow-lg shadow-blue-200 flex flex-col items-center justify-center text-center hover:-translate-y-1 transition duration-300 h-28 group">
+                <div className="absolute -right-2 -bottom-2 text-5xl opacity-20 group-hover:scale-110 transition-transform -rotate-12 pointer-events-none">💬</div>
+                <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base mb-2 text-white shadow-inner relative z-10">
                   👨‍💻
                 </div>
-                <span className="font-black text-white text-sm leading-tight relative z-10">Обращение<br/>к админу</span>
+                <span className="font-black text-white text-[10px] sm:text-xs leading-tight relative z-10">Вопрос<br/>админу</span>
               </button>
 
-              {/* Training Button */}
-              <button onClick={() => setShowTrainingModal(true)} className="col-span-2 relative overflow-hidden bg-gradient-to-br from-purple-500 to-fuchsia-600 p-5 rounded-3xl shadow-lg shadow-purple-200 flex items-center justify-between text-left hover:-translate-y-1 transition duration-300 group">
-                <div className="absolute right-0 top-0 text-7xl opacity-10 group-hover:scale-110 transition-transform -rotate-12 translate-x-4 -translate-y-4 pointer-events-none">🎓</div>
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-2xl text-white shadow-inner shrink-0">
-                    📚
-                  </div>
-                  <div>
-                    <span className="font-black text-white text-lg block leading-tight">Тестирование</span>
-                    <span className="text-purple-100 text-[10px] font-bold uppercase tracking-widest mt-0.5 block">Пройти обучение</span>
-                  </div>
+              <button onClick={() => setShowTrainingModal(true)} className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-fuchsia-600 p-3 sm:p-4 rounded-[1.25rem] shadow-lg shadow-purple-200 flex flex-col items-center justify-center text-center hover:-translate-y-1 transition duration-300 h-28 group">
+                <div className="absolute -right-2 -bottom-2 text-5xl opacity-20 group-hover:scale-110 transition-transform -rotate-12 pointer-events-none">🎓</div>
+                <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-base mb-2 text-white shadow-inner relative z-10">
+                  📚
                 </div>
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center relative z-10 text-white shrink-0 shadow-inner group-hover:bg-white/30 transition">
-                  <span className="text-xl leading-none ml-0.5">&rsaquo;</span>
-                </div>
+                <span className="font-black text-white text-[10px] sm:text-xs leading-tight relative z-10">Обучение<br/>(Тесты)</span>
               </button>
             </div>
             
