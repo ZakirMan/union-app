@@ -904,30 +904,23 @@ export default function DashboardPage() {
 
       {/* HEADER */}
       {activeTab !== 'profile' && (
-        <div className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white pt-8 pb-8 px-6 rounded-b-[2.5rem] shadow-xl sticky top-0 z-30 mb-8">
+        <div className="bg-[#0F172A] text-white pt-10 pb-8 px-6 rounded-b-[2.5rem] shadow-[0_15px_40px_rgba(15,23,42,0.15)] sticky top-0 z-30 mb-8 border-b border-white/5">
           <div className="max-w-2xl mx-auto flex justify-between items-end">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-xs font-bold text-blue-200 uppercase tracking-wider">Профсоюз</p>
-                {totalMembers > 0 && (
-                  <span className="bg-white/10 text-[10px] font-bold px-2 py-0.5 rounded-md text-blue-100 border border-white/5">
-                    {totalMembers} участников
-                  </span>
-                )}
-              </div>
-              <h1 className="text-3xl font-black">{ { home: 'Главная', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 opacity-80">Профсоюз</p>
+              <h1 className="text-3xl font-black tracking-tight">{ { home: 'Главная', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
             </div>
             <div className="flex gap-3 items-center">
               {userData?.role === 'admin' && (
                 <button
                   onClick={() => router.push('/admin')}
-                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10"
+                  className="bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 border border-white/5"
                 >
                   Админ панель →
                 </button>
               )}
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner cursor-pointer hover:bg-white/30 transition">
-                <span className="text-xl">🔔</span>
+              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner cursor-pointer hover:bg-white/20 active:scale-95 transition-all">
+                <span className="text-xl grayscale-[20%]">🔔</span>
               </div>
             </div>
           </div>
@@ -1926,7 +1919,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Footer Nav */}
-      <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto overflow-x-auto no-scrollbar gap-1">
+      <div className="fixed bottom-6 left-6 right-6 bg-white/80 backdrop-blur-xl p-2.5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex justify-between items-center z-40 border border-white max-w-lg mx-auto overflow-x-auto no-scrollbar gap-1">
         {['resources', 'polls', 'home', 'reports', 'profile'].map((tab) => {
           const isActive = activeTab === tab;
           const icons: { [key: string]: string } = { home: '🏠', polls: '📋', reports: '📈', resources: '📂', profile: '👤' };
@@ -1937,9 +1930,9 @@ export default function DashboardPage() {
               <button
                 key={tab}
                 onClick={() => setActiveTab('home')}
-                className={`relative -top-5 w-14 h-14 rounded-full flex items-center justify-center border-[4px] border-white shadow-xl transition-all duration-300 shrink-0 z-50 ${isActive ? 'bg-indigo-600 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                className={`relative -top-6 w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(15,23,42,0.3)] transition-all duration-300 shrink-0 z-50 active:scale-90 border-[3px] border-white ${isActive ? 'bg-indigo-600' : 'bg-slate-800 hover:bg-slate-700'}`}
               >
-                <span className="text-2xl">🏠</span>
+                <span className="text-2xl drop-shadow-md">{icons[tab]}</span>
               </button>
             );
           }
@@ -1948,10 +1941,11 @@ export default function DashboardPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
-              className={`flex-1 flex flex-col items-center py-3 rounded-[1.5rem] transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 transform -translate-y-2' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+              className={`relative flex-1 flex flex-col items-center justify-center py-2.5 rounded-2xl transition-all duration-300 active:scale-95 ${isActive ? 'bg-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50/50'}`}
             >
-              <span className="text-xl mb-0.5">{icons[tab]}</span>
-              {isActive && <span className="text-[9px] font-black uppercase tracking-wide">{labels[tab]}</span>}
+              <span className={`text-[22px] transition-all duration-300 ${isActive ? 'scale-110 drop-shadow-sm mb-1' : 'grayscale-[40%] opacity-70 mb-0'}`}>{icons[tab]}</span>
+              <span className={`text-[10px] font-black tracking-wide transition-all duration-300 ${isActive ? 'opacity-100 max-h-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>{labels[tab]}</span>
+              {isActive && <div className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-sm animate-fade-in-up"></div>}
             </button>
           );
         })}
