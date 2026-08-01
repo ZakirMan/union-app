@@ -1013,7 +1013,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {news.map((item) => (
-                    <div key={item.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                    <div key={item.id} onClick={() => router.push(`/news/${item.id}`)} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md hover:-translate-y-1 transition duration-300">
                       {item.imageUrl && (
                         <div className="w-full h-48 bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
                           <Image src={item.imageUrl} alt={item.title} fill className="object-cover" />
@@ -1021,18 +1021,20 @@ export default function DashboardPage() {
                       )}
                       <h3 className="font-black text-gray-900 text-lg mb-2">{item.title}</h3>
                       <p className="text-gray-600 text-sm mb-4 line-clamp-3 whitespace-pre-wrap">{renderFormattedText(item.body)}</p>
-                      <div className="flex justify-between items-center text-xs font-bold">
+                      <div className="flex justify-between items-center text-xs font-bold mt-2 pt-2 border-t border-gray-50">
                         <span className="text-gray-400">{new Date(item.createdAt).toLocaleDateString('ru-RU')}</span>
-                        {item.fileUrl && (
-                          <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition">
-                            📄 Вложение
-                          </a>
-                        )}
-                        {item.linkUrl && (
-                          <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
-                            🔗 Ссылка
-                          </a>
-                        )}
+                        <div className="flex gap-2">
+                          {item.fileUrl && (
+                            <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition">
+                              📄 Вложение
+                            </a>
+                          )}
+                          {item.linkUrl && (
+                            <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
+                              🔗 Ссылка
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
