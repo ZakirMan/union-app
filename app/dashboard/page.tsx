@@ -12,7 +12,7 @@ import imageCompression from 'browser-image-compression';
 import SignatureCanvas from 'react-signature-canvas';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell } from 'lucide-react';
+import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -958,12 +958,8 @@ export default function DashboardPage() {
             
             {/* Statistics Widget */}
             <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition">
-              <div className="flex justify-between items-center mb-4">
+              <div className="mb-4">
                 <h3 className="font-black text-gray-800">Новые участники</h3>
-                <div className="flex bg-gray-100 rounded-full p-1 gap-1">
-                  <button onClick={() => setMonthOffset(p => p - 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-600 font-bold hover:bg-gray-50 transition">&lt;</button>
-                  <button onClick={() => setMonthOffset(p => p + 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-600 font-bold hover:bg-gray-50 transition" disabled={monthOffset >= 0}>&gt;</button>
-                </div>
               </div>
               
               {(() => {
@@ -976,24 +972,49 @@ export default function DashboardPage() {
                 const monthName = mNames[targetMonth];
                 
                 let joinedCount = 0;
+                let newMembersList: any[] = [];
                 colleagues.forEach(c => {
                   if (c.createdAt && c.isAlreadyMember === false) {
                     const d = new Date(c.createdAt);
-                    if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) joinedCount++;
+                    if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+                       joinedCount++;
+                       newMembersList.push(c);
+                    }
                   }
                 });
                 if (userData?.createdAt && userData.isAlreadyMember === false) {
                    const d = new Date(userData.createdAt);
-                   if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) joinedCount++;
+                   if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+                       joinedCount++;
+                       newMembersList.push(userData);
+                   }
                 }
                 
                 return (
-                  <div className="flex items-end justify-between bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-4 text-white">
-                    <div>
-                      <div className="text-sm font-bold text-blue-100 mb-1">{monthName} {targetYear}</div>
-                      <div className="text-3xl font-black">{joinedCount} чел.</div>
+                  <div 
+                    onClick={() => setSelectedMonthStats({ name: `${monthName} ${targetYear}`, details: newMembersList })}
+                    className="flex items-center justify-between bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-2 text-white relative shadow-lg shadow-blue-200 cursor-pointer hover:scale-[1.02] transition-transform overflow-hidden"
+                  >
+                    <div className="absolute right-[-10px] bottom-[-15px] text-7xl opacity-10 pointer-events-none">🤝</div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setMonthOffset(p => p - 1); }} 
+                      className="w-10 h-10 shrink-0 flex items-center justify-center bg-white/10 rounded-full text-white hover:bg-white/25 transition active:scale-95 backdrop-blur-sm z-10"
+                    >
+                      <ChevronLeft size={24} strokeWidth={2.5} />
+                    </button>
+                    
+                    <div className="text-center z-10 py-3">
+                      <div className="text-xs font-bold text-blue-100 mb-1 uppercase tracking-wider">{monthName} {targetYear}</div>
+                      <div className="text-3xl font-black">{joinedCount} <span className="text-base opacity-80 font-bold tracking-normal">чел.</span></div>
                     </div>
-                    <div className="text-4xl opacity-50">🤝</div>
+                    
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setMonthOffset(p => p + 1); }} 
+                      disabled={monthOffset >= 0} 
+                      className="w-10 h-10 shrink-0 flex items-center justify-center bg-white/10 rounded-full text-white hover:bg-white/25 transition disabled:opacity-30 disabled:hover:bg-white/10 active:scale-95 backdrop-blur-sm z-10"
+                    >
+                      <ChevronRight size={24} strokeWidth={2.5} />
+                    </button>
                   </div>
                 );
               })()}
