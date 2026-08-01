@@ -172,6 +172,7 @@ export default function DashboardPage() {
   const exitSignaturePad = useRef<any>(null);
 
   // Тестирование
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [activeTest, setActiveTest] = useState<Test | null>(null);
   const [testAnswers, setTestAnswers] = useState<{ [key: string]: string }>({});
   const [testResult, setTestResult] = useState<{ score: number; passed: boolean } | null>(null);
@@ -953,6 +954,23 @@ export default function DashboardPage() {
                   👨‍💻
                 </div>
                 <span className="font-black text-white text-sm leading-tight relative z-10">Обращение<br/>к админу</span>
+              </button>
+
+              {/* Training Button */}
+              <button onClick={() => setShowTrainingModal(true)} className="col-span-2 relative overflow-hidden bg-gradient-to-br from-purple-500 to-fuchsia-600 p-5 rounded-3xl shadow-lg shadow-purple-200 flex items-center justify-between text-left hover:-translate-y-1 transition duration-300 group">
+                <div className="absolute right-0 top-0 text-7xl opacity-10 group-hover:scale-110 transition-transform -rotate-12 translate-x-4 -translate-y-4 pointer-events-none">🎓</div>
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-2xl text-white shadow-inner shrink-0">
+                    📚
+                  </div>
+                  <div>
+                    <span className="font-black text-white text-lg block leading-tight">Тестирование</span>
+                    <span className="text-purple-100 text-[10px] font-bold uppercase tracking-widest mt-0.5 block">Пройти обучение</span>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center relative z-10 text-white shrink-0 shadow-inner group-hover:bg-white/30 transition">
+                  <span className="text-xl leading-none ml-0.5">&rsaquo;</span>
+                </div>
               </button>
             </div>
             
@@ -2041,6 +2059,43 @@ export default function DashboardPage() {
               <button onClick={() => setSelectedAidStats(null)} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition">
                 Закрыть
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTrainingModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fade-in-up">
+            <div className="bg-gradient-to-r from-purple-600 to-fuchsia-600 p-6 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-black text-xl">Обучение</h3>
+              <button onClick={() => setShowTrainingModal(false)} className="text-white/50 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-4 bg-gray-50 flex-1">
+              {tests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <span className="text-4xl mb-4 opacity-50">📭</span>
+                  <p className="text-gray-400 font-bold">Нет доступных тестов</p>
+                  <p className="text-gray-400 text-xs mt-2">Администратор еще не добавил обучающие материалы.</p>
+                </div>
+              ) : (
+                tests.map(test => (
+                  <div key={test.id} className="border border-gray-100 bg-white p-5 rounded-2xl shadow-sm hover:shadow-md transition">
+                    <h4 className="font-black text-lg text-gray-800 mb-2 leading-tight">{test.title}</h4>
+                    {test.description && <p className="text-xs text-gray-500 mb-4">{test.description}</p>}
+                    <button 
+                      onClick={() => {
+                        setShowTrainingModal(false);
+                        handleStartTest(test);
+                      }}
+                      className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-purple-700 active:scale-95 transition"
+                    >
+                      Пройти тест
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
