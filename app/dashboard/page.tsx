@@ -28,6 +28,7 @@ interface UserProfile {
   role: string;
   status: string;
   photoUrl?: string;
+  createdAt?: string;
   voteWeight?: number;
   delegatedTo?: string;
   delegatedToName?: string;
@@ -40,7 +41,7 @@ interface UserProfile {
 interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; requiresResponse?: boolean; responseDeadlineDays?: number; isResponseReceived?: boolean; }
 interface LinkItem { id: string; title: string; url: string; }
 interface TemplateItem { id: string; title: string; description?: string; fileUrl: string; }
-interface RequestItem { id: string; text: string; response?: string; createdAt: string; userId: string; userEmail: string; status: string; }
+interface RequestItem { id: string; text: string; response?: string; createdAt: string; userId: string; userEmail: string; status: string; fileUrl?: string; }
 
 interface UnionDocument {
   id: string;
@@ -97,7 +98,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls' | 'reports'>('news');
+  const [activeTab, setActiveTab] = useState<'home' | 'resources' | 'profile' | 'polls' | 'reports'>('home');
 
   // Данные
   const [unionStats, setUnionStats] = useState<any>(null);
@@ -141,6 +142,9 @@ export default function DashboardPage() {
   const [selectedAidStats, setSelectedAidStats] = useState<{name: string, details: any[]} | null>(null);
 
   // Материальная помощь
+  const [showAdminRequestModal, setShowAdminRequestModal] = useState(false);
+  const [monthOffset, setMonthOffset] = useState(0);
+
   const [showAidModal, setShowAidModal] = useState(false);
   const [aidCategory, setAidCategory] = useState('');
   const [aidComment, setAidComment] = useState('');
@@ -179,7 +183,7 @@ export default function DashboardPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['news', 'chat', 'resources', 'training', 'profile', 'polls', 'reports'].includes(tabParam)) {
+      if (tabParam && ['home', 'resources', 'profile', 'polls', 'reports'].includes(tabParam)) {
         setActiveTab(tabParam as any);
       }
     }
@@ -910,7 +914,7 @@ export default function DashboardPage() {
                   </span>
                 )}
               </div>
-              <h1 className="text-3xl font-black">{ { news: 'Новости', chat: 'Связь', training: 'Обучение', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
+              <h1 className="text-3xl font-black">{ { home: 'Главная', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
             </div>
             <div className="flex gap-3 items-center">
               {userData?.role === 'admin' && (
@@ -932,134 +936,111 @@ export default function DashboardPage() {
       <div className="max-w-2xl mx-auto px-5">
 
         {/* НОВОСТИ */}
-        {activeTab === 'news' && (
-          <div className="space-y-6">
-            {/* БЛОК СЛЕДУЮЩЕГО СОБРАНИЯ */}
-            {nextConference && (
-              <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 rounded-[2rem] shadow-lg shadow-indigo-200 text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide backdrop-blur-md">📅 Ближайшее событие</span>
-                  </div>
-                  <h3 className="font-black text-2xl mb-1">{nextConference.title}</h3>
-                  <p className="text-indigo-100 font-bold text-sm bg-white/10 inline-block px-3 py-1 rounded-lg mt-2">
-                    {new Date(nextConference.date).toLocaleString()}
-                  </p>
+
+        {activeTab === 'home' && (
+          <div className="space-y-6 pb-24 animate-fade-in-up">
+            
+            {/* Top Widgets */}
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setShowAidModal(true)} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-md transition">
+                <div className="w-16 h-16 bg-yellow-50 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-inner">
+                  🏠
                 </div>
-                <div className="absolute top-0 right-0 text-9xl opacity-10 -mr-4 -mt-4 rotate-12">🗓</div>
-              </div>
-            )}
-
-            {news.map(i => (
-              <div key={i.id} className="bg-white rounded-[2rem] shadow-lg shadow-indigo-100/50 border border-white overflow-hidden hover:shadow-xl transition-all duration-300 group">
-                {i.imageUrl && (
-                  <div className="relative h-56 w-full overflow-hidden">
-                    <Image src={i.imageUrl} alt={i.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                  </div>
-                )}
-                <div className="p-6 relative">
-                  {!i.imageUrl && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>}
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">{new Date(i.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <h3 className="font-black text-xl mb-3 leading-tight">{i.title}</h3>
-                  <p className="text-gray-500 text-sm font-medium leading-relaxed whitespace-pre-wrap">{renderFormattedText(i.body)}</p>
-                  {(i.fileUrl || i.linkUrl) && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                      {i.fileUrl && (
-                        <a href={i.fileUrl} target="_blank" className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-indigo-100 transition">
-                          <span>📄</span> Скачать документ
-                        </a>
-                      )}
-                      {i.linkUrl && (
-                        <a href={i.linkUrl} target="_blank" className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-100 transition">
-                          <span>🔗</span> Открыть ссылку
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ЧАТ */}
-        {activeTab === 'chat' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-[2rem] p-8 text-white shadow-lg shadow-green-200 relative overflow-hidden group cursor-pointer" onClick={() => setShowAidModal(true)}>
-              <div className="relative z-10">
-                <h2 className="font-black text-2xl mb-2">Материальная помощь</h2>
-                <p className="text-green-100 font-bold text-sm mb-6 opacity-90">Запросите материальную помощь по нужной категории.</p>
-                <button className="inline-block bg-white text-green-600 px-8 py-3 rounded-xl font-black shadow-md hover:bg-green-50 transition transform group-hover:scale-105">Оформить заявку</button>
-              </div>
-              <div className="absolute -right-10 -bottom-10 text-9xl opacity-20 rotate-12 group-hover:rotate-6 transition-transform duration-500">🤝</div>
-            </div>
-
-            <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-indigo-50">
-              <h2 className="font-black text-xl mb-4 text-gray-800">Обращение к админу</h2>
-              <textarea
-                className="w-full bg-gray-50 p-4 rounded-2xl font-bold border-0 outline-none focus:ring-2 focus:ring-indigo-500/20 transition min-h-[120px]"
-                rows={3}
-                placeholder="Опишите вашу проблему или предложение..."
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-              />
-              <button
-                onClick={sendRequest}
-                disabled={isSending}
-                className={`w-full bg-blue-600 text-white py-4 rounded-2xl font-black mt-4 shadow-lg shadow-blue-200 hover:shadow-xl hover:bg-blue-700 transition transform active:scale-95 ${isSending ? 'opacity-70' : ''}`}
-              >
-                {isSending ? 'Отправка...' : 'Отправить обращение'}
+                <span className="font-black text-gray-800 text-sm">Подать мат помощь</span>
               </button>
-              {/* FILE INPUT ADDED HERE */}
-              <div className="mt-4">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2 ml-2">Прикрепить документ/фото</label>
-                <input
-                  type="file"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f && f.size > 5 * 1024 * 1024) {
-                      alert('Размер файла не должен превышать 5 МБ');
-                      e.target.value = '';
-                      return;
-                    }
-                    setChatFile(f || null);
-                  }}
-                  className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition"
-                />
-                <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер: 5 МБ (PDF, JPG, PNG)</p>
+              
+              <button onClick={() => setShowAdminRequestModal(true)} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-md transition">
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-inner">
+                  🏗️
+                </div>
+                <span className="font-black text-gray-800 text-sm">Обращение к админу</span>
+              </button>
+            </div>
+            
+            {/* Statistics Widget */}
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-black text-gray-800">Новые участники</h3>
+                <div className="flex bg-gray-100 rounded-full p-1 gap-1">
+                  <button onClick={() => setMonthOffset(p => p - 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-600 font-bold hover:bg-gray-50 transition">&lt;</button>
+                  <button onClick={() => setMonthOffset(p => p + 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-600 font-bold hover:bg-gray-50 transition" disabled={monthOffset >= 0}>&gt;</button>
+                </div>
               </div>
+              
+              {(() => {
+                const targetDate = new Date();
+                targetDate.setMonth(targetDate.getMonth() + monthOffset);
+                const targetMonth = targetDate.getMonth();
+                const targetYear = targetDate.getFullYear();
+                
+                const mNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                const monthName = mNames[targetMonth];
+                
+                let joinedCount = 0;
+                colleagues.forEach(c => {
+                  if (c.createdAt) {
+                    const d = new Date(c.createdAt);
+                    if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) joinedCount++;
+                  }
+                });
+                if (userData?.createdAt) {
+                   const d = new Date(userData.createdAt);
+                   if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) joinedCount++;
+                }
+                
+                return (
+                  <div className="flex items-end justify-between bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-4 text-white">
+                    <div>
+                      <div className="text-sm font-bold text-blue-100 mb-1">{monthName} {targetYear}</div>
+                      <div className="text-3xl font-black">{joinedCount} чел.</div>
+                    </div>
+                    <div className="text-4xl opacity-50">🤝</div>
+                  </div>
+                );
+              })()}
             </div>
 
-            <div className="space-y-4">
-              <h3 className="font-black text-gray-400 uppercase text-xs ml-4 tracking-wider">Мои запросы</h3>
-              {myRequests.length === 0 && <p className="text-center text-gray-400 font-bold py-4">Нет активных запросов</p>}
-              {myRequests.map(r => (
-                <div key={r.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-2 py-1 rounded">{new Date(r.createdAt).toLocaleDateString()}</span>
-                    <div className="flex gap-2">
-                      <span className={`text-[10px] font-black px-2 py-1 rounded ${r.response ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>{r.response ? 'ОТВЕТ ПОЛУЧЕН' : 'НА РАССМОТРЕНИИ'}</span>
-                      <button onClick={() => handleDeleteRequest(r.id)} className="text-gray-400 hover:text-red-500 font-bold px-1 transition">✕</button>
-                    </div>
-                  </div>
-                  <p className="font-bold text-gray-800 mb-3">{r.text}</p>
-                  {r.response && (
-                    <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                      <p className="text-xs font-black text-green-600 uppercase mb-1">Ответ:</p>
-                      <p className="text-sm font-bold text-gray-700">{r.response}</p>
-                    </div>
-                  )}
+            {/* News Feed inside Home */}
+            <div>
+              <h2 className="text-xl font-black text-gray-800 mb-4 px-2">Новости Профсоюза</h2>
+              {news.length === 0 ? (
+                <div className="bg-white p-8 rounded-3xl text-center border border-dashed border-gray-200">
+                  <p className="text-gray-400 font-bold">Нет новостей</p>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-4">
+                  {news.map((item) => (
+                    <div key={item.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                      {item.imageUrl && (
+                        <div className="w-full h-48 bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
+                          <Image src={item.imageUrl} alt={item.title} fill className="object-cover" />
+                        </div>
+                      )}
+                      <h3 className="font-black text-gray-900 text-lg mb-2">{item.title}</h3>
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-3 whitespace-pre-wrap">{renderFormattedText(item.body)}</p>
+                      <div className="flex justify-between items-center text-xs font-bold">
+                        <span className="text-gray-400">{new Date(item.createdAt).toLocaleDateString('ru-RU')}</span>
+                        {item.fileUrl && (
+                          <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition">
+                            📄 Вложение
+                          </a>
+                        )}
+                        {item.linkUrl && (
+                          <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
+                            🔗 Ссылка
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
-
-        {/* РЕСУРСЫ */}
+        
         {activeTab === 'resources' && (
+
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
 
             {/* ДОКУМЕНТЫ ПРОФСОЮЗА */}
@@ -1136,43 +1117,6 @@ export default function DashboardPage() {
         )}
 
         {/* ОБУЧЕНИЕ */}
-        {activeTab === 'training' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            {tests.length === 0 && (
-              <div className="bg-white p-10 rounded-[2rem] text-center border-2 border-dashed border-gray-200">
-                <p className="text-gray-400 font-bold">Обучающие тесты пока не назначены</p>
-              </div>
-            )}
-            {tests.map(test => {
-              const isCompleted = test.completedBy?.includes(user?.uid || '');
-              return (
-                <div key={test.id} className="bg-white p-6 rounded-[2rem] shadow-lg border border-indigo-50 relative overflow-hidden">
-                  <div className="flex justify-between items-start mb-3 relative z-10">
-                    <h3 className="font-black text-xl text-gray-800">{test.title}</h3>
-                    {isCompleted ? (
-                      <span className="bg-green-100 text-green-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Пройден</span>
-                    ) : (
-                      <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wide">Новый</span>
-                    )}
-                  </div>
-                  <p className="text-gray-500 text-sm font-medium mb-6 leading-relaxed relative z-10">{test.description}</p>
-                  <button
-                    onClick={() => handleStartTest(test)}
-                    className={`w-full py-4 rounded-2xl font-black text-lg transition-all transform active:scale-95 relative z-10 ${isCompleted ? 'bg-gray-100 text-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 to-indigo-600 text-white shadow-lg shadow-blue-200 hover:shadow-xl'}`}
-                  >
-                    {isCompleted ? 'Пройти повторно' : 'Начать тестирование'}
-                  </button>
-                  {/* Декоративный фон */}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 opacity-50"></div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-
-
-        {/* ОПРОСЫ */}
         {activeTab === 'polls' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             {polls.length === 0 && (
@@ -1978,14 +1922,27 @@ export default function DashboardPage() {
 
       {/* Footer Nav */}
       <div className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md p-2 rounded-[2rem] shadow-2xl flex justify-between items-center z-40 border border-white/50 max-w-lg mx-auto overflow-x-auto no-scrollbar gap-1">
-        {['news', 'chat', 'training', 'polls', 'reports', 'resources', 'profile'].map((tab) => {
+        {['resources', 'polls', 'home', 'reports', 'profile'].map((tab) => {
           const isActive = activeTab === tab;
-          const icons: { [key: string]: string } = { news: '📰', chat: '💬', training: '🎓', polls: '📋', reports: '📈', resources: '📂', profile: '👤' };
-          const labels: { [key: string]: string } = { news: 'Главная', chat: 'Чат', training: 'Учеба', polls: 'Опросы', reports: 'Отчеты', resources: 'Инфо', profile: 'Я' };
+          const icons: { [key: string]: string } = { home: '🏠', polls: '📋', reports: '📈', resources: '📂', profile: '👤' };
+          const labels: { [key: string]: string } = { home: 'Главная', polls: 'Опросы', reports: 'Отчеты', resources: 'Инфо', profile: 'Я' };
+          
+          if (tab === 'home') {
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab('home')}
+                className={`relative -top-5 w-14 h-14 rounded-full flex items-center justify-center border-[4px] border-white shadow-xl transition-all duration-300 shrink-0 z-50 ${isActive ? 'bg-indigo-600 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+              >
+                <span className="text-2xl">🏠</span>
+              </button>
+            );
+          }
+          
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as 'news' | 'chat' | 'resources' | 'training' | 'profile' | 'polls' | 'reports')}
+              onClick={() => setActiveTab(tab as any)}
               className={`flex-1 flex flex-col items-center py-3 rounded-[1.5rem] transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 transform -translate-y-2' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="text-xl mb-0.5">{icons[tab]}</span>
@@ -2055,6 +2012,71 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-    </div >
+    
+      {showAdminRequestModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fade-in-up">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-black text-xl">Обращение к админу</h3>
+              <button onClick={() => setShowAdminRequestModal(false)} className="text-white/50 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6">
+              <form onSubmit={sendRequest} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Опишите ваш вопрос</label>
+                  <textarea
+                    value={message} onChange={e => setMessage(e.target.value)}
+                    placeholder="Напишите сообщение администратору..."
+                    className="w-full border border-gray-200 p-4 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all resize-none h-32"
+                  ></textarea>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Прикрепить файл (необязательно)</label>
+                  <input
+                    type="file" onChange={e => setChatFile(e.target.files?.[0] || null)}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 cursor-pointer"
+                  />
+                  {chatFile && <p className="text-xs text-green-600 mt-2 font-bold">Выбран файл: {chatFile.name}</p>}
+                </div>
+                
+                <button type="submit" disabled={isSending || (!message.trim() && !chatFile)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition shadow-lg shadow-blue-200 mt-4">
+                  {isSending ? 'Отправка...' : 'Отправить'}
+                </button>
+              </form>
+              
+              <div className="mt-8 border-t border-gray-100 pt-6">
+                <h4 className="font-black text-gray-800 mb-4">История ваших обращений</h4>
+                {myRequests.length === 0 ? (
+                  <p className="text-gray-400 text-sm font-medium text-center">Вы еще не отправляли обращений</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myRequests.map(req => (
+                      <div key={req.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 text-sm relative group">
+                        <button onClick={() => handleDeleteRequest(req.id)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                        <div className="font-bold text-gray-800 mb-1 pr-6">{req.text}</div>
+                        {req.fileUrl && (
+                           <a href={req.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-xs font-bold mb-2 inline-block">📄 Вложение</a>
+                        )}
+                        <div className="text-xs text-gray-500 mb-2">{new Date(req.createdAt).toLocaleString('ru-RU')}</div>
+                        {req.response ? (
+                          <div className="bg-blue-50 text-blue-800 p-3 rounded-xl mt-2 border border-blue-100">
+                            <span className="font-black text-[10px] uppercase text-blue-500 block mb-1">Ответ админа:</span>
+                            {renderFormattedText(req.response)}
+                          </div>
+                        ) : (
+                          <div className="text-orange-500 font-bold text-xs">Ожидает ответа...</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+</div >
   );
 }

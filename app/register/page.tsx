@@ -114,10 +114,18 @@ export default function RegisterPage() {
       }
     }
 
+    let userCreatedInThisSession = false;
     try {
       // Регистрация в Firebase
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      let user = auth.currentUser;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        user = userCredential.user;
+        userCreatedInThisSession = true;
+      } catch (authErr: any) {
+        throw authErr; // Передаем ошибку ниже в основной catch
+      }
 
       let statementUrl = '';
       let signatureUrl = '';
@@ -185,6 +193,16 @@ export default function RegisterPage() {
       router.push('/');
     } catch (err: unknown) {
       console.error(err);
+      
+      // Если юзер был создан в этой сессии, но загрузка файлов или Firestore упали - удаляем его из Auth (rollback), чтобы он не застрял
+      if (userCreatedInThisSession && auth.currentUser) {
+         try {
+            await auth.currentUser.delete();
+         } catch (rollbackErr) {
+            console.error('Rollback failed:', rollbackErr);
+         }
+      }
+
       const errorObj = err as { code?: string, message?: string };
       if (errorObj.code === 'auth/email-already-in-use') setError('Данный Email уже зарегистрирован.');
       else if (errorObj.code === 'auth/weak-password') setError('Пароль должен содержать минимум 6 символов.');
@@ -457,7 +475,7 @@ export default function RegisterPage() {
                 className="w-full text-sm font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 transition cursor-pointer"
                 onChange={(e) => setIdCardFile(e.target.files?.[0] || null)}
               />
-              <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер файла: 5 МБ</p>
+              <p className="text-[10px] text-gray-400 mt-1 mb-2 font-medium">Максимальный размер файла: 20 МБ</p>
             </div>
             
           </div>
