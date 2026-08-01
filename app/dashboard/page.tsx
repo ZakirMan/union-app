@@ -29,6 +29,7 @@ interface UserProfile {
   status: string;
   photoUrl?: string;
   createdAt?: string;
+  isAlreadyMember?: boolean;
   voteWeight?: number;
   delegatedTo?: string;
   delegatedToName?: string;
@@ -942,18 +943,20 @@ export default function DashboardPage() {
             
             {/* Top Widgets */}
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setShowAidModal(true)} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-md transition">
-                <div className="w-16 h-16 bg-yellow-50 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-inner">
-                  🏠
+              <button onClick={() => setShowAidModal(true)} className="relative overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-3xl shadow-lg shadow-teal-200 flex flex-col items-start justify-between text-left hover:-translate-y-1 transition duration-300 h-32 group">
+                <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 group-hover:scale-110 transition-transform rotate-12">🤝</div>
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-xl mb-2 text-white shadow-inner">
+                  💖
                 </div>
-                <span className="font-black text-gray-800 text-sm">Подать мат помощь</span>
+                <span className="font-black text-white text-sm leading-tight relative z-10">Подать мат<br/>помощь</span>
               </button>
               
-              <button onClick={() => setShowAdminRequestModal(true)} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-md transition">
-                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-inner">
-                  🏗️
+              <button onClick={() => setShowAdminRequestModal(true)} className="relative overflow-hidden bg-gradient-to-br from-indigo-400 to-blue-500 p-5 rounded-3xl shadow-lg shadow-blue-200 flex flex-col items-start justify-between text-left hover:-translate-y-1 transition duration-300 h-32 group">
+                <div className="absolute -right-4 -bottom-4 text-6xl opacity-20 group-hover:scale-110 transition-transform -rotate-12">💬</div>
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-xl mb-2 text-white shadow-inner">
+                  👨‍💻
                 </div>
-                <span className="font-black text-gray-800 text-sm">Обращение к админу</span>
+                <span className="font-black text-white text-sm leading-tight relative z-10">Обращение<br/>к админу</span>
               </button>
             </div>
             
@@ -978,12 +981,12 @@ export default function DashboardPage() {
                 
                 let joinedCount = 0;
                 colleagues.forEach(c => {
-                  if (c.createdAt) {
+                  if (c.createdAt && c.isAlreadyMember === false) {
                     const d = new Date(c.createdAt);
                     if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) joinedCount++;
                   }
                 });
-                if (userData?.createdAt) {
+                if (userData?.createdAt && userData.isAlreadyMember === false) {
                    const d = new Date(userData.createdAt);
                    if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) joinedCount++;
                 }
