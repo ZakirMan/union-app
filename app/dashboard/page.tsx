@@ -12,7 +12,7 @@ import imageCompression from 'browser-image-compression';
 import SignatureCanvas from 'react-signature-canvas';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon } from 'lucide-react';
+import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell } from 'lucide-react';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -905,23 +905,25 @@ export default function DashboardPage() {
 
       {/* HEADER */}
       {activeTab !== 'profile' && (
-        <div className="bg-[#0F172A] text-white pt-10 pb-8 px-6 rounded-b-[2.5rem] shadow-[0_15px_40px_rgba(15,23,42,0.15)] sticky top-0 z-30 mb-8 border-b border-white/5">
-          <div className="max-w-2xl mx-auto flex justify-between items-end">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 opacity-80">Профсоюз</p>
-              <h1 className="text-3xl font-black tracking-tight">{ { home: 'Главная', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
+        <div className="bg-blue-600 text-white pt-6 pb-5 px-6 rounded-b-3xl shadow-md sticky top-0 z-30 mb-8 border-b border-blue-500/30">
+          <div className="max-w-2xl mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/20">
+                <Shield size={20} className="text-white" strokeWidth={2.5} />
+              </div>
+              <h1 className="text-2xl font-black tracking-tight">{ { home: 'Главная', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 items-center">
               {userData?.role === 'admin' && (
                 <button
                   onClick={() => router.push('/admin')}
-                  className="bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 border border-white/5"
+                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 border border-white/10"
                 >
-                  Админ панель →
+                  Админ →
                 </button>
               )}
-              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner cursor-pointer hover:bg-white/20 active:scale-95 transition-all">
-                <span className="text-xl grayscale-[20%]">🔔</span>
+              <div className="w-10 h-10 bg-white/15 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner cursor-pointer hover:bg-white/25 active:scale-95 transition-all border border-white/10 shrink-0">
+                <Bell size={18} className="text-white" strokeWidth={2.5} />
               </div>
             </div>
           </div>
