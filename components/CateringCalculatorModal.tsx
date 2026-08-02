@@ -18,6 +18,13 @@ interface LightCategory {
   name: string;
 }
 
+interface DryCategory {
+  id: string;
+  name: string;
+  type: 'simple' | 'pack';
+  packCapacity: number;
+}
+
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat_whiskey', name: 'Виски', volume: 0.7 },
   { id: 'cat_vodka', name: 'Водка', volume: 0.5 },
@@ -44,6 +51,15 @@ const DEFAULT_DRINK_CATEGORIES: LightCategory[] = [
   { id: 'drink_milk', name: 'Молоко' },
 ];
 
+const DEFAULT_DRY_CATEGORIES: DryCategory[] = [
+  { id: 'dry_coffee', name: 'Кофе', type: 'simple', packCapacity: 1 },
+  { id: 'dry_napkins', name: 'Салфетки', type: 'simple', packCapacity: 1 },
+  { id: 'dry_baby', name: 'Детское питание', type: 'simple', packCapacity: 1 },
+  { id: 'dry_tea', name: 'Чай', type: 'pack', packCapacity: 25 },
+  { id: 'dry_cups_paper', name: 'Стаканы бум.', type: 'pack', packCapacity: 50 },
+  { id: 'dry_cups_plastic', name: 'Стаканы пласт.', type: 'pack', packCapacity: 100 },
+];
+
 export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'bar' | 'drinks' | 'dry'>('bar');
   
@@ -51,15 +67,18 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [lightCategories, setLightCategories] = useState<LightCategory[]>(DEFAULT_LIGHT_CATEGORIES);
   const [drinkCategories, setDrinkCategories] = useState<LightCategory[]>(DEFAULT_DRINK_CATEGORIES);
+  const [dryCategories, setDryCategories] = useState<DryCategory[]>(DEFAULT_DRY_CATEGORIES);
   
   // Edit modes for tabs
   const [isEditModeBar, setIsEditModeBar] = useState(false);
   const [isEditModeDrinks, setIsEditModeDrinks] = useState(false);
+  const [isEditModeDry, setIsEditModeDry] = useState(false);
 
   // State
   const [barItems, setBarItems] = useState<Record<string, Bottle[]>>({});
   const [lightItems, setLightItems] = useState<Record<string, number>>({});
   const [drinkItems, setDrinkItems] = useState<Record<string, number>>({});
+  const [dryItems, setDryItems] = useState<Record<string, { full: number, loose: number }>>({});
 
   // Expand/collapse state for bar categories
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -67,29 +86,20 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   // Load categories from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedBar = localStorage.getItem('union-bar-categories');
-      if (savedBar) {
-        try {
-          const parsed = JSON.parse(savedBar);
-          if (Array.isArray(parsed) && parsed.length > 0) setCategories(parsed);
-        } catch (e) { console.error(e); }
-      }
-      
-      const savedLight = localStorage.getItem('union-bar-light-categories');
-      if (savedLight) {
-        try {
-          const parsed = JSON.parse(savedLight);
-          if (Array.isArray(parsed) && parsed.length > 0) setLightCategories(parsed);
-        } catch (e) { console.error(e); }
-      }
+      const load = (key: string, setter: any) => {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) setter(parsed);
+          } catch (e) { console.error(e); }
+        }
+      };
 
-      const savedDrinks = localStorage.getItem('union-drinks-categories');
-      if (savedDrinks) {
-        try {
-          const parsed = JSON.parse(savedDrinks);
-          if (Array.isArray(parsed) && parsed.length > 0) setDrinkCategories(parsed);
-        } catch (e) { console.error(e); }
-      }
+      load('union-bar-categories', setCategories);
+      load('union-bar-light-categories', setLightCategories);
+      load('union-drinks-categories', setDrinkCategories);
+      load('union-dry-categories', setDryCategories);
     }
   }, []);
 
@@ -106,16 +116,16 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   }, [categories]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('union-bar-light-categories', JSON.stringify(lightCategories));
-    }
+    if (typeof window !== 'undefined') localStorage.setItem('union-bar-light-categories', JSON.stringify(lightCategories));
   }, [lightCategories]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('union-drinks-categories', JSON.stringify(drinkCategories));
-    }
+    if (typeof window !== 'undefined') localStorage.setItem('union-drinks-categories', JSON.stringify(drinkCategories));
   }, [drinkCategories]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('union-dry-categories', JSON.stringify(dryCategories));
+  }, [dryCategories]);
 
   if (!isOpen) return null;
 
@@ -211,6 +221,33 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
     setDrinkItems(prev => { const newItems = { ...prev }; delete newItems[id]; return newItems; });
   };
 
+  // --- Dry Goods Handlers ---
+  const updateDryItem = (id: string, field: 'full' | 'loose', delta: number) => {
+    setDryItems(prev => {
+      const current = prev[id] || { full: 0, loose: 0 };
+      const nextVal = Math.max(0, current[field] + delta);
+      return { ...prev, [id]: { ...current, [field]: nextVal } };
+    });
+  };
+
+  const setDryItemValue = (id: string, field: 'full' | 'loose', value: number) => {
+    setDryItems(prev => {
+      const current = prev[id] || { full: 0, loose: 0 };
+      const nextVal = Math.max(0, isNaN(value) ? 0 : value);
+      return { ...prev, [id]: { ...current, [field]: nextVal } };
+    });
+  };
+
+  const handleAddDryCategory = () => {
+    setDryCategories(prev => [...prev, { id: `dry_${Math.random().toString(36).substr(2, 9)}`, name: 'Новый продукт', type: 'simple', packCapacity: 1 }]);
+  };
+  const handleUpdateDryCategory = (id: string, field: keyof DryCategory, value: string | number) => {
+    setDryCategories(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+  const handleRemoveDryCategory = (id: string) => {
+    setDryCategories(prev => prev.filter(c => c.id !== id));
+    setDryItems(prev => { const newItems = { ...prev }; delete newItems[id]; return newItems; });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
@@ -462,10 +499,146 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
           )}
 
           {activeTab === 'dry' && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-3 pt-10">
-              <Package className="w-16 h-16 opacity-20" />
-              <p className="font-medium text-center">Раздел "Сухие продукты" в разработке</p>
-            </div>
+            <>
+              {/* Settings Toggle */}
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => setIsEditModeDry(!isEditModeDry)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${isEditModeDry ? 'bg-green-100 text-green-700' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                >
+                  {isEditModeDry ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                  {isEditModeDry ? 'Сохранить' : 'Настроить продукты'}
+                </button>
+              </div>
+
+              {isEditModeDry ? (
+                // Edit Mode UI
+                <div className="space-y-4">
+                  {dryCategories.map(category => (
+                    <div key={category.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Название продукта</label>
+                        <button onClick={() => handleRemoveDryCategory(category.id)} className="text-red-500 p-1 hover:bg-red-50 rounded-md">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <input type="text" value={category.name} onChange={(e) => handleUpdateDryCategory(category.id, 'name', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-green-500 font-bold text-gray-700" />
+                      
+                      <label className="text-xs font-bold text-gray-500 uppercase mt-1">Метод подсчета</label>
+                      <select 
+                        value={category.type} 
+                        onChange={(e) => handleUpdateDryCategory(category.id, 'type', e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-green-500 font-bold text-gray-700 appearance-none"
+                      >
+                        <option value="simple">Обычный (поштучно)</option>
+                        <option value="pack">Сборная упаковка</option>
+                      </select>
+
+                      {category.type === 'pack' && (
+                        <>
+                          <label className="text-xs font-bold text-gray-500 uppercase mt-1">Вместимость упаковки (шт)</label>
+                          <input type="number" min="1" value={category.packCapacity} onChange={(e) => handleUpdateDryCategory(category.id, 'packCapacity', parseInt(e.target.value) || 1)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-green-500 font-bold text-gray-700" />
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={handleAddDryCategory} className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex justify-center items-center gap-2 hover:bg-gray-100 transition-colors">
+                    <Plus className="w-5 h-5" /> Добавить продукт
+                  </button>
+                </div>
+              ) : (
+                // View Mode UI
+                <div className="space-y-4">
+                  {dryCategories.map(category => {
+                    const items = dryItems[category.id] || { full: 0, loose: 0 };
+                    
+                    if (category.type === 'simple') {
+                      return (
+                        <div key={category.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                          <h4 className="font-bold text-gray-800 text-base leading-tight">{category.name}</h4>
+                          <div className="flex items-center justify-between bg-gray-50 rounded-xl p-1 border border-gray-100 w-32">
+                            <button onClick={() => updateDryItem(category.id, 'full', -1)} className="w-8 h-8 flex justify-center items-center text-gray-500 hover:bg-gray-200 rounded-lg transition-colors active:scale-95 disabled:opacity-30" disabled={items.full === 0}>
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <input 
+                              type="number"
+                              value={items.full === 0 ? '' : items.full}
+                              placeholder="0"
+                              onChange={(e) => setDryItemValue(category.id, 'full', parseInt(e.target.value))}
+                              className="font-black text-lg text-gray-800 w-10 text-center bg-transparent outline-none appearance-none"
+                              style={{ MozAppearance: 'textfield' }}
+                            />
+                            <button onClick={() => updateDryItem(category.id, 'full', 1)} className="w-8 h-8 flex justify-center items-center text-green-600 bg-green-100 hover:bg-green-200 rounded-lg transition-colors active:scale-95">
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Pack type
+                    const total = (items.full * category.packCapacity) + items.loose;
+
+                    return (
+                      <div key={category.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                        <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                          <div>
+                            <h4 className="font-bold text-gray-800 text-base leading-tight">{category.name}</h4>
+                            <p className="text-xs text-gray-500 mt-1">В уп.: {category.packCapacity} шт</p>
+                          </div>
+                          <div className="bg-green-50 px-3 py-1.5 rounded-xl border border-green-100 text-right">
+                            <span className="text-[10px] text-green-600 font-bold uppercase block leading-none mb-1">Итого</span>
+                            <span className="text-xl font-black text-green-700 leading-none">{total} <span className="text-xs">шт</span></span>
+                          </div>
+                        </div>
+                        <div className="p-4 space-y-3">
+                          {/* Целые упаковки */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-gray-600">Целые уп.</span>
+                            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-1 border border-gray-100 w-32">
+                              <button onClick={() => updateDryItem(category.id, 'full', -1)} className="w-8 h-8 flex justify-center items-center text-gray-500 hover:bg-gray-200 rounded-lg transition-colors active:scale-95 disabled:opacity-30" disabled={items.full === 0}>
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <input 
+                                type="number"
+                                value={items.full === 0 ? '' : items.full}
+                                placeholder="0"
+                                onChange={(e) => setDryItemValue(category.id, 'full', parseInt(e.target.value))}
+                                className="font-black text-lg text-gray-800 w-10 text-center bg-transparent outline-none appearance-none"
+                                style={{ MozAppearance: 'textfield' }}
+                              />
+                              <button onClick={() => updateDryItem(category.id, 'full', 1)} className="w-8 h-8 flex justify-center items-center text-green-600 bg-green-100 hover:bg-green-200 rounded-lg transition-colors active:scale-95">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          {/* Рассыпной остаток */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-gray-600">Рассыпной остаток</span>
+                            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-1 border border-gray-100 w-32">
+                              <button onClick={() => updateDryItem(category.id, 'loose', -1)} className="w-8 h-8 flex justify-center items-center text-gray-500 hover:bg-gray-200 rounded-lg transition-colors active:scale-95 disabled:opacity-30" disabled={items.loose === 0}>
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <input 
+                                type="number"
+                                value={items.loose === 0 ? '' : items.loose}
+                                placeholder="0"
+                                onChange={(e) => setDryItemValue(category.id, 'loose', parseInt(e.target.value))}
+                                className="font-black text-lg text-gray-800 w-10 text-center bg-transparent outline-none appearance-none"
+                                style={{ MozAppearance: 'textfield' }}
+                              />
+                              <button onClick={() => updateDryItem(category.id, 'loose', 1)} className="w-8 h-8 flex justify-center items-center text-green-600 bg-green-100 hover:bg-green-200 rounded-lg transition-colors active:scale-95">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
 
