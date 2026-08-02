@@ -113,10 +113,10 @@ export default function AirportInfoModal({ isOpen, onClose }: { isOpen: boolean;
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Fixed Top Section (Search & Compact Info) */}
+        <div className="p-4 space-y-3 bg-gray-50 border-b border-gray-200 shrink-0 z-10 shadow-sm relative">
           {/* Search */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex gap-2">
+          <div className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 flex gap-2">
             <input 
               type="text" 
               placeholder="Код IATA (напр. ALA)"
@@ -124,53 +124,45 @@ export default function AirportInfoModal({ isOpen, onClose }: { isOpen: boolean;
               value={iataInput}
               onChange={(e) => setIataInput(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-black text-gray-700 uppercase tracking-widest placeholder:normal-case placeholder:tracking-normal placeholder:font-medium"
+              className="flex-1 bg-gray-50 border border-transparent rounded-lg px-3 py-2 outline-none focus:border-blue-500 font-black text-gray-700 uppercase tracking-widest placeholder:normal-case placeholder:tracking-normal placeholder:font-medium text-sm"
             />
             <button 
               onClick={handleSearch}
               disabled={iataInput.length !== 3}
-              className="bg-blue-600 text-white px-5 rounded-xl font-bold disabled:opacity-50 hover:bg-blue-700 active:scale-95 transition-colors"
+              className="bg-blue-600 text-white px-4 rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-blue-700 active:scale-95 transition-colors"
             >
               Искать
             </button>
           </div>
 
-          {/* Airport Info Card */}
+          {/* Airport Info Card (Compact) */}
           {airport && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fade-in-up">
-              <div className="p-5 flex gap-4 items-center border-b border-gray-50 bg-blue-50/30">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                  <Plane className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-black text-gray-900 text-lg">{airport.iata}</h4>
-                  <p className="text-sm font-bold text-gray-600">{airport.city}, {airport.country}</p>
-                </div>
-              </div>
-              <div className="p-5 space-y-4">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Полное название</span>
-                  <p className="font-bold text-gray-800 leading-tight mt-1">{airport.name}</p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1 bg-gray-50 rounded-xl p-3 flex flex-col justify-center">
-                    <div className="flex items-center gap-1.5 text-gray-500 mb-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span className="text-[10px] uppercase font-bold tracking-wider">Местное время</span>
-                    </div>
-                    <span className="font-black text-xl text-gray-900">{localTime}</span>
+            <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden animate-fade-in-up">
+              <div className="p-3 bg-blue-50/50 flex items-center justify-between">
+                <div className="overflow-hidden pr-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-black text-blue-900 text-base">{airport.iata}</h4>
+                    <span className="text-xs font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">{airport.city}</span>
                   </div>
-                  <div className="flex-1 bg-gray-50 rounded-xl p-3 flex flex-col justify-center">
-                    <div className="flex items-center gap-1.5 text-gray-500 mb-1">
-                      <Cloud className="w-3.5 h-3.5" />
-                      <span className="text-[10px] uppercase font-bold tracking-wider">Погода</span>
-                    </div>
-                    <span className="font-black text-xl text-gray-900">{weather ? weather : <span className="text-gray-400 font-medium text-sm">—</span>}</span>
+                  <p className="text-[10px] font-bold text-gray-500 mt-1 leading-tight truncate">{airport.name}</p>
+                </div>
+                <div className="flex gap-3 text-right shrink-0">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Время</span>
+                    <span className="font-black text-sm text-gray-800">{localTime}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Погода</span>
+                    <span className="font-black text-sm text-gray-800">{weather ? weather : '—'}</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
 
           {/* PA Text Block */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group">
