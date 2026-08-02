@@ -13,6 +13,8 @@ const AIRCRAFTS: Aircraft[] = [
   { id: 'a320', name: 'Airbus A320', business: 16, economy: 132 },
   { id: 'a321neo', name: 'Airbus A321NEO', business: 28, economy: 151 },
   { id: 'a321lr', name: 'Airbus A321LR', business: 16, economy: 150 },
+  { id: 'a321sh', name: 'Airbus A321SH', business: 28, economy: 156 },
+  { id: 'a321', name: 'Airbus A321', business: 28, economy: 141 },
 ];
 
 export default function PaxCalculatorModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
