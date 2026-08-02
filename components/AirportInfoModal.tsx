@@ -10,8 +10,8 @@ interface Airport {
   country: string;
   iata: string;
   tz: string;
-  latitude: number;
-  longitude: number;
+  latitude: string | number;
+  longitude: string | number;
 }
 
 const defaultPaText = `Құрметті ханымдар мен мырзалар! ___ халықаралық әуежайына қош келдіңіздер!
