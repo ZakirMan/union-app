@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@vercel/analytics": "^1.6.1",
     "browser-image-compression": "^2.0.2",
     "firebase": "^12.8.0",
@@ -16,7 +17,7 @@
     "googleapis": "^173.0.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.24.0",
     "next": "16.1.5",
     "nodemailer": "^8.0.10",
     "pdf-parse": "^1.1.1",
