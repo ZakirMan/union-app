@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Clock, Cloud, Edit2, Plane, Save } from 'lucide-react';
-import airportsData from 'airport-codes/airports.json';
+import airportsData from '@/data/airports.json';
 
 interface Airport {
   name: string;
