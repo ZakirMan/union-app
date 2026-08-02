@@ -79,6 +79,7 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   const [lightItems, setLightItems] = useState<Record<string, number>>({});
   const [drinkItems, setDrinkItems] = useState<Record<string, number>>({});
   const [dryItems, setDryItems] = useState<Record<string, { full: number, loose: number }>>({});
+  const [lastInventoryDate, setLastInventoryDate] = useState<string | null>(null);
 
   // Expand/collapse state for bar categories
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -100,6 +101,14 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
       load('union-bar-light-categories', setLightCategories);
       load('union-drinks-categories', setDrinkCategories);
       load('union-dry-categories', setDryCategories);
+      
+      load('union-bar-items', setBarItems);
+      load('union-light-items', setLightItems);
+      load('union-drinks-items', setDrinkItems);
+      load('union-dry-items', setDryItems);
+      
+      const savedDate = localStorage.getItem('union-inventory-date');
+      if (savedDate) setLastInventoryDate(savedDate);
     }
   }, []);
 
@@ -126,6 +135,22 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   useEffect(() => {
     if (typeof window !== 'undefined') localStorage.setItem('union-dry-categories', JSON.stringify(dryCategories));
   }, [dryCategories]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('union-bar-items', JSON.stringify(barItems));
+  }, [barItems]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('union-light-items', JSON.stringify(lightItems));
+  }, [lightItems]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('union-drinks-items', JSON.stringify(drinkItems));
+  }, [drinkItems]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('union-dry-items', JSON.stringify(dryItems));
+  }, [dryItems]);
 
   if (!isOpen) return null;
 
@@ -247,6 +272,32 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   const handleRemoveDryCategory = (id: string) => {
     setDryCategories(prev => prev.filter(c => c.id !== id));
     setDryItems(prev => { const newItems = { ...prev }; delete newItems[id]; return newItems; });
+  };
+
+  const handleSaveInventory = () => {
+    const dateStr = new Date().toLocaleString('ru-RU', { 
+      day: '2-digit', month: 'short', year: 'numeric', 
+      hour: '2-digit', minute: '2-digit' 
+    });
+    setLastInventoryDate(dateStr);
+    if (typeof window !== 'undefined') localStorage.setItem('union-inventory-date', dateStr);
+  };
+
+  const handleResetInventory = () => {
+    if (window.confirm('Вы уверены, что хотите сбросить все остатки до нуля? Это действие нельзя отменить.')) {
+      setBarItems({});
+      setLightItems({});
+      setDrinkItems({});
+      setDryItems({});
+      setLastInventoryDate(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('union-inventory-date');
+        localStorage.removeItem('union-bar-items');
+        localStorage.removeItem('union-light-items');
+        localStorage.removeItem('union-drinks-items');
+        localStorage.removeItem('union-dry-items');
+      }
+    }
   };
 
   return (
@@ -657,6 +708,22 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
           {activeTab === 'summary' && (
             <div className="space-y-4 pb-6">
               
+              {/* Save / Reset Actions */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-gray-500">Время учета:</span>
+                  <span className="text-sm font-black text-gray-800">{lastInventoryDate || 'Не сохранено'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveInventory} className="flex-1 bg-purple-100 text-purple-700 font-bold py-2.5 rounded-xl text-sm hover:bg-purple-200 transition-colors">
+                    Сохранить учет
+                  </button>
+                  <button onClick={handleResetInventory} className="flex-1 bg-red-100 text-red-700 font-bold py-2.5 rounded-xl text-sm hover:bg-red-200 transition-colors">
+                    Сбросить остатки
+                  </button>
+                </div>
+              </div>
+
               {/* Hard Liquor */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="bg-orange-50 px-4 py-2 border-b border-orange-100">
