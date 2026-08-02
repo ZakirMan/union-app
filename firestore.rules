@@ -7,6 +7,11 @@ service cloud.firestore {
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Функция проверки одобренного пользователя
+    function isApproved() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
+    }
+
     // Проверка, что пользователь не пытается изменить защищенные поля
     function isModifyingRestrictedUserFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
@@ -20,6 +25,7 @@ service cloud.firestore {
 
     // Коллекция users
     match /users/{userId} {
+      // Каждый авторизованный может читать (чтобы узнать свой статус)
       allow read: if request.auth != null;
       
       // Создание: только для себя, и роль должна быть member, а статус pending (или пустые, чтобы нельзя было создать админа)
@@ -35,23 +41,23 @@ service cloud.firestore {
     }
 
     // Публичные коллекции
-    match /news/{docId} { allow read: if request.auth != null; }
-    match /team/{docId} { allow read: if request.auth != null; }
-    match /links/{docId} { allow read: if request.auth != null; }
+    match /news/{docId} { allow read: if isApproved(); }
+    match /team/{docId} { allow read: if isApproved(); }
+    match /links/{docId} { allow read: if isApproved(); }
     match /templates/{docId} { allow read: if true; } // Окно регистрации (нужен доступ без авторизации)
-    match /union_documents/{docId} { allow read: if request.auth != null; }
-    match /conferences/{docId} { allow read: if request.auth != null; }
+    match /union_documents/{docId} { allow read: if isApproved(); }
+    match /conferences/{docId} { allow read: if isApproved(); }
 
     // Опросы и Тесты (Чтение и обновление)
     match /polls/{docId} { 
-      allow read: if request.auth != null;
+      allow read: if isApproved();
       // Можно обновлять, но нельзя менять сам вопрос и варианты ответов
-      allow update: if request.auth != null
+      allow update: if isApproved()
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['question', 'createdAt', 'endDate', 'status']);
     }
     match /tests/{docId} { 
-      allow read: if request.auth != null;
-      allow update: if request.auth != null
+      allow read: if isApproved();
+      allow update: if isApproved()
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'questions', 'createdAt', 'endDate', 'status']);
     }
 

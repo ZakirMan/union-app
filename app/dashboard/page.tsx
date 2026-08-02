@@ -216,6 +216,11 @@ export default function DashboardPage() {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data() as UserProfile;
+          if (data.status === 'blocked') {
+            await auth.signOut();
+            router.push('/login');
+            return;
+          }
           setUserData({ ...data, id: userDoc.id });
           userCategory = data.category || 'Все';
           setEditName(data.displayName || '');

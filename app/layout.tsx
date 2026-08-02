@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react"; // <--- 1. ДОБАВИЛИ ИМПОРТ
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+
 const inter = Inter({ subsets: ["latin"] });
 
 // 1. Настройка метаданных и PWA
@@ -32,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={inter.className}>
+        <ServiceWorkerRegister />
         {children}
         <PWAInstallPrompt />
         <Analytics /> {/* <--- 2. ДОБАВИЛИ СЧЕТЧИК СЮДА */}
