@@ -1,4 +1,4 @@
-const CACHE_NAME = 'union-app-cache-v1';
+const CACHE_NAME = 'union-app-cache-v2';
 const OFFLINE_URL = '/';
 
 self.addEventListener('install', (event) => {
