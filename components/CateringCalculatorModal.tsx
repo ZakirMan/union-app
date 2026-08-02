@@ -32,17 +32,34 @@ const DEFAULT_LIGHT_CATEGORIES: LightCategory[] = [
   { id: 'light_tonic', name: 'Тоник' },
 ];
 
+const DEFAULT_DRINK_CATEGORIES: LightCategory[] = [
+  { id: 'drink_water', name: 'Вода' },
+  { id: 'drink_sparkling', name: 'Вода с газом' },
+  { id: 'drink_lemonade', name: 'Лимонад' },
+  { id: 'drink_cola', name: 'Кола' },
+  { id: 'drink_colazero', name: 'Кола без сахара' },
+  { id: 'drink_orange', name: 'Апельсиновый сок' },
+  { id: 'drink_apple', name: 'Яблочный сок' },
+  { id: 'drink_tomato', name: 'Томатный сок' },
+  { id: 'drink_milk', name: 'Молоко' },
+];
+
 export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'bar' | 'drinks' | 'dry'>('bar');
   
   // Dynamic categories
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [lightCategories, setLightCategories] = useState<LightCategory[]>(DEFAULT_LIGHT_CATEGORIES);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [drinkCategories, setDrinkCategories] = useState<LightCategory[]>(DEFAULT_DRINK_CATEGORIES);
+  
+  // Edit modes for tabs
+  const [isEditModeBar, setIsEditModeBar] = useState(false);
+  const [isEditModeDrinks, setIsEditModeDrinks] = useState(false);
 
-  // State for Bar
+  // State
   const [barItems, setBarItems] = useState<Record<string, Bottle[]>>({});
   const [lightItems, setLightItems] = useState<Record<string, number>>({});
+  const [drinkItems, setDrinkItems] = useState<Record<string, number>>({});
 
   // Expand/collapse state for bar categories
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -50,10 +67,10 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
   // Load categories from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('union-bar-categories');
-      if (saved) {
+      const savedBar = localStorage.getItem('union-bar-categories');
+      if (savedBar) {
         try {
-          const parsed = JSON.parse(saved);
+          const parsed = JSON.parse(savedBar);
           if (Array.isArray(parsed) && parsed.length > 0) setCategories(parsed);
         } catch (e) { console.error(e); }
       }
@@ -63,6 +80,14 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
         try {
           const parsed = JSON.parse(savedLight);
           if (Array.isArray(parsed) && parsed.length > 0) setLightCategories(parsed);
+        } catch (e) { console.error(e); }
+      }
+
+      const savedDrinks = localStorage.getItem('union-drinks-categories');
+      if (savedDrinks) {
+        try {
+          const parsed = JSON.parse(savedDrinks);
+          if (Array.isArray(parsed) && parsed.length > 0) setDrinkCategories(parsed);
         } catch (e) { console.error(e); }
       }
     }
@@ -85,6 +110,12 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
       localStorage.setItem('union-bar-light-categories', JSON.stringify(lightCategories));
     }
   }, [lightCategories]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('union-drinks-categories', JSON.stringify(drinkCategories));
+    }
+  }, [drinkCategories]);
 
   if (!isOpen) return null;
 
@@ -150,7 +181,6 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
       return { ...prev, [id]: next };
     });
   };
-
   const handleAddLightCategory = () => {
     setLightCategories(prev => [...prev, { id: `light_${Math.random().toString(36).substr(2, 9)}`, name: 'Новый напиток' }]);
   };
@@ -161,6 +191,26 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
     setLightCategories(prev => prev.filter(c => c.id !== id));
     setLightItems(prev => { const newItems = { ...prev }; delete newItems[id]; return newItems; });
   };
+
+  // --- Drinks Handlers ---
+  const updateDrinkItem = (id: string, delta: number) => {
+    setDrinkItems(prev => {
+      const current = prev[id] || 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, [id]: next };
+    });
+  };
+  const handleAddDrinkCategory = () => {
+    setDrinkCategories(prev => [...prev, { id: `drink_${Math.random().toString(36).substr(2, 9)}`, name: 'Новый напиток' }]);
+  };
+  const handleUpdateDrinkCategory = (id: string, name: string) => {
+    setDrinkCategories(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+  };
+  const handleRemoveDrinkCategory = (id: string) => {
+    setDrinkCategories(prev => prev.filter(c => c.id !== id));
+    setDrinkItems(prev => { const newItems = { ...prev }; delete newItems[id]; return newItems; });
+  };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
@@ -200,15 +250,15 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
               {/* Settings Toggle */}
               <div className="flex justify-end mb-2">
                 <button
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${isEditMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                  onClick={() => setIsEditModeBar(!isEditModeBar)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${isEditModeBar ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
                 >
-                  {isEditMode ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
-                  {isEditMode ? 'Сохранить' : 'Настроить бар'}
+                  {isEditModeBar ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                  {isEditModeBar ? 'Сохранить' : 'Настроить бар'}
                 </button>
               </div>
 
-              {isEditMode ? (
+              {isEditModeBar ? (
                 // Edit Mode UI
                 <div className="space-y-6">
                   <div>
@@ -354,10 +404,61 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
           )}
 
           {activeTab === 'drinks' && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-3 pt-10">
-              <Coffee className="w-16 h-16 opacity-20" />
-              <p className="font-medium text-center">Раздел "Напитки" в разработке</p>
-            </div>
+            <>
+              {/* Settings Toggle */}
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => setIsEditModeDrinks(!isEditModeDrinks)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${isEditModeDrinks ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                >
+                  {isEditModeDrinks ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                  {isEditModeDrinks ? 'Сохранить' : 'Настроить напитки'}
+                </button>
+              </div>
+
+              {isEditModeDrinks ? (
+                // Edit Mode UI
+                <div className="space-y-3">
+                  {drinkCategories.map(category => (
+                    <div key={category.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Название напитка</label>
+                        <button onClick={() => handleRemoveDrinkCategory(category.id)} className="text-red-500 p-1 hover:bg-red-50 rounded-md">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <input type="text" value={category.name} onChange={(e) => handleUpdateDrinkCategory(category.id, e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 font-bold text-gray-700" />
+                    </div>
+                  ))}
+                  <button onClick={handleAddDrinkCategory} className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex justify-center items-center gap-2 hover:bg-gray-100 transition-colors">
+                    <Plus className="w-5 h-5" /> Добавить напиток
+                  </button>
+                </div>
+              ) : (
+                // View Mode UI
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {drinkCategories.map(category => {
+                      const count = drinkItems[category.id] || 0;
+                      return (
+                        <div key={category.id} className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex flex-col gap-3">
+                          <h4 className="font-bold text-gray-800 text-sm leading-tight">{category.name}</h4>
+                          <div className="flex items-center justify-between bg-gray-50 rounded-xl p-1 border border-gray-100">
+                            <button onClick={() => updateDrinkItem(category.id, -1)} className="w-8 h-8 flex justify-center items-center text-gray-500 hover:bg-gray-200 rounded-lg transition-colors active:scale-95 disabled:opacity-30" disabled={count === 0}>
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-black text-lg text-gray-800 w-8 text-center">{count}</span>
+                            <button onClick={() => updateDrinkItem(category.id, 1)} className="w-8 h-8 flex justify-center items-center text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors active:scale-95">
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {activeTab === 'dry' && (
