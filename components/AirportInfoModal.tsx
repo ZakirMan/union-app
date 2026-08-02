@@ -124,12 +124,12 @@ export default function AirportInfoModal({ isOpen, onClose }: { isOpen: boolean;
               value={iataInput}
               onChange={(e) => setIataInput(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 bg-gray-50 border border-transparent rounded-lg px-3 py-2 outline-none focus:border-blue-500 font-black text-gray-700 uppercase tracking-widest placeholder:normal-case placeholder:tracking-normal placeholder:font-medium text-sm"
+              className="flex-1 min-w-0 w-full bg-gray-50 border border-transparent rounded-lg px-3 py-2 outline-none focus:border-blue-500 font-black text-gray-700 uppercase tracking-widest placeholder:normal-case placeholder:tracking-normal placeholder:font-medium text-sm"
             />
             <button 
               onClick={handleSearch}
               disabled={iataInput.length !== 3}
-              className="bg-blue-600 text-white px-4 rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-blue-700 active:scale-95 transition-colors"
+              className="shrink-0 bg-blue-600 text-white px-4 rounded-lg font-bold text-sm disabled:opacity-50 hover:bg-blue-700 active:scale-95 transition-colors"
             >
               Искать
             </button>
@@ -138,22 +138,35 @@ export default function AirportInfoModal({ isOpen, onClose }: { isOpen: boolean;
           {/* Airport Info Card (Compact) */}
           {airport && (
             <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden animate-fade-in-up">
-              <div className="p-3 bg-blue-50/50 flex items-center justify-between">
-                <div className="overflow-hidden pr-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-black text-blue-900 text-base">{airport.iata}</h4>
-                    <span className="text-xs font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">{airport.city}</span>
+              <div className="p-3 bg-blue-50/50 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-black text-blue-900 text-base">{airport.iata}</h4>
+                      <span className="text-xs font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">{airport.city}</span>
+                    </div>
+                    <p className="text-xs font-semibold text-gray-600 leading-tight">{airport.name}</p>
                   </div>
-                  <p className="text-[10px] font-bold text-gray-500 mt-1 leading-tight truncate">{airport.name}</p>
                 </div>
-                <div className="flex gap-3 text-right shrink-0">
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Время</span>
-                    <span className="font-black text-sm text-gray-800">{localTime}</span>
+
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-white rounded-lg p-2 border border-blue-100/50 flex items-center gap-2 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 block leading-none mb-1">Местное время</span>
+                      <span className="font-black text-sm text-gray-800 leading-none block truncate">{localTime}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Погода</span>
-                    <span className="font-black text-sm text-gray-800">{weather ? weather : '—'}</span>
+                  <div className="flex-1 bg-white rounded-lg p-2 border border-blue-100/50 flex items-center gap-2 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                      <Cloud className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 block leading-none mb-1">Погода</span>
+                      <span className="font-black text-sm text-gray-800 leading-none block truncate">{weather ? weather : '—'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
