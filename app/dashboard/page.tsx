@@ -12,7 +12,7 @@ import imageCompression from 'browser-image-compression';
 import SignatureCanvas from 'react-signature-canvas';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell, ChevronLeft, ChevronRight, Edit2, Palmtree, LogOut, Save, Camera } from 'lucide-react';
 import PaxCalculatorModal from '@/components/PaxCalculatorModal';
 import CateringCalculatorModal from '@/components/CateringCalculatorModal';
 import AirportInfoModal from '@/components/AirportInfoModal';
@@ -1352,50 +1352,99 @@ export default function DashboardPage() {
           <div className="animate-in fade-in slide-in-from-bottom-8 pt-6">
 
             {/* Profile Header Card */}
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-white relative overflow-hidden text-center mb-6">
-              <div className="bg-gradient-to-b from-blue-50/50 to-transparent absolute inset-0"></div>
-              <div className="relative z-10">
-                <div className="w-32 h-32 bg-white rounded-full mx-auto mb-6 p-1 shadow-2xl relative group">
-                  <div className="w-full h-full rounded-full overflow-hidden relative">
-                    {userData.photoUrl ? <Image src={userData.photoUrl} alt={userData.displayName} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-4xl bg-gray-100">👤</div>}
+            <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-gray-100/50 relative overflow-hidden text-center mb-6 group">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-white to-white opacity-80 pointer-events-none"></div>
+              
+              <div className="relative z-10 flex flex-col items-center">
+                {/* Avatar */}
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-400 to-indigo-500 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
+                  <div className="w-32 h-32 bg-white rounded-full p-1.5 shadow-xl relative z-10 overflow-hidden group/avatar">
+                    <div className="w-full h-full rounded-full overflow-hidden relative bg-gray-50 border border-gray-100">
+                      {userData.photoUrl ? (
+                        <Image src={userData.photoUrl} alt={userData.displayName} fill className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-gray-100 to-gray-200">👤</div>
+                      )}
+                    </div>
+                    {isEditing && (
+                      <label className="absolute inset-1 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white rounded-full opacity-0 group-hover/avatar:opacity-100 transition-all backdrop-blur-sm z-20">
+                        <Camera className="w-6 h-6 mb-1 text-white" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Изменить</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f && f.size > 10 * 1024 * 1024) {
+                            alert('Размер файла не должен превышать 10 МБ');
+                            e.target.value = '';
+                            return;
+                          }
+                          setEditFile(f || null);
+                        }} />
+                      </label>
+                    )}
                   </div>
-                  {isEditing && (
-                    <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-2xl">📷</span>
-                      <span className="text-[10px] font-bold uppercase mt-1">Изменить</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={e => {
-                        const f = e.target.files?.[0];
-                        if (f && f.size > 10 * 1024 * 1024) {
-                          alert('Размер файла не должен превышать 10 МБ');
-                          e.target.value = '';
-                          return;
-                        }
-                        setEditFile(f || null);
-                      }} />
-                    </label>
-                  )}
                 </div>
-                {isEditing && <p className="text-[10px] text-gray-400 mt-[-15px] mb-4 text-center">Макс. размер: 10 МБ. Изображение будет сжато.</p>}
+                {isEditing && <p className="text-[10px] text-gray-400 mt-[-15px] mb-5 text-center font-medium bg-gray-50 px-3 py-1 rounded-full border border-gray-100">Макс. размер: 10 МБ</p>}
 
                 {!isEditing ? (
                   <>
-                    <h2 className="font-black text-3xl text-gray-900 mb-1">{userData.displayName}</h2>
-                    <p className="text-blue-500 font-bold text-lg mb-6">{userData.position}</p>
-                    <div className="flex gap-2 justify-center mt-4">
-                      <button onClick={() => setIsEditing(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm transition">Редактировать</button>
-                      <button onClick={() => setShowLeaveModal(true)} className="bg-orange-50 hover:bg-orange-100 text-orange-600 px-6 py-2 rounded-xl font-bold text-sm transition">В отпуск / декрет</button>
+                    <h2 className="font-black text-2xl sm:text-3xl text-gray-900 mb-2 tracking-tight">{userData.displayName}</h2>
+                    
+                    <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+                      <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-100/50 shadow-sm">
+                        {userData.position}
+                      </span>
                     </div>
-                    <div className="flex justify-center mt-2">
-                      <button onClick={() => setShowExitSurveyModal(true)} className="bg-red-50 hover:bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold text-sm transition">Выйти из профсоюза</button>
+
+                    <div className="w-full flex flex-col gap-3">
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => setIsEditing(true)} 
+                          className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 p-4 rounded-2xl font-bold text-sm transition-all flex flex-col items-center justify-center gap-2 border border-gray-200/50 hover:shadow-md hover:-translate-y-0.5 active:scale-95 group/btn"
+                        >
+                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-gray-500 group-hover/btn:text-blue-500 transition-colors">
+                            <Edit2 className="w-5 h-5" />
+                          </div>
+                          Редактировать
+                        </button>
+
+                        <button 
+                          onClick={() => setShowLeaveModal(true)} 
+                          className="flex-1 bg-orange-50/50 hover:bg-orange-50 text-orange-700 p-4 rounded-2xl font-bold text-sm transition-all flex flex-col items-center justify-center gap-2 border border-orange-100 hover:shadow-md hover:-translate-y-0.5 hover:shadow-orange-100 active:scale-95 group/btn"
+                        >
+                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-orange-400 group-hover/btn:text-orange-600 transition-colors">
+                            <Palmtree className="w-5 h-5" />
+                          </div>
+                          Отпуск / Декрет
+                        </button>
+                      </div>
+
+                      <button 
+                        onClick={() => setShowExitSurveyModal(true)} 
+                        className="w-full bg-red-50/50 hover:bg-red-50 text-red-600 p-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-3 border border-red-100 hover:shadow-md hover:-translate-y-0.5 hover:shadow-red-100 active:scale-95"
+                      >
+                        <LogOut className="w-4 h-4" /> Выйти из профсоюза
+                      </button>
                     </div>
                   </>
                 ) : (
-                  <div className="space-y-4 max-w-xs mx-auto">
-                    <input className="w-full bg-gray-50 p-3 rounded-xl font-bold text-center border-0 outline-none focus:ring-2 focus:ring-blue-200" value={editName} onChange={e => setEditName(e.target.value)} />
-                    <input className="w-full bg-gray-50 p-3 rounded-xl font-bold text-center border-0 outline-none focus:ring-2 focus:ring-blue-200" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
-                    <div className="flex gap-2">
-                      <button onClick={() => setIsEditing(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Отмена</button>
-                      <button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">{isSavingProfile ? '...' : 'Сохранить'}</button>
+                  <div className="space-y-4 w-full max-w-xs mx-auto animate-in fade-in zoom-in-95 duration-200">
+                    <div className="space-y-3">
+                      <input className="w-full bg-white p-4 rounded-2xl font-bold text-center border-2 border-gray-100 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-gray-800" placeholder="Ваше Имя" value={editName} onChange={e => setEditName(e.target.value)} />
+                      <input className="w-full bg-white p-4 rounded-2xl font-bold text-center border-2 border-gray-100 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-gray-800" placeholder="Номер телефона" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={() => setIsEditing(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-2xl font-bold transition-colors active:scale-95">Отмена</button>
+                      <button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+                        {isSavingProfile ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Save className="w-5 h-5" />
+                            Сохранить
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1403,8 +1452,15 @@ export default function DashboardPage() {
             </div>
 
             {/* Блок Делегирования */}
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-indigo-50 relative overflow-hidden mb-6">
-              <h3 className="font-black text-xl text-indigo-900 mb-6 flex items-center gap-2">🗳️ Управление голосом</h3>
+            <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-indigo-50/50 relative overflow-hidden mb-6 group">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+              
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-indigo-100/50">
+                  🗳️
+                </div>
+                <h3 className="font-black text-xl text-gray-900 leading-tight">Управление<br/><span className="text-indigo-600">голосом</span></h3>
+              </div>
 
               {nextConference ? (
                 <div className="mb-6 bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-[1.5rem] text-white shadow-lg shadow-indigo-200">
