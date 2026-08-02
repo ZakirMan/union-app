@@ -15,6 +15,7 @@ import { jsPDF } from 'jspdf';
 import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import PaxCalculatorModal from '@/components/PaxCalculatorModal';
 import CateringCalculatorModal from '@/components/CateringCalculatorModal';
+import AirportInfoModal from '@/components/AirportInfoModal';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -152,6 +153,7 @@ export default function DashboardPage() {
   const [showAidModal, setShowAidModal] = useState(false);
   const [showPaxCalculator, setShowPaxCalculator] = useState(false);
   const [showCateringCalculator, setShowCateringCalculator] = useState(false);
+  const [showAirportInfo, setShowAirportInfo] = useState(false);
   const [aidCategory, setAidCategory] = useState('');
   const [aidComment, setAidComment] = useState('');
   const [aidIban, setAidIban] = useState('');
@@ -1045,11 +1047,11 @@ export default function DashboardPage() {
                 <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">Скоро</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="flex overflow-x-auto gap-3 sm:gap-4 pb-4 snap-x snap-mandatory -mx-4 px-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 {/* Pax Counter App */}
                 <button 
                   onClick={() => setShowPaxCalculator(true)}
-                  className="relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                  className="shrink-0 snap-start min-w-[150px] sm:min-w-[180px] w-[45%] relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                 >
                   <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-md shadow-blue-200 text-white group-hover:rotate-12 transition-transform relative z-10">
@@ -1062,7 +1064,7 @@ export default function DashboardPage() {
                 {/* Catering Counter App */}
                 <button 
                   onClick={() => setShowCateringCalculator(true)}
-                  className="relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                  className="shrink-0 snap-start min-w-[150px] sm:min-w-[180px] w-[45%] relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                 >
                   <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-bl from-orange-100 to-transparent rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
                   <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-md shadow-orange-200 text-white group-hover:-rotate-12 transition-transform relative z-10">
@@ -1070,6 +1072,19 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="font-black text-gray-800 text-sm leading-tight mb-1 relative z-10">Провизия</h3>
                   <p className="text-[10px] text-gray-500 font-medium leading-tight relative z-10">Учет питания и бара</p>
+                </button>
+
+                {/* Airport Info App */}
+                <button 
+                  onClick={() => setShowAirportInfo(true)}
+                  className="shrink-0 snap-start min-w-[150px] sm:min-w-[180px] w-[45%] relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                >
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-bl from-indigo-100 to-transparent rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-md shadow-indigo-200 text-white group-hover:scale-110 transition-transform relative z-10">
+                    🌍
+                  </div>
+                  <h3 className="font-black text-gray-800 text-sm leading-tight mb-1 relative z-10">Аэропорты</h3>
+                  <p className="text-[10px] text-gray-500 font-medium leading-tight relative z-10">Справочник для PA</p>
                 </button>
               </div>
             </div>
@@ -2204,6 +2219,7 @@ export default function DashboardPage() {
       
       <PaxCalculatorModal isOpen={showPaxCalculator} onClose={() => setShowPaxCalculator(false)} />
       <CateringCalculatorModal isOpen={showCateringCalculator} onClose={() => setShowCateringCalculator(false)} />
+      <AirportInfoModal isOpen={showAirportInfo} onClose={() => setShowAirportInfo(false)} />
 </div >
   );
 }
