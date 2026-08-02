@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Wine, Coffee, Package, Plus, Trash2, ChevronDown, ChevronUp, Settings, Save, Minus } from 'lucide-react';
+import { X, Wine, Coffee, Package, Plus, Trash2, ChevronDown, ChevronUp, Settings, Save, Minus, ClipboardList } from 'lucide-react';
 
 interface Bottle {
   id: string;
@@ -61,7 +61,7 @@ const DEFAULT_DRY_CATEGORIES: DryCategory[] = [
 ];
 
 export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'bar' | 'drinks' | 'dry'>('bar');
+  const [activeTab, setActiveTab] = useState<'bar' | 'drinks' | 'dry' | 'summary'>('bar');
   
   // Dynamic categories
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -277,6 +277,9 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
           </button>
           <button onClick={() => setActiveTab('dry')} className={`flex-1 py-3 text-sm font-bold flex flex-col items-center gap-1 transition-colors ${activeTab === 'dry' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
             <Package className="w-5 h-5" /> Сухие
+          </button>
+          <button onClick={() => setActiveTab('summary')} className={`flex-1 py-3 text-sm font-bold flex flex-col items-center gap-1 transition-colors ${activeTab === 'summary' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-400 hover:text-gray-600'}`}>
+            <ClipboardList className="w-5 h-5" /> Итог
           </button>
         </div>
 
@@ -578,19 +581,28 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
 
                     // Pack type
                     const total = (items.full * category.packCapacity) + items.loose;
+                    const isExpanded = expandedCategories[category.id];
 
                     return (
                       <div key={category.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                        <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                        <div 
+                          className="p-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center cursor-pointer select-none active:bg-gray-100 transition-colors"
+                          onClick={() => toggleCategory(category.id)}
+                        >
                           <div>
                             <h4 className="font-bold text-gray-800 text-base leading-tight">{category.name}</h4>
                             <p className="text-xs text-gray-500 mt-1">В уп.: {category.packCapacity} шт</p>
                           </div>
-                          <div className="bg-green-50 px-3 py-1.5 rounded-xl border border-green-100 text-right">
-                            <span className="text-[10px] text-green-600 font-bold uppercase block leading-none mb-1">Итого</span>
-                            <span className="text-xl font-black text-green-700 leading-none">{total} <span className="text-xs">шт</span></span>
+                          <div className="flex items-center gap-3">
+                            <div className="bg-green-50 px-3 py-1.5 rounded-xl border border-green-100 text-right">
+                              <span className="text-[10px] text-green-600 font-bold uppercase block leading-none mb-1">Итого</span>
+                              <span className="text-xl font-black text-green-700 leading-none">{total} <span className="text-xs">шт</span></span>
+                            </div>
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                           </div>
                         </div>
+                        
+                        {isExpanded && (
                         <div className="p-4 space-y-3">
                           {/* Целые упаковки */}
                           <div className="flex justify-between items-center">
@@ -633,12 +645,114 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
                             </div>
                           </div>
                         </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
             </>
+          )}
+
+          {activeTab === 'summary' && (
+            <div className="space-y-4 pb-6">
+              
+              {/* Hard Liquor */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-orange-50 px-4 py-2 border-b border-orange-100">
+                  <h3 className="font-bold text-orange-800 text-sm uppercase tracking-wider">Крепкие напитки</h3>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {categories.map(c => {
+                    const { total } = getCategoryTotalData(c);
+                    if (total === 0) return null;
+                    return (
+                      <div key={c.id} className="px-4 py-2.5 flex justify-between items-center">
+                        <span className="font-medium text-gray-700">{c.name}</span>
+                        <span className="font-bold text-gray-900">{formatNumber(total)} л</span>
+                      </div>
+                    );
+                  })}
+                  {categories.every(c => getCategoryTotalData(c).total === 0) && (
+                    <div className="px-4 py-3 text-sm text-gray-400 italic">Пусто</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Light Liquor */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-orange-50 px-4 py-2 border-b border-orange-100">
+                  <h3 className="font-bold text-orange-800 text-sm uppercase tracking-wider">Слабоалкогольные</h3>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {lightCategories.map(c => {
+                    const count = lightItems[c.id] || 0;
+                    if (count === 0) return null;
+                    return (
+                      <div key={c.id} className="px-4 py-2.5 flex justify-between items-center">
+                        <span className="font-medium text-gray-700">{c.name}</span>
+                        <span className="font-bold text-gray-900">{count} шт</span>
+                      </div>
+                    );
+                  })}
+                  {lightCategories.every(c => (lightItems[c.id] || 0) === 0) && (
+                    <div className="px-4 py-3 text-sm text-gray-400 italic">Пусто</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Drinks */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-blue-50 px-4 py-2 border-b border-blue-100">
+                  <h3 className="font-bold text-blue-800 text-sm uppercase tracking-wider">Напитки</h3>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {drinkCategories.map(c => {
+                    const count = drinkItems[c.id] || 0;
+                    if (count === 0) return null;
+                    return (
+                      <div key={c.id} className="px-4 py-2.5 flex justify-between items-center">
+                        <span className="font-medium text-gray-700">{c.name}</span>
+                        <span className="font-bold text-gray-900">{count} шт</span>
+                      </div>
+                    );
+                  })}
+                  {drinkCategories.every(c => (drinkItems[c.id] || 0) === 0) && (
+                    <div className="px-4 py-3 text-sm text-gray-400 italic">Пусто</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dry Goods */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-green-50 px-4 py-2 border-b border-green-100">
+                  <h3 className="font-bold text-green-800 text-sm uppercase tracking-wider">Сухие продукты</h3>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {dryCategories.map(c => {
+                    const items = dryItems[c.id] || { full: 0, loose: 0 };
+                    let total = 0;
+                    if (c.type === 'simple') total = items.full;
+                    else total = (items.full * c.packCapacity) + items.loose;
+                    
+                    if (total === 0) return null;
+                    return (
+                      <div key={c.id} className="px-4 py-2.5 flex justify-between items-center">
+                        <span className="font-medium text-gray-700">{c.name}</span>
+                        <span className="font-bold text-gray-900">{total} шт</span>
+                      </div>
+                    );
+                  })}
+                  {dryCategories.every(c => {
+                    const items = dryItems[c.id] || { full: 0, loose: 0 };
+                    return (c.type === 'simple' ? items.full : (items.full * c.packCapacity + items.loose)) === 0;
+                  }) && (
+                    <div className="px-4 py-3 text-sm text-gray-400 italic">Пусто</div>
+                  )}
+                </div>
+              </div>
+
+            </div>
           )}
         </div>
 
