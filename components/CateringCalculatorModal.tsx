@@ -1,42 +1,79 @@
-import React, { useState } from 'react';
-import { X, Wine, Coffee, Package, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Wine, Coffee, Package, Plus, Trash2, ChevronDown, ChevronUp, Settings, Save } from 'lucide-react';
 
 interface Bottle {
   id: string;
   opened: boolean;
-  value: number; // 0.1 to 1.0
+  value: number; // 0.1 to 1.0 (representing fraction of a bottle)
 }
 
-const BAR_CATEGORIES = ['Виски', 'Водка', 'Коньяк', 'Джин'];
+interface Category {
+  id: string;
+  name: string;
+  volume: number; // in liters, e.g., 0.5, 0.7, 1.0
+}
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'cat_whiskey', name: 'Виски', volume: 0.7 },
+  { id: 'cat_vodka', name: 'Водка', volume: 0.5 },
+  { id: 'cat_cognac', name: 'Коньяк', volume: 0.5 },
+  { id: 'cat_gin', name: 'Джин', volume: 0.5 },
+];
 
 export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'bar' | 'drinks' | 'dry'>('bar');
+  
+  // Dynamic categories
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [isEditMode, setIsEditMode] = useState(false);
 
-  // State for Bar
-  const [barItems, setBarItems] = useState<Record<string, Bottle[]>>({
-    'Виски': [],
-    'Водка': [],
-    'Коньяк': [],
-    'Джин': []
-  });
+  // State for Bar (keyed by category.id)
+  const [barItems, setBarItems] = useState<Record<string, Bottle[]>>({});
 
   // Expand/collapse state for bar categories
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    'Виски': true,
-    'Водка': true,
-    'Коньяк': true,
-    'Джин': true
-  });
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  // Load categories from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('union-bar-categories');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCategories(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse categories", e);
+        }
+      }
+    }
+  }, []);
+
+  // Save categories to localStorage when they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('union-bar-categories', JSON.stringify(categories));
+    }
+    // Auto-expand new categories
+    const newExpanded = { ...expandedCategories };
+    categories.forEach(c => {
+      if (newExpanded[c.id] === undefined) {
+        newExpanded[c.id] = true;
+      }
+    });
+    setExpandedCategories(newExpanded);
+  }, [categories]);
 
   if (!isOpen) return null;
 
-  const toggleCategory = (cat: string) => {
-    setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  const toggleCategory = (catId: string) => {
+    setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
   };
 
-  const addBottle = (category: string) => {
+  const addBottle = (categoryId: string) => {
     setBarItems(prev => {
-      const current = prev[category] || [];
+      const current = prev[categoryId] || [];
       if (current.length >= 8) return prev; // Max 8
       
       const newBottle: Bottle = {
@@ -44,21 +81,21 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
         opened: false,
         value: 1.0
       };
-      return { ...prev, [category]: [...current, newBottle] };
+      return { ...prev, [categoryId]: [...current, newBottle] };
     });
   };
 
-  const removeBottle = (category: string, id: string) => {
+  const removeBottle = (categoryId: string, id: string) => {
     setBarItems(prev => ({
       ...prev,
-      [category]: prev[category].filter(b => b.id !== id)
+      [categoryId]: prev[categoryId].filter(b => b.id !== id)
     }));
   };
 
-  const toggleOpened = (category: string, id: string) => {
+  const toggleOpened = (categoryId: string, id: string) => {
     setBarItems(prev => ({
       ...prev,
-      [category]: prev[category].map(b => 
+      [categoryId]: prev[categoryId].map(b => 
         b.id === id 
           ? { ...b, opened: !b.opened, value: !b.opened ? 0.5 : 1.0 } 
           : b
@@ -66,20 +103,56 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
     }));
   };
 
-  const updateBottleValue = (category: string, id: string, value: number) => {
+  const updateBottleValue = (categoryId: string, id: string, value: number) => {
     setBarItems(prev => ({
       ...prev,
-      [category]: prev[category].map(b => 
+      [categoryId]: prev[categoryId].map(b => 
         b.id === id ? { ...b, value } : b
       )
     }));
   };
 
-  const calculateTotal = (category: string) => {
-    const items = barItems[category] || [];
-    const total = items.reduce((sum, b) => sum + b.value, 0);
-    // Округляем до 1 знака после запятой (чтобы избежать 0.300000000004)
-    return Math.round(total * 10) / 10;
+  const formatNumber = (num: number) => {
+    return Number.isInteger(num) ? num.toString() : num.toFixed(2).replace(/\.?0+$/, '');
+  };
+
+  const getCategoryTotalData = (category: Category) => {
+    const items = barItems[category.id] || [];
+    if (items.length === 0) return { total: 0, formula: '0 л' };
+
+    const terms = items.map(b => {
+      const vol = b.value * category.volume;
+      return formatNumber(vol);
+    });
+    
+    const total = items.reduce((sum, b) => sum + (b.value * category.volume), 0);
+    const formula = `${terms.join(' + ')} = ${formatNumber(total)} л`;
+    
+    return { total, formula };
+  };
+
+  // Category Edit Handlers
+  const handleAddCategory = () => {
+    setCategories(prev => [
+      ...prev,
+      { id: `cat_${Math.random().toString(36).substr(2, 9)}`, name: 'Новый напиток', volume: 0.5 }
+    ]);
+  };
+
+  const handleUpdateCategory = (id: string, field: 'name' | 'volume', value: string | number) => {
+    setCategories(prev => prev.map(c => 
+      c.id === id ? { ...c, [field]: value } : c
+    ));
+  };
+
+  const handleRemoveCategory = (id: string) => {
+    setCategories(prev => prev.filter(c => c.id !== id));
+    // Also clean up items
+    setBarItems(prev => {
+      const newItems = { ...prev };
+      delete newItems[id];
+      return newItems;
+    });
   };
 
   return (
@@ -132,95 +205,150 @@ export default function CateringCalculatorModal({ isOpen, onClose }: { isOpen: b
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {activeTab === 'bar' && (
             <>
-              {BAR_CATEGORIES.map(category => {
-                const bottles = barItems[category] || [];
-                const total = calculateTotal(category);
-                const isExpanded = expandedCategories[category];
+              {/* Settings Toggle */}
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${isEditMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                >
+                  {isEditMode ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                  {isEditMode ? 'Готово' : 'Настроить бар'}
+                </button>
+              </div>
 
-                return (
-                  <div key={category} className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
-                    {/* Category Header */}
-                    <div 
-                      onClick={() => toggleCategory(category)}
-                      className="p-4 flex items-center justify-between bg-gray-50/50 cursor-pointer select-none active:bg-gray-100 transition-colors"
-                    >
-                      <div>
-                        <h3 className="font-bold text-gray-800 text-lg">{category}</h3>
-                        <p className="text-xs text-gray-500 font-medium">Итого: <strong className="text-orange-600 text-sm">{total}</strong></p>
+              {isEditMode ? (
+                // Edit Mode UI
+                <div className="space-y-3">
+                  {categories.map(category => (
+                    <div key={category.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Название напитка</label>
+                        <button onClick={() => handleRemoveCategory(category.id)} className="text-red-500 p-1 hover:bg-red-50 rounded-md">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-lg font-bold">{bottles.length}/8</span>
-                        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-                      </div>
+                      <input 
+                        type="text" 
+                        value={category.name}
+                        onChange={(e) => handleUpdateCategory(category.id, 'name', e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-orange-500 font-bold text-gray-700"
+                      />
+                      
+                      <label className="text-xs font-bold text-gray-500 uppercase mt-1">Объем бутылки (Литры)</label>
+                      <input 
+                        type="number" 
+                        step="0.05"
+                        min="0.1"
+                        value={category.volume}
+                        onChange={(e) => handleUpdateCategory(category.id, 'volume', parseFloat(e.target.value) || 0)}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-orange-500 font-bold text-gray-700"
+                      />
                     </div>
+                  ))}
+                  
+                  <button 
+                    onClick={handleAddCategory}
+                    className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex justify-center items-center gap-2 hover:bg-gray-100 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Добавить новый напиток
+                  </button>
+                </div>
+              ) : (
+                // View Mode UI
+                <>
+                  {categories.map(category => {
+                    const bottles = barItems[category.id] || [];
+                    const { total, formula } = getCategoryTotalData(category);
+                    const isExpanded = expandedCategories[category.id];
 
-                    {/* Bottles List */}
-                    {isExpanded && (
-                      <div className="p-4 space-y-3 border-t border-gray-50">
-                        {bottles.length === 0 ? (
-                          <div className="text-center text-sm text-gray-400 py-2">Нет добавленных бутылок</div>
-                        ) : (
-                          bottles.map((bottle, index) => (
-                            <div key={bottle.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-3 flex flex-col gap-3 transition-all">
-                              <div className="flex justify-between items-center">
-                                <span className="font-bold text-gray-700 text-sm">Бутылка {index + 1}</span>
-                                
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => toggleOpened(category, bottle.id)}
-                                    className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${bottle.opened ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-green-100 text-green-700 border border-green-200'}`}
-                                  >
-                                    {bottle.opened ? 'Вскрыта' : 'Целая'}
-                                  </button>
-                                  <button 
-                                    onClick={() => removeBottle(category, bottle.id)}
-                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
+                    return (
+                      <div key={category.id} className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+                        {/* Category Header */}
+                        <div 
+                          onClick={() => toggleCategory(category.id)}
+                          className="p-4 flex items-center justify-between bg-gray-50/50 cursor-pointer select-none active:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex-1 pr-4">
+                            <h3 className="font-bold text-gray-800 text-lg">{category.name}</h3>
+                            <p className="text-xs text-gray-500 font-medium">Объем бутылки: {category.volume} л</p>
+                            <p className="text-sm font-bold text-orange-600 mt-1 break-words leading-tight">{formula}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-lg font-bold">{bottles.length}/8 шт</span>
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                          </div>
+                        </div>
 
-                              {bottle.opened && (
-                                <div className="flex flex-col gap-1 pt-2 border-t border-gray-200">
-                                  <div className="flex justify-between items-center text-xs text-gray-500 font-medium mb-1">
-                                    <span>Остаток:</span>
-                                    <span className="text-orange-600 font-bold text-base">{bottle.value}</span>
+                        {/* Bottles List */}
+                        {isExpanded && (
+                          <div className="p-4 space-y-3 border-t border-gray-50">
+                            {bottles.length === 0 ? (
+                              <div className="text-center text-sm text-gray-400 py-2">Нет добавленных бутылок</div>
+                            ) : (
+                              bottles.map((bottle, index) => (
+                                <div key={bottle.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-3 flex flex-col gap-3 transition-all">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-bold text-gray-700 text-sm">Бутылка {index + 1}</span>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => toggleOpened(category.id, bottle.id)}
+                                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${bottle.opened ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-green-100 text-green-700 border border-green-200'}`}
+                                      >
+                                        {bottle.opened ? 'Вскрыта' : 'Целая'}
+                                      </button>
+                                      <button 
+                                        onClick={() => removeBottle(category.id, bottle.id)}
+                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
                                   </div>
-                                  <input 
-                                    type="range" 
-                                    min="0.1" 
-                                    max="0.9" 
-                                    step="0.1" 
-                                    value={bottle.value}
-                                    onChange={(e) => updateBottleValue(category, bottle.id, parseFloat(e.target.value))}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                                  />
-                                  <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1 font-medium">
-                                    <span>0.1 (Мало)</span>
-                                    <span>0.5 (Половина)</span>
-                                    <span>0.9 (Почти полная)</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))
-                        )}
 
-                        {bottles.length < 8 && (
-                          <button 
-                            onClick={() => addBottle(category)}
-                            className="w-full py-3 mt-2 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold text-sm flex justify-center items-center gap-2 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Добавить бутылку
-                          </button>
+                                  {bottle.opened && (
+                                    <div className="flex flex-col gap-1 pt-2 border-t border-gray-200">
+                                      <div className="flex justify-between items-center text-xs text-gray-500 font-medium mb-1">
+                                        <span>Остаток:</span>
+                                        <span className="text-orange-600 font-bold text-base">{formatNumber(bottle.value * category.volume)} л</span>
+                                      </div>
+                                      <input 
+                                        type="range" 
+                                        min="0.1" 
+                                        max="0.9" 
+                                        step="0.1" 
+                                        value={bottle.value}
+                                        onChange={(e) => updateBottleValue(category.id, bottle.id, parseFloat(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                                      />
+                                      <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1 font-medium">
+                                        <span>На дне</span>
+                                        <span>Половина</span>
+                                        <span>Почти полная</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            )}
+
+                            {bottles.length < 8 && (
+                              <button 
+                                onClick={() => addBottle(category.id)}
+                                className="w-full py-3 mt-2 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold text-sm flex justify-center items-center gap-2 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                                Добавить бутылку
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </>
+              )}
             </>
           )}
 
