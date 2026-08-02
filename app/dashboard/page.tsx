@@ -13,6 +13,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { Home, ClipboardList, BarChart3, FolderOpen, User as UserIcon, Shield, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import PaxCalculatorModal from '@/components/PaxCalculatorModal';
 
 // --- ТИПЫ ДАННЫХ ---
 interface DelegationRequest {
@@ -148,6 +149,7 @@ export default function DashboardPage() {
   const [monthOffset, setMonthOffset] = useState(0);
 
   const [showAidModal, setShowAidModal] = useState(false);
+  const [showPaxCalculator, setShowPaxCalculator] = useState(false);
   const [aidCategory, setAidCategory] = useState('');
   const [aidComment, setAidComment] = useState('');
   const [aidIban, setAidIban] = useState('');
@@ -1043,7 +1045,10 @@ export default function DashboardPage() {
               
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {/* Pax Counter App */}
-                <button className="relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                <button 
+                  onClick={() => setShowPaxCalculator(true)}
+                  className="relative overflow-hidden bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-start text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                >
                   <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-bl from-blue-100 to-transparent rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-md shadow-blue-200 text-white group-hover:rotate-12 transition-transform relative z-10">
                     ✈️
@@ -2191,6 +2196,8 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      
+      <PaxCalculatorModal isOpen={showPaxCalculator} onClose={() => setShowPaxCalculator(false)} />
 </div >
   );
 }
