@@ -738,8 +738,8 @@ export default function DashboardPage() {
   const handleSubmitAd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !userData || !adText.trim()) return;
-    if (adText.length > 50) {
-      alert('Максимальная длина текста 50 символов.');
+    if (adText.trim().length > 100) {
+      alert('Максимальная длина текста 100 символов.');
       return;
     }
     setIsSubmittingAd(true);
@@ -1047,24 +1047,32 @@ export default function DashboardPage() {
                     className="flex h-full transition-transform duration-500 ease-in-out"
                     style={{ transform: `translateX(-${activeAdIndex * 100}%)` }}
                   >
-                    {ads.map((ad, idx) => (
-                      <div key={ad.id} className={`w-full h-full shrink-0 relative flex items-center justify-center p-6 ${ad.bgColor || 'bg-blue-600'}`}>
-                        {ad.imageUrl && (
+                    {ads.map((ad, idx) => {
+                      const layout = ad.imageLayout || 'fill';
+                      return (
+                      <div key={ad.id} className={`w-full h-full shrink-0 relative flex items-center justify-center p-6 ${ad.bgColor || 'bg-blue-600'} ${layout === 'left' ? 'flex-row justify-start' : layout === 'right' ? 'flex-row-reverse justify-start' : ''}`}>
+                        {ad.imageUrl && layout === 'fill' && (
                           <>
                             <Image src={ad.imageUrl} alt="Объявление" fill className="absolute inset-0 object-cover z-0" />
                             <div className="absolute inset-0 bg-black/40 z-0" />
                           </>
                         )}
-                        <div className={`relative z-10 text-center w-full max-w-sm flex flex-col gap-2 ${ad.imageUrl ? 'bg-black/30 backdrop-blur-sm p-4 rounded-2xl border border-white/20' : ''}`}>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
+                        {ad.imageUrl && layout !== 'fill' && (
+                          <div className={`relative z-10 w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded-2xl overflow-hidden shadow-lg ${layout === 'left' ? 'mr-4 sm:mr-6' : 'ml-4 sm:ml-6'}`}>
+                            <Image src={ad.imageUrl} alt="Объявление" fill className="object-cover" />
+                          </div>
+                        )}
+                        <div className={`relative z-10 w-full flex flex-col gap-1 sm:gap-2 ${ad.imageUrl && layout === 'fill' ? 'bg-black/30 backdrop-blur-sm p-4 rounded-2xl border border-white/20 text-center items-center max-w-sm mx-auto' : ''} ${layout !== 'fill' ? (layout === 'left' ? 'text-left items-start flex-1' : 'text-right items-end flex-1') : ''}`}>
+                          <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/70">
                             {ad.userName}
                           </p>
-                          <p className="font-black text-base sm:text-lg text-white leading-snug break-words">
+                          <p className="font-black text-sm sm:text-base text-white leading-snug break-words">
                             {ad.text}
                           </p>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 
@@ -1672,12 +1680,12 @@ export default function DashboardPage() {
                 <div>
                   <textarea
                     value={adText}
-                    onChange={(e) => setAdText(e.target.value.slice(0, 50))}
-                    placeholder="Текст объявления (до 50 символов)"
+                    onChange={(e) => setAdText(e.target.value.slice(0, 100))}
+                    placeholder="Текст объявления (до 100 символов)"
                     className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all resize-none h-24"
-                    maxLength={50}
+                    maxLength={100}
                   />
-                  <p className="text-right text-[10px] text-gray-400 font-bold mt-1">{adText.length}/50</p>
+                  <p className="text-right text-[10px] text-gray-400 font-bold mt-1">{adText.length}/100</p>
                 </div>
 
                 <div className="flex items-center gap-4">

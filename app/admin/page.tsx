@@ -98,6 +98,7 @@ interface AdItem {
   imageUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
   bgColor?: string;
+  imageLayout?: 'fill' | 'left' | 'right';
   createdAt: string;
 }
 
@@ -158,6 +159,7 @@ export default function AdminPage() {
   const [exitedMembers, setExitedMembers] = useState<ExitedMember[]>([]);
   const [ads, setAds] = useState<AdItem[]>([]);
   const [adColors, setAdColors] = useState<{ [key: string]: string }>({});
+  const [adLayouts, setAdLayouts] = useState<{ [key: string]: 'fill' | 'left' | 'right' }>({});
 
   // Состояние для просмотра результатов теста
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
@@ -1331,7 +1333,8 @@ export default function AdminPage() {
   const handleApproveAd = async (adId: string) => {
     try {
       const color = adColors[adId] || 'bg-blue-600';
-      await updateDoc(doc(db, 'ads', adId), { status: 'approved', bgColor: color });
+      const layout = adLayouts[adId] || 'fill';
+      await updateDoc(doc(db, 'ads', adId), { status: 'approved', bgColor: color, imageLayout: layout });
       logAction('Approve Ad', 'Ad', `Ad ID: ${adId}`);
       alert('Объявление опубликовано');
       fetchData();
@@ -3203,7 +3206,7 @@ export default function AdminPage() {
                         <p className="text-xs text-gray-500 font-medium mb-4 flex items-center gap-1">👤 {ad.userName}</p>
                         
                         <div className="mb-4">
-                          <p className="text-xs font-bold text-gray-500 mb-2">Выберите цвет фона:</p>
+                          <p className="text-xs font-bold text-gray-500 mb-2">Цвет фона:</p>
                           <div className="flex gap-2">
                             {['bg-blue-600', 'bg-purple-600', 'bg-pink-600', 'bg-orange-500', 'bg-emerald-600', 'bg-gray-800'].map(c => (
                               <button
@@ -3214,6 +3217,26 @@ export default function AdminPage() {
                             ))}
                           </div>
                         </div>
+
+                        {ad.imageUrl && (
+                          <div className="mb-4">
+                            <p className="text-xs font-bold text-gray-500 mb-2">Расположение картинки:</p>
+                            <div className="flex gap-2 text-xs">
+                              <button
+                                onClick={() => setAdLayouts(prev => ({ ...prev, [ad.id]: 'fill' }))}
+                                className={`px-2 py-1 rounded border ${adLayouts[ad.id] === 'fill' || !adLayouts[ad.id] ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}
+                              >Фон (На всю)</button>
+                              <button
+                                onClick={() => setAdLayouts(prev => ({ ...prev, [ad.id]: 'left' }))}
+                                className={`px-2 py-1 rounded border ${adLayouts[ad.id] === 'left' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}
+                              >Слева</button>
+                              <button
+                                onClick={() => setAdLayouts(prev => ({ ...prev, [ad.id]: 'right' }))}
+                                className={`px-2 py-1 rounded border ${adLayouts[ad.id] === 'right' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}
+                              >Справа</button>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex gap-2 mt-auto">
                           <button onClick={() => handleApproveAd(ad.id)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-xl text-sm transition">Одобрить</button>
