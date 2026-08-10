@@ -1463,7 +1463,7 @@ export default function DashboardPage() {
 
                       return (
                         <div className="w-full mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
-                          <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-left">Кем приглашен (Активист)</span>
+                          <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-left">Кто порекомендовал вам вступить?</span>
                           {userData.referredBy ? (
                             <div className="text-left font-bold text-gray-800 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
                               {userData.referredBy}
@@ -1472,7 +1472,7 @@ export default function DashboardPage() {
                             <div className="flex flex-col gap-2">
                               <input 
                                 className="w-full bg-white p-3 rounded-xl font-medium border border-gray-200 outline-none focus:border-blue-500 text-gray-800 text-sm" 
-                                placeholder="ФИО активиста" 
+                                placeholder="ФИО коллеги" 
                                 value={editReferredBy} 
                                 onChange={e => setEditReferredBy(e.target.value)} 
                               />

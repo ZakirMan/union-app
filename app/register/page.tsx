@@ -384,9 +384,8 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-1">Кем приглашен (необязательно)</label>
-            <input type="text" className="w-full px-4 py-2 border rounded-lg text-black" placeholder="ФИО или Табельный номер" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} />
-            <p className="text-xs text-gray-500 mt-1">Укажите, если вас привлек действующий член профсоюза</p>
+            <label className="block text-sm font-bold text-gray-900 mb-1">Кто порекомендовал вам вступить? (необязательно)</label>
+            <input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} required={false} className="w-full bg-white p-4 rounded-xl border-2 border-gray-100 text-gray-900 font-medium outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-gray-400" placeholder="ФИО коллеги" />
           </div>
 
           <div>
