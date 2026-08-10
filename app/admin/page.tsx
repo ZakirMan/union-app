@@ -90,6 +90,16 @@ interface Poll {
   targetCategory?: string;
 }
 
+interface AdItem {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  imageUrl?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 // Аудит
 interface AdminLog {
   id: string;
@@ -123,7 +133,7 @@ const renderFormattedText = (text: string) => {
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'delegations' | 'users' | 'news' | 'requests' | 'resources' | 'team' | 'polls' | 'logs' | 'registry' | 'referrals'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'delegations' | 'users' | 'news' | 'requests' | 'resources' | 'team' | 'polls' | 'logs' | 'registry' | 'referrals' | 'ads'>('dashboard');
   const [eventSubTab, setEventSubTab] = useState<'conferences' | 'tests'>('conferences');
   const [delegationSubTab, setDelegationSubTab] = useState<'pending' | 'history'>('pending');
   const [delegationFilterConf, setDelegationFilterConf] = useState<string>('all');
@@ -145,6 +155,7 @@ export default function AdminPage() {
   const [selectedMonthStats, setSelectedMonthStats] = useState<{name: string, details: any[]} | null>(null);
   const [selectedAidStats, setSelectedAidStats] = useState<{name: string, details: any[]} | null>(null);
   const [exitedMembers, setExitedMembers] = useState<ExitedMember[]>([]);
+  const [ads, setAds] = useState<AdItem[]>([]);
 
   // Состояние для просмотра результатов теста
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
@@ -281,6 +292,10 @@ export default function AdminPage() {
       // Logs
       const logsSnap = await getDocs(collection(db, 'admin_logs'));
       setLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AdminLog)).sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? 1 : -1));
+
+      // Ads
+      const adsSnap = await getDocs(collection(db, 'ads'));
+      setAds(adsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AdItem)).sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? 1 : -1));
 
       const settingsSnap = await getDoc(doc(db, 'settings', 'general'));
       if (settingsSnap.exists()) {
@@ -1311,6 +1326,32 @@ export default function AdminPage() {
     return Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
   })();
 
+  const handleApproveAd = async (adId: string) => {
+    try {
+      await updateDoc(doc(db, 'ads', adId), { status: 'approved' });
+      logAction('Approve Ad', 'Ad', `Ad ID: ${adId}`);
+      alert('Объявление опубликовано');
+      fetchData();
+    } catch (e: any) {
+      alert('Ошибка: ' + e.message);
+    }
+  };
+
+  const handleDeleteAd = async (adId: string, imageUrl?: string) => {
+    if (!confirm('Вы точно хотите удалить это объявление?')) return;
+    try {
+      if (imageUrl) {
+        const imageRef = ref(storage, imageUrl);
+        await deleteObject(imageRef).catch(() => {});
+      }
+      await deleteDoc(doc(db, 'ads', adId));
+      logAction('Delete Ad', 'Ad', `Ad ID: ${adId}`);
+      fetchData();
+    } catch (e: any) {
+      alert('Ошибка удаления: ' + e.message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F2F6FF] flex flex-col font-sans text-[#1A1A1A]">
       {isApproving && (
@@ -1350,7 +1391,8 @@ export default function AdminPage() {
             { id: 'team', label: 'Совет', icon: '👔' },
             { id: 'logs', label: 'Аудит', icon: '🛡️' },
             { id: 'registry', label: 'Реестр', icon: '📋' },
-            { id: 'referrals', label: 'Акция', icon: '🎁' }
+            { id: 'referrals', label: 'Акция', icon: '🎁' },
+            { id: 'ads', label: 'Объявления', icon: '📢', count: ads.filter(a => a.status === 'pending').length, color: 'bg-blue-500' }
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`px-4 py-2.5 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition-all duration-300 text-sm ${activeTab === tab.id ? 'bg-white text-blue-900 shadow-lg scale-105' : 'bg-blue-900/40 text-blue-100 hover:bg-blue-800/50'}`}>
               <span className="text-base">{tab.icon}</span> {tab.label}
@@ -1375,7 +1417,8 @@ export default function AdminPage() {
                 { id: 'team', label: 'Совет', icon: '👔' },
                 { id: 'logs', label: 'Аудит', icon: '🛡️' },
                 { id: 'registry', label: 'Реестр', icon: '📋' },
-                { id: 'referrals', label: 'Акция', icon: '🎁' }
+                { id: 'referrals', label: 'Акция', icon: '🎁' },
+                { id: 'ads', label: 'Объявления', icon: '📢', count: ads.filter(a => a.status === 'pending').length, color: 'bg-blue-500' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -3130,6 +3173,68 @@ export default function AdminPage() {
                     );
                   });
                 })()}
+              </div>
+            </div>
+          )}
+
+          {/* Вкладка: Объявления */}
+          {activeTab === 'ads' && (
+            <div className="bg-white p-8 rounded-[2rem] shadow-xl">
+              <h2 className="font-black text-2xl text-gray-900 mb-6">Управление объявлениями</h2>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-bold text-lg text-blue-800 mb-4 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">⏳</span>
+                    Ожидают проверки ({ads.filter(a => a.status === 'pending').length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {ads.filter(a => a.status === 'pending').map(ad => (
+                      <div key={ad.id} className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex flex-col relative shadow-sm hover:shadow-md transition">
+                        <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">На модерации</div>
+                        {ad.imageUrl && (
+                          <div className="w-full h-32 rounded-xl overflow-hidden mb-3 bg-white">
+                            <Image src={ad.imageUrl} alt="Ad Image" width={400} height={300} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <p className="font-bold text-gray-800 flex-1 mb-2">"{ad.text}"</p>
+                        <p className="text-xs text-gray-500 font-medium mb-4 flex items-center gap-1">👤 {ad.userName}</p>
+                        <div className="flex gap-2 mt-auto">
+                          <button onClick={() => handleApproveAd(ad.id)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-xl text-sm transition">Одобрить</button>
+                          <button onClick={() => handleDeleteAd(ad.id, ad.imageUrl)} className="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 rounded-xl text-sm transition">Удалить</button>
+                        </div>
+                      </div>
+                    ))}
+                    {ads.filter(a => a.status === 'pending').length === 0 && (
+                      <p className="text-gray-500 font-medium col-span-full">Нет объявлений, ожидающих проверки.</p>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="border-gray-100 my-8" />
+
+                <div>
+                  <h3 className="font-bold text-lg text-green-800 mb-4 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-sm">✅</span>
+                    Активные ({ads.filter(a => a.status === 'approved').length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {ads.filter(a => a.status === 'approved').map(ad => (
+                      <div key={ad.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col relative shadow-sm hover:shadow-md transition">
+                        {ad.imageUrl && (
+                          <div className="w-full h-32 rounded-xl overflow-hidden mb-3 bg-white">
+                            <Image src={ad.imageUrl} alt="Ad Image" width={400} height={300} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <p className="font-bold text-gray-800 flex-1 mb-2">"{ad.text}"</p>
+                        <p className="text-xs text-gray-500 font-medium mb-4 flex items-center gap-1">👤 {ad.userName}</p>
+                        <button onClick={() => handleDeleteAd(ad.id, ad.imageUrl)} className="w-full bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 rounded-xl text-sm transition mt-auto">Удалить объявление</button>
+                      </div>
+                    ))}
+                    {ads.filter(a => a.status === 'approved').length === 0 && (
+                      <p className="text-gray-500 font-medium col-span-full">Нет активных объявлений.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

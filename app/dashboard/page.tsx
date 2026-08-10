@@ -82,6 +82,16 @@ interface Poll {
   isActive: boolean;
 }
 
+interface AdItem {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  imageUrl?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 const renderFormattedText = (text: string) => {
   if (!text) return null;
   const regex = /(\*\*.*?\*\*|<b>.*?<\/b>)/g;
@@ -134,6 +144,13 @@ export default function DashboardPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [editReferredBy, setEditReferredBy] = useState('');
   const [isSavingReferredBy, setIsSavingReferredBy] = useState(false);
+
+  // Объявления
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [activeAdIndex, setActiveAdIndex] = useState(0);
+  const [adText, setAdText] = useState('');
+  const [adImage, setAdImage] = useState<File | null>(null);
+  const [isSubmittingAd, setIsSubmittingAd] = useState(false);
 
   // Делегирование (обновленные стейты для поиска)
   const [showDelegateModal, setShowDelegateModal] = useState(false);
@@ -297,10 +314,23 @@ export default function DashboardPage() {
         reqs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
         setMyRequests(reqs);
 
+        const adsQuery = query(collection(db, 'ads'), where('status', '==', 'approved'));
+        const adsSnap = await getDocs(adsQuery);
+        setAds(adsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AdItem)));
+
       } catch (e) { console.error(e); } finally { setLoading(false); }
     });
     return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    if (ads.length > 1) {
+      const interval = setInterval(() => {
+        setActiveAdIndex((prev) => (prev + 1) % ads.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [ads.length]);
 
   const handleDeleteRequest = async (id: string) => {
     if (!confirm('Удалить обращение?')) return;
@@ -704,6 +734,51 @@ export default function DashboardPage() {
     } catch { alert('Ошибка при сохранении'); } finally { setIsSavingReferredBy(false); }
   };
 
+  const handleSubmitAd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !userData || !adText.trim()) return;
+    if (adText.length > 50) {
+      alert('Максимальная длина текста 50 символов.');
+      return;
+    }
+    setIsSubmittingAd(true);
+    try {
+      let imageUrl = '';
+      if (adImage) {
+        try {
+          const options = { maxSizeMB: 0.5, maxWidthOrHeight: 800, useWebWorker: true };
+          const compressedFile = await imageCompression(adImage, options);
+          const storageRef = ref(storage, `ads/${user.uid}_${Date.now()}`);
+          await uploadBytes(storageRef, compressedFile);
+          imageUrl = await getDownloadURL(storageRef);
+        } catch (error) {
+          console.error("Compression error:", error);
+          alert('Ошибка сжатия изображения.');
+          setIsSubmittingAd(false);
+          return;
+        }
+      }
+
+      await addDoc(collection(db, 'ads'), {
+        userId: user.uid,
+        userName: userData.displayName || user.email || 'Аноним',
+        text: adText.trim(),
+        imageUrl,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+
+      setAdText('');
+      setAdImage(null);
+      alert('Объявление отправлено на проверку.');
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при отправке объявления.');
+    } finally {
+      setIsSubmittingAd(false);
+    }
+  };
+
 
   const handleRevokeDelegation = async () => {
     if (!user || !userData) return;
@@ -963,6 +1038,50 @@ export default function DashboardPage() {
         {activeTab === 'home' && (
           <div className="space-y-6 pb-24 animate-fade-in-up">
             
+            {/* Ads Widget */}
+            {ads.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[160px] flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-blue-50/50 pointer-events-none" />
+                
+                <div className="relative w-full overflow-hidden">
+                  <div
+                    className="flex transition-transform duration-500 ease-in-out"
+                    style={{ transform: `translateX(-${activeAdIndex * 100}%)` }}
+                  >
+                    {ads.map((ad, idx) => (
+                      <div key={ad.id} className="w-full shrink-0 px-2 flex flex-col sm:flex-row gap-4 items-center">
+                        {ad.imageUrl && (
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shrink-0 shadow-md">
+                            <Image src={ad.imageUrl} alt="Объявление" width={128} height={128} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex-1 text-center sm:text-left space-y-2">
+                          <p className="font-bold text-gray-800 text-lg leading-tight">
+                            {ad.text}
+                          </p>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                            {ad.userName}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Dots indicator */}
+                {ads.length > 1 && (
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+                    {ads.map((_, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeAdIndex ? 'w-6 bg-blue-500' : 'w-1.5 bg-gray-300'}`} 
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             {/* Top Widgets */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <button onClick={() => setShowAidModal(true)} className="relative overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 p-3 sm:p-4 rounded-[1.25rem] shadow-lg shadow-teal-200 flex flex-col items-center justify-center text-center hover:-translate-y-1 transition duration-300 h-28 group">
@@ -990,69 +1109,7 @@ export default function DashboardPage() {
               </button>
             </div>
             
-            {/* Statistics Widget */}
-            <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition">
-              <div className="mb-4">
-                <h3 className="font-black text-gray-800">Новые участники</h3>
-              </div>
-              
-              {(() => {
-                const targetDate = new Date();
-                targetDate.setMonth(targetDate.getMonth() + monthOffset);
-                const targetMonth = targetDate.getMonth();
-                const targetYear = targetDate.getFullYear();
-                
-                const mNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-                const monthName = mNames[targetMonth];
-                
-                let joinedCount = 0;
-                let newMembersList: any[] = [];
-                colleagues.forEach(c => {
-                  if (c.createdAt && c.isAlreadyMember === false) {
-                    const d = new Date(c.createdAt);
-                    if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
-                       joinedCount++;
-                       newMembersList.push(c);
-                    }
-                  }
-                });
-                if (userData?.createdAt && userData.isAlreadyMember === false) {
-                   const d = new Date(userData.createdAt);
-                   if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
-                       joinedCount++;
-                       newMembersList.push(userData);
-                   }
-                }
-                
-                return (
-                  <div 
-                    onClick={() => setSelectedMonthStats({ name: `${monthName} ${targetYear}`, details: newMembersList })}
-                    className="flex items-center justify-between bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-2 text-white relative shadow-lg shadow-blue-200 cursor-pointer hover:scale-[1.02] transition-transform overflow-hidden"
-                  >
-                    <div className="absolute right-[-10px] bottom-[-15px] text-7xl opacity-10 pointer-events-none">🤝</div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setMonthOffset(p => p - 1); }} 
-                      className="w-10 h-10 shrink-0 flex items-center justify-center bg-white/10 rounded-full text-white hover:bg-white/25 transition active:scale-95 backdrop-blur-sm z-10"
-                    >
-                      <ChevronLeft size={24} strokeWidth={2.5} />
-                    </button>
-                    
-                    <div className="text-center z-10 py-3">
-                      <div className="text-xs font-bold text-blue-100 mb-1 uppercase tracking-wider">{monthName} {targetYear}</div>
-                      <div className="text-3xl font-black">{joinedCount} <span className="text-base opacity-80 font-bold tracking-normal">чел.</span></div>
-                    </div>
-                    
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setMonthOffset(p => p + 1); }} 
-                      disabled={monthOffset >= 0} 
-                      className="w-10 h-10 shrink-0 flex items-center justify-center bg-white/10 rounded-full text-white hover:bg-white/25 transition disabled:opacity-30 disabled:hover:bg-white/10 active:scale-95 backdrop-blur-sm z-10"
-                    >
-                      <ChevronRight size={24} strokeWidth={2.5} />
-                    </button>
-                  </div>
-                );
-              })()}
-            </div>
+
 
             {/* Mini-Apps Section */}
             <div>
@@ -1598,6 +1655,59 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Блок Подачи объявления */}
+            <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-blue-50/50 relative overflow-hidden mb-6 group">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 via-indigo-500 to-blue-400 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+              
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-blue-100/50">
+                  📢
+                </div>
+                <h3 className="font-black text-xl text-gray-900 leading-tight">Подать<br/><span className="text-blue-600">объявление</span></h3>
+              </div>
+
+              <form onSubmit={handleSubmitAd} className="space-y-4">
+                <div>
+                  <textarea
+                    value={adText}
+                    onChange={(e) => setAdText(e.target.value.slice(0, 50))}
+                    placeholder="Текст объявления (до 50 символов)"
+                    className="w-full bg-gray-50 p-4 rounded-2xl font-medium border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all resize-none h-24"
+                    maxLength={50}
+                  />
+                  <p className="text-right text-[10px] text-gray-400 font-bold mt-1">{adText.length}/50</p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 p-4 rounded-2xl font-bold text-sm transition-all flex flex-col items-center justify-center gap-2 border border-gray-200/50 cursor-pointer text-center">
+                    <Camera className="w-5 h-5 text-gray-500" />
+                    {adImage ? adImage.name : 'Прикрепить фото'}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setAdImage(file);
+                      }} 
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingAd || !adText.trim()}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-lg shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingAd ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    'Отправить на проверку'
+                  )}
+                </button>
+              </form>
             </div>
 
             <button onClick={handleLogout} className="w-full bg-white text-red-500 font-black py-5 rounded-[2rem] shadow-lg shadow-red-50 hover:bg-red-50 transition mb-6">Выйти из аккаунта</button>
