@@ -90,6 +90,7 @@ interface AdItem {
   imageUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
   bgColor?: string;
+  imageLayout?: 'fill' | 'left' | 'right';
   createdAt: string;
 }
 
