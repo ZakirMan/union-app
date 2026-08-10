@@ -1042,7 +1042,7 @@ export default function DashboardPage() {
             
             {/* Ads Widget */}
             {ads.length > 0 && (
-              <div className="rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative h-[200px] flex items-center justify-center">
+              <div className="rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden relative h-[140px] flex items-center justify-center bg-white">
                 <div className="relative w-full h-full overflow-hidden">
                   <div
                     className="flex h-full transition-transform duration-500 ease-in-out"
@@ -1051,25 +1051,32 @@ export default function DashboardPage() {
                     {ads.map((ad, idx) => {
                       const layout = ad.imageLayout || 'fill';
                       return (
-                      <div key={ad.id} className={`w-full h-full shrink-0 relative flex items-center justify-center p-6 ${ad.bgColor || 'bg-blue-600'} ${layout === 'left' ? 'flex-row justify-start' : layout === 'right' ? 'flex-row-reverse justify-start' : ''}`}>
+                      <div key={ad.id} className={`w-full h-full shrink-0 relative flex items-center justify-center p-4 sm:p-5 ${ad.bgColor || 'bg-gradient-to-r from-blue-500 to-blue-600'} ${layout === 'left' ? 'flex-row justify-start' : layout === 'right' ? 'flex-row-reverse justify-start' : ''}`}>
                         {ad.imageUrl && layout === 'fill' && (
                           <>
                             <Image src={ad.imageUrl} alt="Объявление" fill className="absolute inset-0 object-cover z-0" />
-                            <div className="absolute inset-0 bg-black/40 z-0" />
+                            <div className="absolute inset-0 bg-black/50 z-0" />
                           </>
                         )}
+                        
                         {ad.imageUrl && layout !== 'fill' && (
-                          <div className={`relative z-10 w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded-2xl overflow-hidden shadow-lg ${layout === 'left' ? 'mr-4 sm:mr-6' : 'ml-4 sm:ml-6'}`}>
+                          <div className={`relative z-10 w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-[1.25rem] overflow-hidden shadow-sm border border-white/20 ${layout === 'left' ? 'mr-4 sm:mr-5' : 'ml-4 sm:ml-5'}`}>
                             <Image src={ad.imageUrl} alt="Объявление" fill className="object-cover" />
                           </div>
                         )}
-                        <div className={`relative z-10 w-full flex flex-col gap-1 sm:gap-2 ${ad.imageUrl && layout === 'fill' ? 'bg-black/30 backdrop-blur-sm p-4 rounded-2xl border border-white/20 text-center items-center max-w-sm mx-auto' : ''} ${layout !== 'fill' ? (layout === 'left' ? 'text-left items-start flex-1' : 'text-right items-end flex-1') : ''}`}>
-                          <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white/70">
-                            {ad.userName}
-                          </p>
-                          <p className="font-black text-sm sm:text-base text-white leading-snug break-words">
+                        
+                        <div className={`relative z-10 w-full flex flex-col gap-1 sm:gap-1.5 ${ad.imageUrl && layout === 'fill' ? 'text-center items-center max-w-[95%] mx-auto' : ''} ${layout !== 'fill' ? (layout === 'left' ? 'text-left items-start flex-1' : 'text-right items-end flex-1') : ''}`}>
+                          <p className="font-bold text-[13px] sm:text-sm text-white leading-snug break-words drop-shadow-sm" style={{ textShadow: (ad.imageUrl && layout === 'fill') ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>
                             {ad.text}
                           </p>
+                          <div className={`flex items-center gap-1.5 mt-0.5 ${(ad.imageUrl && layout === 'fill') || layout !== 'fill' ? 'text-white/80' : 'text-white/80'}`}>
+                            <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                              <span className="text-[8px]">👤</span>
+                            </div>
+                            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+                              {ad.userName}
+                            </p>
+                          </div>
                         </div>
                       </div>
                       );
@@ -1079,11 +1086,11 @@ export default function DashboardPage() {
                 
                 {/* Dots indicator */}
                 {ads.length > 1 && (
-                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20">
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20">
                     {ads.map((_, idx) => (
                       <div 
                         key={idx} 
-                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeAdIndex ? 'w-6 bg-white shadow' : 'w-1.5 bg-white/40'}`} 
+                        className={`h-1 rounded-full transition-all duration-300 ${idx === activeAdIndex ? 'w-4 bg-white shadow-sm' : 'w-1 bg-white/50'}`} 
                       />
                     ))}
                   </div>
