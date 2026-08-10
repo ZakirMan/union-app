@@ -122,7 +122,7 @@ const renderFormattedText = (text: string) => {
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'delegations' | 'users' | 'news' | 'requests' | 'resources' | 'team' | 'polls' | 'logs' | 'registry'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'delegations' | 'users' | 'news' | 'requests' | 'resources' | 'team' | 'polls' | 'logs' | 'registry' | 'referrals'>('dashboard');
   const [eventSubTab, setEventSubTab] = useState<'conferences' | 'tests'>('conferences');
   const [delegationSubTab, setDelegationSubTab] = useState<'pending' | 'history'>('pending');
   const [delegationFilterConf, setDelegationFilterConf] = useState<string>('all');
@@ -230,6 +230,10 @@ export default function AdminPage() {
   const [manualExitFile, setManualExitFile] = useState<File | null>(null);
   const [isSubmittingExit, setIsSubmittingExit] = useState(false);
   const [requestFilter, setRequestFilter] = useState<'all' | 'appeals' | 'aid' | 'leave'>('all');
+
+  // Referrals
+  const [referralMonth, setReferralMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+  const [expandedReferrer, setExpandedReferrer] = useState<string | null>(null);
 
   const itemsPerPage = 10;
 
@@ -1344,7 +1348,8 @@ export default function AdminPage() {
             { id: 'resources', label: 'Ресурсы', icon: '📂' },
             { id: 'team', label: 'Совет', icon: '👔' },
             { id: 'logs', label: 'Аудит', icon: '🛡️' },
-            { id: 'registry', label: 'Реестр', icon: '📋' }
+            { id: 'registry', label: 'Реестр', icon: '📋' },
+            { id: 'referrals', label: 'Акция', icon: '🎁' }
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`px-4 py-2.5 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition-all duration-300 text-sm ${activeTab === tab.id ? 'bg-white text-blue-900 shadow-lg scale-105' : 'bg-blue-900/40 text-blue-100 hover:bg-blue-800/50'}`}>
               <span className="text-base">{tab.icon}</span> {tab.label}
@@ -1368,7 +1373,8 @@ export default function AdminPage() {
                 { id: 'resources', label: 'Ресурсы', icon: '📂' },
                 { id: 'team', label: 'Совет', icon: '👔' },
                 { id: 'logs', label: 'Аудит', icon: '🛡️' },
-                { id: 'registry', label: 'Реестр', icon: '📋' }
+                { id: 'registry', label: 'Реестр', icon: '📋' },
+                { id: 'referrals', label: 'Акция', icon: '🎁' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -3028,6 +3034,102 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Вкладка: Акция / Вовлечение */}
+          {activeTab === 'referrals' && (
+            <div className="bg-white p-8 rounded-[2rem] shadow-xl">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 className="font-black text-2xl text-gray-900">Акция (Вовлечение)</h2>
+                <div className="flex gap-2 w-full md:w-auto">
+                  <input
+                    type="month"
+                    value={referralMonth}
+                    onChange={(e) => setReferralMonth(e.target.value)}
+                    className="p-3 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500 flex-1 md:flex-none"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {(() => {
+                  const [year, month] = referralMonth.split('-');
+                  const targetPrefix = `${year}-${month}`;
+                  const targetUsers = users.filter(u => {
+                    if (u.joinDate && u.joinDate.startsWith(targetPrefix)) return true;
+                    if (u.createdAt && u.createdAt.startsWith(targetPrefix)) return true;
+                    return false;
+                  });
+                  
+                  const referralsByActivist: { [key: string]: UserData[] } = {};
+                  targetUsers.forEach(u => {
+                    if (u.referredBy && u.referredBy.trim() !== '') {
+                      const refName = u.referredBy.trim();
+                      if (!referralsByActivist[refName]) {
+                        referralsByActivist[refName] = [];
+                      }
+                      referralsByActivist[refName].push(u);
+                    }
+                  });
+                  
+                  const activistNames = Object.keys(referralsByActivist).sort((a, b) => referralsByActivist[b].length - referralsByActivist[a].length);
+                  
+                  if (activistNames.length === 0) {
+                    return (
+                      <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-100">
+                        <p className="text-gray-500 font-medium">Нет данных по рефералам за {referralMonth}</p>
+                      </div>
+                    );
+                  }
+                  
+                  return activistNames.map(name => {
+                    const group = referralsByActivist[name];
+                    const count = group.length;
+                    const totalSum = count * 2000;
+                    const isExpanded = expandedReferrer === name;
+                    
+                    return (
+                      <div key={name} className="border border-gray-100 rounded-2xl bg-white shadow-sm overflow-hidden transition-all">
+                        <div 
+                          className="flex justify-between items-center p-4 md:p-6 cursor-pointer hover:bg-gray-50 transition"
+                          onClick={() => setExpandedReferrer(isExpanded ? null : name)}
+                        >
+                          <div>
+                            <p className="font-black text-lg text-gray-900">{name}</p>
+                            <p className="text-sm font-bold text-gray-500 mt-1">Привлечено: {count} чел.</p>
+                          </div>
+                          <div className="text-right flex items-center gap-4">
+                            <div>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Сумма</p>
+                              <p className="font-black text-xl text-green-600">{totalSum.toLocaleString('ru-RU')} ₸</p>
+                            </div>
+                            <div className={`w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</div>
+                          </div>
+                        </div>
+                        
+                        {isExpanded && (
+                          <div className="border-t border-gray-100 bg-gray-50 p-4 md:p-6 space-y-3">
+                            <h4 className="font-bold text-sm text-gray-900 mb-4">Кого привлек:</h4>
+                            {group.map(u => (
+                              <div key={u.id} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
+                                <div>
+                                  <p className="font-bold text-gray-900">{u.displayName || u.email}</p>
+                                  <p className="text-xs text-gray-500 mt-1">{u.position}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs font-medium text-gray-400">Вступил:</p>
+                                  <p className="text-sm font-bold text-gray-700">{u.joinDate || u.createdAt?.slice(0, 10)}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
           )}
 

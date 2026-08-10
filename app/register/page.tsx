@@ -21,6 +21,7 @@ export default function RegisterPage() {
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState('');
   const [tabelNumber, setTabelNumber] = useState(''); // НОВОЕ ПОЛЕ
+  const [referredBy, setReferredBy] = useState(''); // ПОЛЕ ДЛЯ РЕФЕРАЛЬНОЙ ПРОГРАММЫ
   const [isPilot, setIsPilot] = useState(false); // НОВОЕ ПОЛЕ
 
   const [idCardFile, setIdCardFile] = useState<File | null>(null); 
@@ -169,6 +170,7 @@ export default function RegisterPage() {
         idCardUrl: idCardUrl,
         isAlreadyMember: isAlreadyMember,
         joinDate: isAlreadyMember ? joinDate : '',
+        referredBy: referredBy || '',
         role: 'member',
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -379,6 +381,12 @@ export default function RegisterPage() {
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-1">Табельный номер (если есть)</label>
             <input type="text" className="w-full px-4 py-2 border rounded-lg text-black" placeholder="Например: 12345" value={tabelNumber} onChange={(e) => setTabelNumber(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-1">Кем приглашен (необязательно)</label>
+            <input type="text" className="w-full px-4 py-2 border rounded-lg text-black" placeholder="ФИО или Табельный номер" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} />
+            <p className="text-xs text-gray-500 mt-1">Укажите, если вас привлек действующий член профсоюза</p>
           </div>
 
           <div>

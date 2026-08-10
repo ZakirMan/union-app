@@ -47,21 +47,21 @@ service firebase.storage {
     match /registration_statements/{fileName} {
       allow create: if request.auth != null 
                    && fileName.matches(request.auth.uid + '_.*') 
-                   && isFileSizeValid(5);
+                   && isFileSizeValid(20);
       allow update, delete: if false;
     }
 
     match /deductions/{fileName} {
       allow create: if request.auth != null 
                    && fileName.matches(request.auth.uid + '_.*') 
-                   && isFileSizeValid(5);
+                   && isFileSizeValid(20);
       allow update, delete: if false;
     }
 
     match /id_cards/{fileName} {
       allow create: if request.auth != null 
                    && fileName.matches(request.auth.uid + '_.*') 
-                   && isFileSizeValid(5);
+                   && isFileSizeValid(20);
       allow update, delete: if false;
     }
 

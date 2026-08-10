@@ -41,6 +41,7 @@ interface UserProfile {
   delegationConferenceId?: string; // <--- ADDED
   delegatedFrom?: string[];
   category?: string;
+  referredBy?: string;
 }
 
 interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; requiresResponse?: boolean; responseDeadlineDays?: number; isResponseReceived?: boolean; }
@@ -130,6 +131,8 @@ export default function DashboardPage() {
   const [editPhone, setEditPhone] = useState('');
   const [editFile, setEditFile] = useState<File | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [editReferredBy, setEditReferredBy] = useState('');
+  const [isSavingReferredBy, setIsSavingReferredBy] = useState(false);
 
   // Делегирование (обновленные стейты для поиска)
   const [showDelegateModal, setShowDelegateModal] = useState(false);
@@ -688,6 +691,16 @@ export default function DashboardPage() {
       setUserData({ ...userData, displayName: editName, phoneNumber: editPhone, photoUrl });
       setIsEditing(false); setEditFile(null);
     } catch { alert('Ошибка'); } finally { setIsSavingProfile(false); }
+  };
+
+  const handleSaveReferredBy = async () => {
+    if (!user || !userData || !editReferredBy.trim()) return;
+    setIsSavingReferredBy(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { referredBy: editReferredBy.trim() });
+      setUserData({ ...userData, referredBy: editReferredBy.trim() });
+      alert('Сохранено успешно!');
+    } catch { alert('Ошибка при сохранении'); } finally { setIsSavingReferredBy(false); }
   };
 
 
@@ -1425,6 +1438,46 @@ export default function DashboardPage() {
                       >
                         <LogOut className="w-4 h-4" /> Выйти из профсоюза
                       </button>
+                    </div>
+
+                    {/* Показ реферальной статистики для активиста (если он кого-то привлек) */}
+                    {(() => {
+                      const invitedCount = colleagues.filter(c => c.referredBy && c.referredBy.toLowerCase().trim() === userData.displayName.toLowerCase().trim()).length;
+                      if (invitedCount > 0) {
+                        return (
+                          <div className="w-full mt-4 bg-green-50/50 p-4 rounded-2xl border border-green-100 flex flex-col items-center justify-center gap-1">
+                            <span className="text-xs text-green-600 font-bold uppercase tracking-wider">Привлечено участников</span>
+                            <span className="text-3xl font-black text-green-700">{invitedCount}</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* Поле для нового участника: Кем приглашен */}
+                    <div className="w-full mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                      <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-left">Кем приглашен (Активист)</span>
+                      {userData.referredBy ? (
+                        <div className="text-left font-bold text-gray-800 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                          {userData.referredBy}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <input 
+                            className="w-full bg-white p-3 rounded-xl font-medium border border-gray-200 outline-none focus:border-blue-500 text-gray-800 text-sm" 
+                            placeholder="ФИО активиста" 
+                            value={editReferredBy} 
+                            onChange={e => setEditReferredBy(e.target.value)} 
+                          />
+                          <button 
+                            onClick={handleSaveReferredBy}
+                            disabled={isSavingReferredBy || !editReferredBy.trim()}
+                            className="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+                          >
+                            {isSavingReferredBy ? 'Сохранение...' : 'Сохранить (без возможности изменения)'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
