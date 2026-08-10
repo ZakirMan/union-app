@@ -43,7 +43,6 @@ interface UserProfile {
   category?: string;
   referredBy?: string;
   joinDate?: string;
-  createdAt?: string;
 }
 
 interface NewsItem { id: string; title: string; body: string; imageUrl?: string; fileUrl?: string; linkUrl?: string; createdAt: string; requiresResponse?: boolean; responseDeadlineDays?: number; isResponseReceived?: boolean; }
