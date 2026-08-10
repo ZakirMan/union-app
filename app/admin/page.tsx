@@ -24,6 +24,7 @@ interface UserData {
   leaveStatus?: 'none' | 'unpaid' | 'maternity';
   leaveStartDate?: string;
   leaveEndDate?: string;
+  referredBy?: string;
 }
 
 interface ExitedMember {
