@@ -3196,14 +3196,37 @@ export default function AdminPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {ads.filter(a => a.status === 'pending').map(ad => (
                       <div key={ad.id} className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex flex-col relative shadow-sm hover:shadow-md transition">
-                        <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">На модерации</div>
-                        {ad.imageUrl && (
-                          <div className="w-full h-32 rounded-xl overflow-hidden mb-3 bg-white">
-                            <Image src={ad.imageUrl} alt="Ad Image" width={400} height={300} className="w-full h-full object-cover" />
+                        <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-20">На модерации</div>
+                        
+                        <div className="mb-4">
+                          <p className="text-xs font-bold text-gray-500 mb-2">Предпросмотр:</p>
+                          <div className={`w-full shrink-0 rounded-[1.5rem] relative flex items-center justify-center p-4 h-[140px] overflow-hidden ${adColors[ad.id] || 'bg-blue-600'} ${(adLayouts[ad.id] || 'fill') === 'left' ? 'flex-row justify-start' : (adLayouts[ad.id] || 'fill') === 'right' ? 'flex-row-reverse justify-start' : ''}`}>
+                            {ad.imageUrl && (adLayouts[ad.id] || 'fill') === 'fill' && (
+                              <>
+                                <Image src={ad.imageUrl} alt="Объявление" fill className="absolute inset-0 object-cover z-0" />
+                                <div className="absolute inset-0 bg-black/50 z-0" />
+                              </>
+                            )}
+                            {ad.imageUrl && (adLayouts[ad.id] || 'fill') !== 'fill' && (
+                              <div className={`relative z-10 w-20 h-20 shrink-0 rounded-[1.25rem] overflow-hidden shadow-sm border border-white/20 ${(adLayouts[ad.id] || 'fill') === 'left' ? 'mr-4' : 'ml-4'}`}>
+                                <Image src={ad.imageUrl} alt="Объявление" fill className="object-cover" />
+                              </div>
+                            )}
+                            <div className={`relative z-10 w-full flex flex-col gap-1 ${ad.imageUrl && (adLayouts[ad.id] || 'fill') === 'fill' ? 'text-center items-center max-w-[95%] mx-auto' : ''} ${(adLayouts[ad.id] || 'fill') !== 'fill' ? ((adLayouts[ad.id] || 'fill') === 'left' ? 'text-left items-start flex-1' : 'text-right items-end flex-1') : ''}`}>
+                              <p className="font-bold text-[13px] text-white leading-snug break-words drop-shadow-sm" style={{ textShadow: (ad.imageUrl && (adLayouts[ad.id] || 'fill') === 'fill') ? '0 1px 3px rgba(0,0,0,0.6)' : 'none' }}>
+                                {ad.text}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-white/80">
+                                <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                                  <span className="text-[8px]">👤</span>
+                                </div>
+                                <p className="text-[9px] font-bold uppercase tracking-wider">
+                                  {ad.userName}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        <p className="font-bold text-gray-800 flex-1 mb-2">"{ad.text}"</p>
-                        <p className="text-xs text-gray-500 font-medium mb-4 flex items-center gap-1">👤 {ad.userName}</p>
+                        </div>
                         
                         <div className="mb-4">
                           <p className="text-xs font-bold text-gray-500 mb-2">Цвет фона:</p>
