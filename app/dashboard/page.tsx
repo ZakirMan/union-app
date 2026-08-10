@@ -89,6 +89,7 @@ interface AdItem {
   text: string;
   imageUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
+  bgColor?: string;
   createdAt: string;
 }
 
@@ -1040,27 +1041,26 @@ export default function DashboardPage() {
             
             {/* Ads Widget */}
             {ads.length > 0 && (
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[160px] flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-blue-50/50 pointer-events-none" />
-                
-                <div className="relative w-full overflow-hidden">
+              <div className="rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative h-[200px] flex items-center justify-center">
+                <div className="relative w-full h-full overflow-hidden">
                   <div
-                    className="flex transition-transform duration-500 ease-in-out"
+                    className="flex h-full transition-transform duration-500 ease-in-out"
                     style={{ transform: `translateX(-${activeAdIndex * 100}%)` }}
                   >
                     {ads.map((ad, idx) => (
-                      <div key={ad.id} className="w-full shrink-0 px-2 flex flex-col sm:flex-row gap-4 items-center">
+                      <div key={ad.id} className={`w-full h-full shrink-0 relative flex items-center justify-center p-6 ${ad.bgColor || 'bg-blue-600'}`}>
                         {ad.imageUrl && (
-                          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shrink-0 shadow-md">
-                            <Image src={ad.imageUrl} alt="Объявление" width={128} height={128} className="w-full h-full object-cover" />
-                          </div>
+                          <>
+                            <Image src={ad.imageUrl} alt="Объявление" fill className="absolute inset-0 object-cover z-0" />
+                            <div className="absolute inset-0 bg-black/40 z-0" />
+                          </>
                         )}
-                        <div className="flex-1 text-center sm:text-left space-y-2">
-                          <p className="font-bold text-gray-800 text-lg leading-tight">
-                            {ad.text}
-                          </p>
-                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                        <div className={`relative z-10 text-center w-full max-w-sm flex flex-col gap-2 ${ad.imageUrl ? 'bg-black/30 backdrop-blur-sm p-4 rounded-2xl border border-white/20' : ''}`}>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white/70">
                             {ad.userName}
+                          </p>
+                          <p className="font-black text-base sm:text-lg text-white leading-snug break-words">
+                            {ad.text}
                           </p>
                         </div>
                       </div>
@@ -1070,11 +1070,11 @@ export default function DashboardPage() {
                 
                 {/* Dots indicator */}
                 {ads.length > 1 && (
-                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20">
                     {ads.map((_, idx) => (
                       <div 
                         key={idx} 
-                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeAdIndex ? 'w-6 bg-blue-500' : 'w-1.5 bg-gray-300'}`} 
+                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeAdIndex ? 'w-6 bg-white shadow' : 'w-1.5 bg-white/40'}`} 
                       />
                     ))}
                   </div>

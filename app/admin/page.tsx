@@ -97,6 +97,7 @@ interface AdItem {
   text: string;
   imageUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
+  bgColor?: string;
   createdAt: string;
 }
 
@@ -156,6 +157,7 @@ export default function AdminPage() {
   const [selectedAidStats, setSelectedAidStats] = useState<{name: string, details: any[]} | null>(null);
   const [exitedMembers, setExitedMembers] = useState<ExitedMember[]>([]);
   const [ads, setAds] = useState<AdItem[]>([]);
+  const [adColors, setAdColors] = useState<{ [key: string]: string }>({});
 
   // Состояние для просмотра результатов теста
   const [selectedTestStats, setSelectedTestStats] = useState<Test | null>(null);
@@ -1328,7 +1330,8 @@ export default function AdminPage() {
 
   const handleApproveAd = async (adId: string) => {
     try {
-      await updateDoc(doc(db, 'ads', adId), { status: 'approved' });
+      const color = adColors[adId] || 'bg-blue-600';
+      await updateDoc(doc(db, 'ads', adId), { status: 'approved', bgColor: color });
       logAction('Approve Ad', 'Ad', `Ad ID: ${adId}`);
       alert('Объявление опубликовано');
       fetchData();
@@ -3198,6 +3201,20 @@ export default function AdminPage() {
                         )}
                         <p className="font-bold text-gray-800 flex-1 mb-2">"{ad.text}"</p>
                         <p className="text-xs text-gray-500 font-medium mb-4 flex items-center gap-1">👤 {ad.userName}</p>
+                        
+                        <div className="mb-4">
+                          <p className="text-xs font-bold text-gray-500 mb-2">Выберите цвет фона:</p>
+                          <div className="flex gap-2">
+                            {['bg-blue-600', 'bg-purple-600', 'bg-pink-600', 'bg-orange-500', 'bg-emerald-600', 'bg-gray-800'].map(c => (
+                              <button
+                                key={c}
+                                onClick={() => setAdColors(prev => ({ ...prev, [ad.id]: c }))}
+                                className={`w-6 h-6 rounded-full ${c} ${adColors[ad.id] === c || (!adColors[ad.id] && c === 'bg-blue-600') ? 'ring-2 ring-offset-2 ring-gray-400' : ''}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
                         <div className="flex gap-2 mt-auto">
                           <button onClick={() => handleApproveAd(ad.id)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-xl text-sm transition">Одобрить</button>
                           <button onClick={() => handleDeleteAd(ad.id, ad.imageUrl)} className="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 rounded-xl text-sm transition">Удалить</button>
