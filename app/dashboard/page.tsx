@@ -1455,30 +1455,39 @@ export default function DashboardPage() {
                     })()}
 
                     {/* Поле для нового участника: Кем приглашен */}
-                    <div className="w-full mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
-                      <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-left">Кем приглашен (Активист)</span>
-                      {userData.referredBy ? (
-                        <div className="text-left font-bold text-gray-800 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                          {userData.referredBy}
+                    {(() => {
+                      const joinDateStr = (userData.joinDate || userData.createdAt || '').slice(0, 10);
+                      const isEligible = joinDateStr >= '2026-08-10';
+                      
+                      if (!isEligible) return null;
+
+                      return (
+                        <div className="w-full mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                          <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-left">Кем приглашен (Активист)</span>
+                          {userData.referredBy ? (
+                            <div className="text-left font-bold text-gray-800 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                              {userData.referredBy}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <input 
+                                className="w-full bg-white p-3 rounded-xl font-medium border border-gray-200 outline-none focus:border-blue-500 text-gray-800 text-sm" 
+                                placeholder="ФИО активиста" 
+                                value={editReferredBy} 
+                                onChange={e => setEditReferredBy(e.target.value)} 
+                              />
+                              <button 
+                                onClick={handleSaveReferredBy}
+                                disabled={isSavingReferredBy || !editReferredBy.trim()}
+                                className="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+                              >
+                                {isSavingReferredBy ? 'Сохранение...' : 'Сохранить (без возможности изменения)'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          <input 
-                            className="w-full bg-white p-3 rounded-xl font-medium border border-gray-200 outline-none focus:border-blue-500 text-gray-800 text-sm" 
-                            placeholder="ФИО активиста" 
-                            value={editReferredBy} 
-                            onChange={e => setEditReferredBy(e.target.value)} 
-                          />
-                          <button 
-                            onClick={handleSaveReferredBy}
-                            disabled={isSavingReferredBy || !editReferredBy.trim()}
-                            className="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
-                          >
-                            {isSavingReferredBy ? 'Сохранение...' : 'Сохранить (без возможности изменения)'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </>
                 ) : (
                   <div className="space-y-4 w-full max-w-xs mx-auto animate-in fade-in zoom-in-95 duration-200">
