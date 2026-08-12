@@ -256,7 +256,7 @@ export default function DashboardPage() {
           setEditPhone(data.phoneNumber || '');
         }
 
-        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap, docsSnap, pollsSnap] = await Promise.all([
+        const [lSnap, tSnap, nSnap, uSnap, cSnap, testsSnap, docsSnap, pollsSnap, statsRes] = await Promise.all([
           getDocs(collection(db, 'links')),
           getDocs(collection(db, 'templates')),
           getDocs(collection(db, 'news')),
@@ -264,14 +264,25 @@ export default function DashboardPage() {
           getDocs(collection(db, 'conferences')),
           getDocs(collection(db, 'tests')),
           getDocs(collection(db, 'union_documents')), // <--- NEW FETCH
-          getDocs(collection(db, 'polls')) // <--- FETCH POLLS
+          getDocs(collection(db, 'polls')), // <--- FETCH POLLS
+          fetch('/api/public-stats').catch(() => null)
         ]);
 
         setLinks(lSnap.docs.map(d => ({ id: d.id, ...d.data() } as LinkItem)));
         setTemplates(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as TemplateItem)));
         setTests(testsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Test)));
         setUnionDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() } as UnionDocument))); // <--- SET STATE
-        setTotalMembers(uSnap.size);
+        
+        let fetchedTotal = uSnap.size;
+        if (statsRes && statsRes.ok) {
+          try {
+            const statsData = await statsRes.json();
+            if (statsData.success && statsData.totalMembers) {
+              fetchedTotal = statsData.totalMembers;
+            }
+          } catch(e) {}
+        }
+        setTotalMembers(fetchedTotal);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setPolls(pollsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Poll)).filter((p: Poll) => p.isActive && (!p.targetCategory || p.targetCategory === 'Все' || p.targetCategory === userCategory)));
 
@@ -1012,7 +1023,7 @@ export default function DashboardPage() {
           <div className="max-w-2xl mx-auto flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/20">
-                <Shield size={20} className="text-white" strokeWidth={2.5} />
+                <span className="text-white font-black text-sm">{totalMembers > 0 ? totalMembers : ''}</span>
               </div>
               <h1 className="text-2xl font-black tracking-tight">{ { home: 'Главная', polls: 'Опросы', resources: 'Ресурсы', reports: 'Отчеты', profile: 'Профиль' }[activeTab] }</h1>
             </div>

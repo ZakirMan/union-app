@@ -154,7 +154,7 @@ export default function HomePage() {
         {/* STATS DECORATION */}
         <div className="max-w-5xl mx-auto mt-20 grid md:grid-cols-3 gap-6 px-6 relative z-10">
           <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
-            <div className="text-4xl font-black text-white mb-1">{totalMembers ? totalMembers : '500+'}</div>
+            <div className="text-4xl font-black text-white mb-1">{role === 'admin' && totalMembers ? totalMembers : '500+'}</div>
             <div className="text-blue-200 text-sm font-bold uppercase">Участников</div>
           </div>
           <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl text-center">
